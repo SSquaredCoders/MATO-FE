@@ -2,20 +2,20 @@ import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import Lobby from "./Lobby.jsx";
 import ChatRoom from "./ChatRoom.jsx";
-import Upload from "./Upload.jsx";
+import CreateMap from "./CreateMap.jsx";
 
 function App() {
     return (
         <div>
             <nav>
                 <Link to="/">홈</Link> |
-                <Link to="/upload">노래 업로드</Link>
+                <Link to="/create-map">맵 만들기</Link>
             </nav>
 
             <Routes>
                 <Route path="/" element={<Lobby />} />
                 <Route path="/room/:roomName" element={<ChatRoom />} />
-                <Route path="/upload" element={<Upload />} />
+                <Route path="/create-map" element={<CreateMap />} />
             </Routes>
         </div>
     );
