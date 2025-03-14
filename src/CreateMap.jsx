@@ -1,61 +1,111 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import YoutubeAudioPlayer from "./components/YoutubeAudioPlayer";
 
-const API_URL = "http://localhost:8080/maps";
-
-function CreateMap() {
+const CreateMap = () => {
     const [mapName, setMapName] = useState("");
     const [description, setDescription] = useState("");
     const [isPublic, setIsPublic] = useState(true);
-    const navigate = useNavigate();
+    const [songs, setSongs] = useState([]);
+    const [videoUrl, setVideoUrl] = useState("");
+    const [startTime, setStartTime] = useState(0);
+    const [endTime, setEndTime] = useState(30);
+    const [repeatCount, setRepeatCount] = useState(1);
 
-    const handleCreateMap = async () => {
-        if (!mapName.trim()) {
-            alert("맵 이름을 입력하세요.");
-            return;
-        }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const mapResponse = await fetch("/api/maps", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mapName, description, isPublic }),
+        });
+        const mapData = await mapResponse.json();
+        console.log("맵 생성 완료:", mapData);
+    };
 
-        try {
-            const response = await axios.post(API_URL, {
-                name: mapName,
-                description: description,
-                isPublic: isPublic
-            });
-
-            alert("맵 생성 성공!");
-            navigate(`/map/${response.data.id}`); // 생성된 맵 페이지로 이동
-        } catch (error) {
-            console.error("맵 생성 실패:", error);
-            alert("맵 생성에 실패했습니다.");
-        }
+    const handleAddSong = () => {
+        setSongs([...songs, { videoUrl, startTime, endTime, repeatCount }]);
+        setVideoUrl(""); // 입력 필드 초기화
     };
 
     return (
-        <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-            <h1>맵 만들기</h1>
+        <div>
+            <h2>맵 만들기</h2>
+            <form onSubmit={handleSubmit}>
+                <input
+                    type="text"
+                    placeholder="맵 이름"
+                    value={mapName}
+                    onChange={(e) => setMapName(e.target.value)}
+                    required
+                />
+                <textarea
+                    placeholder="설명"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                />
+                <label>
+                    <input
+                        type="checkbox"
+                        checked={isPublic}
+                        onChange={() => setIsPublic(!isPublic)}
+                    />
+                    공개 여부
+                </label>
+                <button type="submit">맵 생성</button>
+            </form>
+
+            <h3>노래 추가</h3>
             <input
                 type="text"
-                placeholder="맵 이름"
-                value={mapName}
-                onChange={(e) => setMapName(e.target.value)}
-            />
-            <textarea
-                placeholder="맵 설명"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                placeholder="유튜브 URL"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                required
             />
             <label>
+                시작 시간 (초):{" "}
                 <input
-                    type="checkbox"
-                    checked={isPublic}
-                    onChange={(e) => setIsPublic(e.target.checked)}
+                    type="number"
+                    value={startTime}
+                    onChange={(e) => setStartTime(Number(e.target.value))}
                 />
-                공개 맵 여부
             </label>
-            <button onClick={handleCreateMap}>맵 생성</button>
+            <label>
+                종료 시간 (초):{" "}
+                <input
+                    type="number"
+                    value={endTime}
+                    onChange={(e) => setEndTime(Number(e.target.value))}
+                />
+            </label>
+            <label>
+                반복 횟수:{" "}
+                <input
+                    type="number"
+                    value={repeatCount}
+                    onChange={(e) => setRepeatCount(Number(e.target.value))}
+                />
+            </label>
+            <button onClick={handleAddSong}>노래 추가</button>
+
+            {/* 미리보기 */}
+            {videoUrl && (
+                <YoutubeAudioPlayer
+                    videoUrl={videoUrl}
+                    startTime={startTime}
+                    endTime={endTime}
+                    repeatCount={repeatCount}
+                />
+            )}
+
+            <h3>추가된 노래 목록</h3>
+            <ul>
+                {songs.map((song, index) => (
+                    <li key={index}>{song.videoUrl} (반복: {song.repeatCount}회)</li>
+                ))}
+            </ul>
         </div>
     );
-}
+};
 
 export default CreateMap;
