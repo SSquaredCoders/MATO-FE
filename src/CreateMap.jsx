@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import SongForm from "./SongForm";
 import SongList from "./SongList";
 
@@ -10,31 +10,6 @@ const CreateMap = () => {
     const [isPublic, setIsPublic] = useState(true);
     const [songs, setSongs] = useState([]);
 
-    const isSongDuplicateInMap = (title, artist) => {
-        return songs.some(song => song.title === title && song.artist === artist);
-    };
-
-    const handleAddSong = async (newSong) => {
-        if (isSongDuplicateInMap(newSong.title, newSong.artist)) {
-            alert("현재 맵에 이미 추가된 노래입니다.");
-            return;
-        }
-
-        try {
-            const response = await fetch(
-                `${API_BASE_URL}/songs/check?title=${encodeURIComponent(newSong.title)}&artist=${encodeURIComponent(newSong.artist)}`
-            );
-            const { isDuplicate } = await response.json();
-            if (isDuplicate) {
-                alert("서버에 이미 존재하는 노래입니다.");
-                return;
-            }
-        } catch (error) {
-            console.error("노래 중복 확인 실패:", error);
-        }
-
-        setSongs([...songs, newSong]);
-    };
 
     const handleCreateMap = async () => {
         if (!name || songs.length === 0) {
@@ -88,7 +63,7 @@ const CreateMap = () => {
             </label>
             <button onClick={handleCreateMap}>맵 생성</button>
 
-            <SongForm onAddSong={handleAddSong} />
+            <SongForm songs={songs} setSongs={setSongs} />
             <SongList songs={songs} setSongs={setSongs} />
         </div>
     );

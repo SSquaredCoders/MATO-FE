@@ -1,23 +1,24 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import ReactPlayer from "react-player";
+import PropTypes from "prop-types";
 
-const ReactPlayerComponent = ({ youtubeUrl, startTime, endTime, repeatCount }) => {
+const ReactPlayerComponent = ({ youtubeUrl, startTime, endTime, repeatCount, onTimeUpdate }) => {
     const playerRef = useRef(null);
     const repeatRef = useRef(repeatCount);
 
     useEffect(() => {
-        repeatRef.current = repeatCount; // repeatCount 값 동기화
+        repeatRef.current = repeatCount;
     }, [repeatCount]);
 
     useEffect(() => {
         if (playerRef.current && playerRef.current.getInternalPlayer()) {
-            playerRef.current.seekTo(startTime, "seconds"); // 시작 시간으로 이동
+            playerRef.current.seekTo(startTime, "seconds");
         }
     }, [startTime, youtubeUrl]);
 
     const handleReady = () => {
         if (playerRef.current) {
-            playerRef.current.seekTo(startTime, "seconds"); // onReady 시에도 적용
+            playerRef.current.seekTo(startTime, "seconds");
         }
     };
 
@@ -30,6 +31,7 @@ const ReactPlayerComponent = ({ youtubeUrl, startTime, endTime, repeatCount }) =
                 playerRef.current.pause();
             }
         }
+        onTimeUpdate(playedSeconds);
     };
 
     return (
@@ -46,9 +48,17 @@ const ReactPlayerComponent = ({ youtubeUrl, startTime, endTime, repeatCount }) =
                 }
             }}
             onProgress={handleProgress}
+            onReady={handleReady}
         />
-
     );
+};
+
+ReactPlayerComponent.propTypes = {
+    youtubeUrl: PropTypes.string.isRequired,
+    startTime: PropTypes.number.isRequired,
+    endTime: PropTypes.number.isRequired,
+    repeatCount: PropTypes.number.isRequired,
+    onTimeUpdate: PropTypes.func.isRequired
 };
 
 export default ReactPlayerComponent;
