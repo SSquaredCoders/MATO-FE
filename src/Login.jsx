@@ -21,10 +21,14 @@ const Login = () => {
         throw new Error("로그인 실패");
       }
 
-      const data = await response.json();
+      const accessToken = response.headers.get("Authorization");
+
+      if (!accessToken) {
+        throw new Error("AccessToken을 가져올 수 없습니다.");
+      }
 
       // AccessToken을 LocalStorage에 저장
-      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("accessToken", accessToken.replace("Bearer ", ""));
 
       alert("로그인 성공!");
       window.location.href = "/";
