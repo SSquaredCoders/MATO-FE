@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import Lobby from "./Lobby.jsx";
 import Login from "./Login.jsx";
+import Logout from "./Logout.jsx";
 import Register from "./Register.jsx";
 import UpdateUser from "./UpdateUser.jsx";
 import DeleteUser from "./DeleteUser.jsx";
@@ -23,6 +24,7 @@ function App() {
             <Routes>
                 <Route path="/" element={<Lobby />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/logout" element={<Logout />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/update-user" element={<UpdateUser />} />
                 <Route path="/delete-user" element={<DeleteUser />} />
