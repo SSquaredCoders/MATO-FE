@@ -1,4 +1,5 @@
 import {useState} from "react";
+import jpaReissueApi from "./api/jpaReissueApi";
 
 const DeleteUser = () => {
   const [error, setError] = useState("");
@@ -10,19 +11,12 @@ const DeleteUser = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8080/users/delete", {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("회원 탈퇴 실패");
-      }
+      await jpaReissueApi.delete("/users/delete");
 
       setMessage("회원 탈퇴가 완료되었습니다.");
-      localStorage.removeItem("accessToken");
+      localStorage.removeItem("accessToken"); // 저장된 토큰 삭제
+
+      // 2초 후 메인 페이지로 이동
       setTimeout(() => {
         window.location.href = "/";
       }, 2000);

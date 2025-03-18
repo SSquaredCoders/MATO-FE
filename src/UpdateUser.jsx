@@ -1,4 +1,5 @@
 import {useState} from "react";
+import jpaReissueApi from "./api/jpaReissueApi";
 
 const UpdateUser = () => {
   const [nickname, setNickname] = useState("");
@@ -10,24 +11,25 @@ const UpdateUser = () => {
   const handleUpdate = async (event) => {
     event.preventDefault();
 
-    try {
-      const response = await fetch("http://localhost:8080/users/update", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-        body: JSON.stringify({nickname, currentPassword, newPassword}),
-      });
+    // 빈 문자열이 아닌 `null`을 보내도록 변환
+    const requestData = {
+      nickname: nickname.trim() === "" ? null : nickname,
+      currentPassword: currentPassword.trim() === "" ? null : currentPassword,
+      newPassword: newPassword.trim() === "" ? null : newPassword,
+    };
 
-      if (!response.ok) {
-        throw new Error("회원 정보 수정 실패");
-      }
+    // 요청 데이터 확인
+    console.log("보낼 데이터:", requestData);
+
+    try {
+      const response = await jpaReissueApi.put("/users/update", requestData);
 
       setMessage("회원 정보가 성공적으로 수정되었습니다.");
+      setError(""); // 오류 메시지 초기화
     } catch (err) {
       console.error("회원 정보 수정 실패: ", err);
       setError("회원 정보 수정에 실패했습니다. 다시 시도해주세요.");
+      setMessage(""); // 성공 메시지 초기화
     }
   };
 
