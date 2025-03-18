@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import MapEditForm from "./MapEditForm";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
@@ -8,6 +9,7 @@ const MapDetail = () => {
     const [map, setMap] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
         const fetchMapDetail = async () => {
@@ -27,6 +29,10 @@ const MapDetail = () => {
         fetchMapDetail();
     }, [id]);
 
+    const handleEditToggle = () => {
+        setIsEditing(!isEditing);
+    };
+
     if (loading) return <p>로딩 중...</p>;
     if (error) return <p>오류 발생: {error}</p>;
     if (!map) return <p>맵 정보를 찾을 수 없습니다.</p>;
@@ -35,6 +41,8 @@ const MapDetail = () => {
         <div>
             <h2>{map.name}</h2>
             <p>{map.description}</p>
+            <button onClick={handleEditToggle}>{isEditing ? "취소" : "편집"}</button>
+            {isEditing && <MapEditForm map={map} onEditComplete={() => setIsEditing(false)} />}
         </div>
     );
 };
