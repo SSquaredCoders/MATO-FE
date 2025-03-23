@@ -2,9 +2,10 @@ import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import Lobby from "./Lobby.jsx";
 import ChatRoom from "./ChatRoom.jsx";
-import CreateMap from "./CreateMap.jsx";
+import CreateMap from "./createMap/CreateMap.jsx";
 import MapList from "./MapList.jsx";
 import MapDetail from "./MapDetail";
+import CreateMapStep2 from "./createMap/Step2";
 
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
                 <Route path="/" element={<Lobby />} />
                 <Route path="/room/:roomName" element={<ChatRoom />} />
                 <Route path="/create-map" element={<CreateMap />} />
+                <Route path="/create-map/step2" element={<CreateMapStep2 />} />
                 <Route path="/map-list" element={<MapList />} />
                 <Route path="/maps/:id" element={<MapDetail />} />
             </Routes>
