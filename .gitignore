@@ -22,3 +22,44 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+### react template
+.DS_*
+*.log
+logs
+**/*.backup.*
+**/*.back.*
+
+node_modules
+bower_components
+
+*.sublime*
+
+psd
+thumb
+sketch
+
+# TypeScript build info
+*.tsbuildinfo
+
+# IDE 백업 파일
+*.orig
+
+# 환경 변수 파일 (실제 값이 들어간 경우)
+.env
+.env.*
+
+# Mac/Windows 시스템 파일
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# VSCode 워크스페이스 백업
+.vscode/*.code-workspace
+
+# npm 캐시나 lock 파일 충돌 방지
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+pnpm-lock.yaml
+
+
