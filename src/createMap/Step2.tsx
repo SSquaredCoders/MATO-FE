@@ -1,8 +1,11 @@
 // src/pages/CreateMapStep2.tsx
 
-import {useEffect, useState} from "react";
-import {useNavigate, useSearchParams} from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ReactPlayerComponent from "../components/ReactPlayerComponent";
+import { AnswerItem } from "../types/answer";
+import { HintItem } from "../types/hint";
+import { SongItem } from "../types/song";
 
 const API_BASE = "http://localhost:8080/api";
 
@@ -21,22 +24,8 @@ const CreateMapStep2 = () => {
     const [hintText, setHintText] = useState("");
     const [revealTime, setRevealTime] = useState(10);
 
-    type AnswerItem = { id: number; text: string };
-    type HintItem = { id: number; text: string; revealTime: number };
-
     const [answers, setAnswers] = useState<AnswerItem[]>([]);
     const [hints, setHints] = useState<HintItem[]>([]);
-
-    type SongItem = {
-        id: number;
-        title: string;
-        youtubeUrl: string;
-        startTime: number;
-        endTime: number;
-        repeatCount: number;
-        answers: AnswerItem[];
-        hints: HintItem[];
-    };
     const [songs, setSongs] = useState<SongItem[]>([]);
     const [selectedSongId, setSelectedSongId] = useState<number | null>(null);
 
@@ -44,20 +33,13 @@ const CreateMapStep2 = () => {
 
     const fetchVideoInfo = async () => {
         try {
-            const res = await fetch(
-                `https://noembed.com/embed?url=${encodeURIComponent(youtubeUrl)}`
-            );
+            const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(youtubeUrl)}`);
             const data = await res.json();
-            setVideoInfo({
-                title: data.title,
-                artist: data.author_name
-            });
+            setVideoInfo({ title: data.title, artist: data.author_name });
         } catch (err) {
             alert("영상 정보를 불러올 수 없습니다.");
-            console.error(err);
         }
     };
-
 
     const handleAddAnswer = () => {
         if (!answerText.trim()) return;
@@ -104,113 +86,89 @@ const CreateMapStep2 = () => {
     };
 
     useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            e.preventDefault();
-            e.returnValue = ""; // 대부분의 브라우저에서 이 문구는 무시됨
-        };
-        window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => {
-            window.removeEventListener("beforeunload", handleBeforeUnload);
-        };
+        window.onbeforeunload = () => true;
+        return () => { window.onbeforeunload = null; };
     }, []);
 
+    const resetForm = () => {
+        setYoutubeUrl("");
+        setVideoInfo(null);
+        setStartTime(0);
+        setEndTime(30);
+        setRepeatCount(1);
+        setAnswers([]);
+        setHints([]);
+        setAnswerText("");
+        setHintText("");
+        setRevealTime(10);
+        setSelectedSongId(null);
+    };
+
+    useEffect(() => {
+        const savedSongs = localStorage.getItem(`songs_${mapId}`);
+        if (savedSongs) {
+            setSongs(JSON.parse(savedSongs));
+        }
+    }, [mapId]);
+
+    useEffect(() => {
+        if (songs.length > 0) {
+            localStorage.setItem(`songs_${mapId}`, JSON.stringify(songs));
+        }
+    }, [songs, mapId]);
+
+    const handleFinalMapSave = () => {
+        localStorage.removeItem(`songs_${mapId}`);
+        alert("맵 저장 완료!");
+    };
+
     const handleSubmit = async () => {
-        if (!mapId) return alert("맵 정보가 없습니다.");
-        if (!youtubeUrl || !videoInfo) return alert("유튜브 URL을 입력하고 정보를 불러오세요.");
-        if (answers.length === 0) return alert("최소 1개의 정답을 입력하세요.");
+        if (!mapId || !youtubeUrl || !videoInfo || answers.length === 0) {
+            return alert("모든 필드를 정확히 입력해주세요.");
+        }
 
         try {
             const songRes = await fetch(`${API_BASE}/songs`, {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({youtubeUrl}),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ youtubeUrl, title: videoInfo.title, artist: videoInfo.artist }),
             });
+            if (!songRes.ok) throw new Error("노래 등록 실패");
             const song = await songRes.json();
 
             const mapSongRes = await fetch(`${API_BASE}/maps/${mapId}/songs`, {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({songId: song.id, startTime, endTime, repeatCount}),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ songId: song.id, startTime, endTime, repeatCount }),
             });
+            if (!mapSongRes.ok) throw new Error("맵-노래 연결 실패");
             const mapSong = await mapSongRes.json();
-            console.log("✅ mapSong:", mapSong);
 
-            if (!mapSong.id) {
-                throw new Error("맵-노래 연결 실패: mapSong ID 없음");
-            }
-
-            await fetch(`${API_BASE}/maps/songs/${mapSong.id}/answers`, {
+            const answersRes = await fetch(`${API_BASE}/maps/songs/${mapSong.id}/answers`, {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    answerTexts: answers.map((a) => a.text),
-                }),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answerTexts: answers.map((a) => a.text) }),
             });
+            if (!answersRes.ok) throw new Error("정답 저장 실패");
 
-            await fetch(`${API_BASE}/maps/songs/${mapSong.id}/hints`, {
+            const hintsRes = await fetch(`${API_BASE}/maps/songs/${mapSong.id}/hints`, {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    mapSongId: mapSong.id,
-                    hints: hints.map(h => ({hintText: h.text, revealTime: h.revealTime}))
-                }),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ hints: hints.map((h) => ({ hintText: h.text, revealTime: h.revealTime })) }),
             });
+            if (!hintsRes.ok) throw new Error("힌트 저장 실패");
 
-            if (selectedSongId) {
-                // 🎯 기존 노래 수정
-                setSongs(prev =>
-                    prev.map(song =>
-                        song.id === selectedSongId
-                            ? {
-                                ...song,
-                                title: videoInfo?.title || "제목 없음",
-                                youtubeUrl,
-                                startTime,
-                                endTime,
-                                repeatCount,
-                                answers,
-                                hints
-                            }
-                            : song
-                    )
-                );
-                setSelectedSongId(null); // 선택 해제
-            } else {
-                // ✅ 새 노래 추가
-                setSongs(prev => [
-                    ...prev,
-                    {
-                        id: song.id,
-                        title: videoInfo?.title || "제목 없음",
-                        youtubeUrl,
-                        startTime,
-                        endTime,
-                        repeatCount,
-                        answers,
-                        hints
-                    }
-                ]);
-            }
+            setSongs((prev) => [
+                ...prev,
+                { id: mapSong.id,songId: song.id, title: videoInfo.title, youtubeUrl, startTime, endTime, repeatCount, answers, hints },
+            ]);
 
-            // ✅ 폼 초기화
-            setYoutubeUrl("");
-            setVideoInfo(null);
-            setStartTime(0);
-            setEndTime(30);
-            setRepeatCount(1);
-            setAnswerText("");
-            setHintText("");
-            setRevealTime(10);
-            setAnswers([]);
-            setHints([]);
-            setSelectedSongId(null);
-
+            resetForm();
             alert("노래 저장 완료!");
-            console.log("song:", song);
-            console.log("mapSong:", mapSong);
         } catch (err) {
-            console.error(err);
-            alert("저장 중 오류 발생");
+            const error = err as Error;
+            console.error(error);
+            alert(`저장 중 오류 발생: ${error.message}`);
         }
     };
 
@@ -352,8 +310,20 @@ const CreateMapStep2 = () => {
                         저장
                     </button>
                 </div>
-                <button onClick={() => navigate("/")}>
-                    홈으로 돌아가기
+                <button
+                    onClick={async () => {
+                        await handleFinalMapSave();
+                        navigate("/");
+                    }}
+                    style={{
+                        backgroundColor: "#10b981",
+                        color: "white",
+                        padding: "10px 16px",
+                        borderRadius: "6px",
+                        marginTop: "16px",
+                    }}
+                >
+                    맵 저장 완료 후 홈으로 이동
                 </button>
             </div>
 
@@ -387,7 +357,6 @@ const CreateMapStep2 = () => {
             </div>
         </div>
     );
-
 };
 
 export default CreateMapStep2;
