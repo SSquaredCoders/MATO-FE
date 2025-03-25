@@ -6,6 +6,12 @@ const RoomListPage = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [filteredRooms, setFilteredRooms] = useState([]);
 
+  const statusLabel = {
+    WAITING: '대기 중',
+    PLAYING: '게임 중',
+    FINISHED: '게임 종료'
+  };
+
   useEffect(() => {
     fetchRooms();
   }, []);
@@ -53,7 +59,11 @@ const RoomListPage = () => {
                     <div className="font-semibold text-lg">{room.name}</div>
                     <div className="text-sm text-gray-600">방장: {room.host}</div>
                     <div className="text-sm text-gray-500">
-                      인원: {room.participants}명 / 상태: {room.gameStatus}
+                      인원: {room.participants}명 /
+                      상태: {statusLabel[room.gameStatus] ?? room.gameStatus}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      맵: {room.mapName}
                     </div>
                   </li>
               ))
