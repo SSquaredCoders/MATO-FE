@@ -5,9 +5,7 @@ import ChatRoom from "./ChatRoom.jsx";
 import CreateMap from "./createMap/CreateMap.jsx";
 import MapList from "./MapList.jsx";
 import MapDetail from "./MapDetail";
-import CreateMapStep2 from "./createMap/Step2";
-
-
+import EditMap from "./editmap/EditMap";
 function App() {
     return (
         <div>
@@ -20,8 +18,13 @@ function App() {
             <Routes>
                 <Route path="/" element={<Lobby />} />
                 <Route path="/room/:roomName" element={<ChatRoom />} />
-                <Route path="/create-map" element={<CreateMap />} />
-                <Route path="/create-map/step2" element={<CreateMapStep2 />} />
+
+                {/* 🔁 중첩 라우팅을 위한 create-map */}
+                <Route path="/create-map/*" element={<CreateMap />} />
+
+                {/* ✨ 맵 수정 전용 라우트 */}
+                <Route path="/edit-map/:mapId" element={<EditMap />} />
+
                 <Route path="/map-list" element={<MapList />} />
                 <Route path="/maps/:id" element={<MapDetail />} />
             </Routes>
