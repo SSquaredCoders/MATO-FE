@@ -38,7 +38,7 @@ const MapDetail = () => {
             <p className="mb-4">{map.description}</p>
             <button
                 className="bg-yellow-400 text-black px-4 py-2 rounded"
-                onClick={() => navigate(`/edit-map/${id}`)}
+                onClick={() => navigate(`/edit-map/${id}/step1`)}
             >
                 전체 수정하기
             </button>
