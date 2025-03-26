@@ -6,7 +6,7 @@ interface Props {
     mapId: string;
 }
 
-const Step1 = ({ mapId }: Props) => {
+const EditMapStep1 = ({ mapId }: Props) => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState<MapFormData>({
         userId: 1,  // 👈 임시 유저 ID
@@ -103,4 +103,4 @@ const Step1 = ({ mapId }: Props) => {
     );
 };
 
-export default Step1;
+export default EditMapStep1;

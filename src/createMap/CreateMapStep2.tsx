@@ -1,5 +1,3 @@
-// src/pages/CreateMapStep2.tsx
-
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ReactPlayerComponent from "../components/ReactPlayerComponent";

@@ -1,9 +1,8 @@
-// Step1.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {MapFormData} from "../types/mapSetp1";
 
-const Step1 = () => {
+const CreateMapStep1 = () => {
     const [formData, setFormData] = useState<MapFormData>({
         userId: 1,  // 👈 여기 임시 유저 ID
         name: "",
@@ -72,4 +71,4 @@ const Step1 = () => {
     );
 };
 
-export default Step1;
+export default CreateMapStep1;

@@ -1,6 +1,6 @@
 import { useParams, Routes, Route } from 'react-router-dom';
-import Step1 from './Step1';
-import Step2 from './Step2';
+import Step1 from './EditMapStep1';
+import Step2 from './EditMapStep2';
 
 const EditMap = () => {
     const { mapId } = useParams();
