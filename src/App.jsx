@@ -33,7 +33,7 @@ function App() {
                 <Route path="/delete-user" element={<DeleteUser />} />
                 <Route path="/rooms" element={<RoomListPage />} />
                 <Route path="/create-room" element={<RoomCreatePage />} />
-                <Route path="/update-room" element={<RoomUpdatePage />} />
+                <Route path="/update-room/:roomName" element={<RoomUpdatePage />} />
                 <Route path="/room/:roomName" element={<ChatRoom />} />
                 <Route path="/create-map" element={<CreateMap />} />
                 <Route path="/map-list" element={<MapList />} />

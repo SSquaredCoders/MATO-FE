@@ -3,11 +3,11 @@ import {useParams, useNavigate} from 'react-router-dom';
 import jpaReissueApi from './api/jpaReissueApi';
 
 const RoomUpdatePage = () => {
-  const {name} = useParams(); // URL에서 방 이름을 받아옴
+  const {roomName} = useParams();
   const navigate = useNavigate();
 
   const [roomId, setRoomId] = useState(null);
-  const [roomName, setRoomName] = useState('');
+  const [roomNameInput, setRoomNameInput] = useState('');
   const [password, setPassword] = useState('');
   const [mapId, setMapId] = useState('');
   const [availableMaps, setAvailableMaps] = useState([]);
@@ -21,13 +21,14 @@ const RoomUpdatePage = () => {
 
   const fetchRoomData = async () => {
     try {
-      const res = await jpaReissueApi.get(`/rooms/${name}`);
+      const res = await jpaReissueApi.get(`/rooms/${roomName}`);
       const data = res.data;
       setRoomId(data.id);
-      setRoomName(data.name);
+      setRoomNameInput(data.name);
       setPassword(data.password || '');
       setMapId(data.mapId);
     } catch (err) {
+      console.error('방 정보 조회 실패:', err);
       setError('방 정보를 불러오는 데 실패했습니다.');
     }
   };
@@ -47,20 +48,21 @@ const RoomUpdatePage = () => {
     setSuccess(false);
 
     if (!mapId) {
-      setError("맵을 선택해주세요.");
+      setError('맵을 선택해주세요.');
       return;
     }
 
     try {
       await jpaReissueApi.put(`/rooms/${roomId}`, {
-        name: roomName,
+        name: roomNameInput,
         password,
         mapId: Number(mapId),
       });
 
       setSuccess(true);
-      setTimeout(() => navigate('/rooms'), 1000); // 1초 후 목록으로 이동
+      setTimeout(() => navigate('/rooms'), 1000);
     } catch (err) {
+      console.error('방 수정 실패:', err);
       setError(err.response?.data?.message || '방 수정에 실패했습니다.');
     }
   };
@@ -74,8 +76,8 @@ const RoomUpdatePage = () => {
             <label className="block font-semibold mb-1">방 제목</label>
             <input
                 type="text"
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
+                value={roomNameInput}
+                onChange={(e) => setRoomNameInput(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded"
                 required
             />
@@ -118,9 +120,7 @@ const RoomUpdatePage = () => {
           {success && (
               <div className="text-green-600 mt-2">방이 성공적으로 수정되었습니다!</div>
           )}
-          {error && (
-              <div className="text-red-600 mt-2">{error}</div>
-          )}
+          {error && <div className="text-red-600 mt-2">{error}</div>}
         </form>
       </div>
   );
