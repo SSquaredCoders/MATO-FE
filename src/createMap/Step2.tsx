@@ -31,13 +31,32 @@ const CreateMapStep2 = () => {
 
     const navigate = useNavigate();
 
+    const normalizeUrl = (url: string) => {
+        if (!url.startsWith("http")) {
+            return "https://" + url;
+        }
+        return url;
+    };
+
     const fetchVideoInfo = async () => {
         try {
-            const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(youtubeUrl)}`);
+            const normalizedUrl = normalizeUrl(youtubeUrl);
+            console.log("🧪 요청할 URL:", `https://noembed.com/embed?url=${encodeURIComponent(normalizedUrl)}`);
+
+            const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(normalizedUrl)}`);
             const data = await res.json();
+
+            console.log("📦 응답 데이터:", data);
+
+            if (!data.title) {
+                alert("⚠️ 영상 제목을 불러오지 못했습니다.");
+                return;
+            }
+
             setVideoInfo({ title: data.title, artist: data.author_name });
         } catch (err) {
             alert("영상 정보를 불러올 수 없습니다.");
+            console.error("❌ fetchVideoInfo 에러:", err);
         }
     };
 
@@ -128,43 +147,110 @@ const CreateMapStep2 = () => {
         }
 
         try {
-            const songRes = await fetch(`${API_BASE}/songs`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ youtubeUrl, title: videoInfo.title, artist: videoInfo.artist }),
-            });
-            if (!songRes.ok) throw new Error("노래 등록 실패");
+            const songPayload = {
+                youtubeUrl,
+                title: videoInfo.title,
+            };
+
+            // 수정인지 추가인지 분기
+            const isEditing = !!selectedSongId;
+            const targetSong = songs.find((s) => s.id === selectedSongId);
+
+            if (isEditing && !targetSong) {
+                throw new Error("선택된 노래 정보를 찾을 수 없습니다.");
+            }
+
+            // 1. 곡 저장/수정
+            const songRes = await fetch(
+                `${API_BASE}/songs${isEditing ? `/${targetSong!.songId}` : ""}`,
+                {
+                    method: isEditing ? "PUT" : "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(songPayload),
+                }
+            );
+
+            if (!songRes.ok) {
+                throw new Error(isEditing ? "노래 수정 실패" : "노래 등록 실패");
+            }
+
             const song = await songRes.json();
 
-            const mapSongRes = await fetch(`${API_BASE}/maps/${mapId}/songs`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ songId: song.id, startTime, endTime, repeatCount }),
+            // 2. MapSong 저장/수정
+            const mapSongUrl = isEditing
+                ? `${API_BASE}/maps/${mapId}/songs/${selectedSongId}`
+                : `${API_BASE}/maps/${mapId}/songs`;
+
+            const mapSongBody = {
+                songId: isEditing ? targetSong!.songId : song.id,
+                startTime,
+                endTime,
+                repeatCount,
+                newSong: null,
+            };
+
+            console.log("🧪 PATCH MapSong 요청:", {
+                songId: targetSong!.songId,
+                startTime,
+                endTime,
+                repeatCount,
+                newSong: null,
             });
-            if (!mapSongRes.ok) throw new Error("맵-노래 연결 실패");
+            const mapSongRes = await fetch(mapSongUrl, {
+                method: isEditing ? "PATCH" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(mapSongBody),
+            });
+
+            if (!mapSongRes.ok) {
+                throw new Error("맵-노래 연결 " + (isEditing ? "수정" : "등록") + " 실패");
+            }
+
             const mapSong = await mapSongRes.json();
 
-            const answersRes = await fetch(`${API_BASE}/maps/songs/${mapSong.id}/answers`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ answerTexts: answers.map((a) => a.text) }),
-            });
-            if (!answersRes.ok) throw new Error("정답 저장 실패");
+            // 3. 정답/힌트 저장 or 수정
+            const answerMethod = isEditing ? "PUT" : "POST";
+            const hintMethod = isEditing ? "PUT" : "POST";
 
-            const hintsRes = await fetch(`${API_BASE}/maps/songs/${mapSong.id}/hints`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ hints: hints.map((h) => ({ hintText: h.text, revealTime: h.revealTime })) }),
-            });
-            if (!hintsRes.ok) throw new Error("힌트 저장 실패");
-
-            setSongs((prev) => [
-                ...prev,
-                { id: mapSong.id,songId: song.id, title: videoInfo.title, youtubeUrl, startTime, endTime, repeatCount, answers, hints },
+            await Promise.all([
+                fetch(`${API_BASE}/maps/songs/${mapSong.id}/answers`, {
+                    method: answerMethod,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ answerTexts: answers.map((a) => a.text) }),
+                }),
+                fetch(`${API_BASE}/maps/songs/${mapSong.id}/hints`, {
+                    method: hintMethod,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        hints: hints.map((h) => ({
+                            hintText: h.text,
+                            revealTime: h.revealTime,
+                        })),
+                    }),
+                }),
             ]);
 
+            // 4. 상태 업데이트
+            const newSongItem: SongItem = {
+                id: mapSong.id,
+                songId: song.id,
+                title: videoInfo.title,
+                youtubeUrl,
+                startTime,
+                endTime,
+                repeatCount,
+                answers,
+                hints,
+            };
+
+            setSongs((prev) =>
+                isEditing
+                    ? prev.map((s) => (s.id === selectedSongId ? newSongItem : s))
+                    : [...prev, newSongItem]
+            );
+
             resetForm();
-            alert("노래 저장 완료!");
+            alert(isEditing ? "노래 수정 완료!" : "노래 저장 완료!");
         } catch (err) {
             const error = err as Error;
             console.error(error);
