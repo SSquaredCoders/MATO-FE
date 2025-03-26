@@ -6,6 +6,8 @@ import Logout from "./Logout.jsx";
 import Register from "./Register.jsx";
 import UpdateUser from "./UpdateUser.jsx";
 import DeleteUser from "./DeleteUser.jsx";
+import RoomCreatePage from "./RoomCreatePage.jsx";
+import RoomUpdatePage from "./RoomUpdatePage.jsx";
 import ChatRoom from "./ChatRoom.jsx";
 import CreateMap from "./CreateMap.jsx";
 import MapList from "./MapList.jsx";
@@ -28,6 +30,8 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/update-user" element={<UpdateUser />} />
                 <Route path="/delete-user" element={<DeleteUser />} />
+                <Route path="/create-room" element={<RoomCreatePage />} />
+                <Route path="/update-room/:roomName" element={<RoomUpdatePage />} />
                 <Route path="/room/:roomName" element={<ChatRoom />} />
                 <Route path="/create-map" element={<CreateMap />} />
                 <Route path="/map-list" element={<MapList />} />
