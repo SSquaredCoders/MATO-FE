@@ -2,6 +2,7 @@ import React, {useState, useEffect, useRef} from "react";
 import {useParams, useNavigate} from "react-router-dom";
 import {Client} from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import axios from "axios";
 
 const API_URL = "http://localhost:8080";
 
@@ -11,12 +12,28 @@ function ChatRoom() {
 
   const [chatMessage, setChatMessage] = useState("");
   const [chatLogs, setChatLogs] = useState([]);
+  const [roomHost, setRoomHost] = useState(null); // 방장
   const stompClient = useRef(null);
   const [nickname] = useState(
-      () => "게스트" + Math.floor(Math.random() * 9000 + 1000));
+      () => "게스트" + Math.floor(Math.random() * 9000 + 1000)
+  );
 
+  // 방장 정보 가져오기
   useEffect(() => {
-    // 컴포넌트 마운트 시 WebSocket 연결
+    const fetchRoomInfo = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/rooms/${roomName}`);
+        setRoomHost(res.data.host); // 방장 닉네임 저장
+      } catch (err) {
+        console.error("방 정보 불러오기 실패:", err);
+      }
+    };
+
+    fetchRoomInfo();
+  }, [roomName]);
+
+  // 컴포넌트 마운트 시 WebSocket 연결
+  useEffect(() => {
     const socket = new SockJS(`${API_URL}/ws`);
     const client = new Client({
       webSocketFactory: () => socket,
@@ -103,15 +120,25 @@ function ChatRoom() {
   return (
       <div style={{padding: "20px", color: "black"}}>
         <h1>{roomName} 방에 참가 중</h1>
-        <button onClick={leaveRoom}>퇴장</button>
+
+        <div style={{display: "flex", gap: "10px", marginBottom: "10px"}}>
+          <button onClick={leaveRoom}>퇴장</button>
+          {nickname === roomHost && (
+              <button onClick={() => navigate(`/update-room/${roomName}`)}>
+                방 정보 수정
+              </button>
+          )}
+        </div>
 
         <h2>채팅 로그</h2>
-        <ul style={{
-          maxHeight: "300px",
-          overflowY: "auto",
-          border: "1px solid #ddd",
-          padding: "10px"
-        }}>
+        <ul
+            style={{
+              maxHeight: "300px",
+              overflowY: "auto",
+              border: "1px solid #ddd",
+              padding: "10px",
+            }}
+        >
           {chatLogs.map((c, i) => (
               <li key={i}>{c}</li>
           ))}
