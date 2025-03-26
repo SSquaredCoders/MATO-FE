@@ -23,7 +23,7 @@ function App() {
                 <Route path="/create-map/*" element={<CreateMap />} />
 
                 {/* ✨ 맵 수정 전용 라우트 */}
-                <Route path="/edit-map/:mapId" element={<EditMap />} />
+                <Route path="/edit-map/:mapId/*" element={<EditMap />} />
 
                 <Route path="/map-list" element={<MapList />} />
                 <Route path="/maps/:id" element={<MapDetail />} />
