@@ -5,6 +5,7 @@ import { AnswerItem } from "../types/answer";
 import { HintItem } from "../types/hint";
 import { SongItem } from "../types/song";
 import { MapItem } from "../types/mapSetp2";
+import { useAuth } from "../hooks/useAuth";
 
 const API_BASE = "http://localhost:8080/api";
 
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const EditMapStep2 = ({ mapId }: Props) => {
+    const { accessToken } = useAuth();
     const [youtubeUrl, setYoutubeUrl] = useState("");
     const [videoInfo, setVideoInfo] = useState<{ title: string; artist: string } | null>(null);
 
@@ -108,9 +110,18 @@ const EditMapStep2 = ({ mapId }: Props) => {
     useEffect(() => {
         const fetchMapData = async () => {
             if (!mapId) return;
+            if (!accessToken) {
+                alert("로그인이 필요합니다.");
+                navigate("/login");
+                return;
+            }
 
             try {
-                const res = await fetch(`${API_BASE}/maps/${mapId}`);
+                const res = await fetch(`${API_BASE}/maps/${mapId}`, {
+                    headers: {
+                        "Authorization": `Bearer ${accessToken}`
+                    }
+                });
                 if (!res.ok) throw new Error("맵 정보를 가져오는 데 실패했습니다.");
 
                 const data: MapItem = await res.json();
@@ -137,7 +148,7 @@ const EditMapStep2 = ({ mapId }: Props) => {
         };
 
         fetchMapData();
-    }, [mapId]);;
+    }, [mapId, accessToken, navigate]);
 
 
     useEffect(() => {
@@ -182,6 +193,10 @@ const EditMapStep2 = ({ mapId }: Props) => {
             return alert("모든 필드를 정확히 입력해주세요.");
         }
 
+        if (!accessToken) {
+            return alert("로그인이 필요합니다.");
+        }
+
         try {
             const songPayload = {
                 youtubeUrl,
@@ -201,7 +216,10 @@ const EditMapStep2 = ({ mapId }: Props) => {
                 `${API_BASE}/songs${isEditing ? `/${targetSong!.songId}` : ""}`,
                 {
                     method: isEditing ? "PUT" : "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${accessToken}`
+                    },
                     body: JSON.stringify(songPayload),
                 }
             );
@@ -217,24 +235,22 @@ const EditMapStep2 = ({ mapId }: Props) => {
                 ? `${API_BASE}/maps/${mapId}/songs/${selectedSongId}`
                 : `${API_BASE}/maps/${mapId}/songs`;
 
+            // MapSongRequestDto 형식에 맞게 요청 본문 구성
             const mapSongBody = {
-                songId: isEditing ? targetSong!.songId : song.id,
+                songId: isEditing && targetSong ? targetSong.songId : song.id,
+                newSong: null, // 기존 노래를 사용할 때는 null
                 startTime,
                 endTime,
-                repeatCount,
-                newSong: null,
+                repeatCount
             };
 
-            console.log("🧪 PATCH MapSong 요청:", {
-                songId: targetSong!.songId,
-                startTime,
-                endTime,
-                repeatCount,
-                newSong: null,
-            });
+            console.log("🧪 MapSong 요청:", mapSongBody);
             const mapSongRes = await fetch(mapSongUrl, {
                 method: isEditing ? "PATCH" : "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${accessToken}`
+                },
                 body: JSON.stringify(mapSongBody),
             });
 
@@ -251,12 +267,18 @@ const EditMapStep2 = ({ mapId }: Props) => {
             await Promise.all([
                 fetch(`${API_BASE}/maps/songs/${mapSong.id}/answers`, {
                     method: answerMethod,
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${accessToken}`
+                    },
                     body: JSON.stringify({ answerTexts: answers.map((a) => a.text) }),
                 }),
                 fetch(`${API_BASE}/maps/songs/${mapSong.id}/hints`, {
                     method: hintMethod,
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${accessToken}`
+                    },
                     body: JSON.stringify({
                         hints: hints.map((h) => ({
                             hintText: h.text,
