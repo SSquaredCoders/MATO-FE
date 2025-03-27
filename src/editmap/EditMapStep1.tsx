@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapFormData } from "../types/mapSetp1";
+import { updateMap, getMap } from "../api/mapApi";
+import { useAuth } from "../hooks/useAuth";
 
 interface Props {
     mapId: string;
@@ -8,8 +10,9 @@ interface Props {
 
 const EditMapStep1 = ({ mapId }: Props) => {
     const navigate = useNavigate();
+    const { user, accessToken } = useAuth();
     const [formData, setFormData] = useState<MapFormData>({
-        userId: 1,  // 👈 임시 유저 ID
+        userId: user?.id?.toString() || "",
         name: "",
         description: "",
         isPublic: true,
@@ -17,13 +20,22 @@ const EditMapStep1 = ({ mapId }: Props) => {
 
     useEffect(() => {
         const fetchMapData = async () => {
-            try {
-                const res = await fetch(`http://localhost:8080/api/maps/${mapId}`);
-                if (!res.ok) throw new Error("맵 데이터 불러오기 실패");
+            if (!accessToken) {
+                alert("로그인이 필요합니다.");
+                navigate("/login");
+                return;
+            }
 
-                const data = await res.json();
+            try {
+                const result = await getMap(mapId, accessToken);
+                
+                if (!result.success) {
+                    throw new Error(result.error || "맵 데이터 불러오기 실패");
+                }
+
+                const data = result.data;
                 setFormData({
-                    userId: data.userId || 1,
+                    userId: data.userId || user?.id?.toString() || "",
                     name: data.name,
                     description: data.description,
                     isPublic: data.isPublic,
@@ -35,24 +47,20 @@ const EditMapStep1 = ({ mapId }: Props) => {
         };
 
         fetchMapData();
-    }, [mapId]);
+    }, [mapId, accessToken, user?.id, navigate]);
 
     const handleNext = async () => {
         if (!formData.name.trim()) return alert("맵 이름을 입력하세요.");
-
-        console.log('전송되는 데이터:', formData); // 👈 확인용 로그 추가
+        if (!accessToken) return alert("로그인이 필요합니다.");
 
         try {
-            const res = await fetch(`http://localhost:8080/api/maps/${mapId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
-            });
+            const result = await updateMap({
+                id: mapId,
+                ...formData
+            }, accessToken);
 
-            if (!res.ok) {
-                const errorData = await res.json();  // 👈 에러 내용 보기
-                console.error('서버 응답 오류:', errorData);
-                throw new Error("맵 정보 수정 실패");
+            if (!result.success) {
+                throw new Error(result.error || "맵 정보 수정 실패");
             }
 
             alert("맵 정보가 수정되었습니다.");
@@ -62,7 +70,6 @@ const EditMapStep1 = ({ mapId }: Props) => {
             console.error(err);
         }
     };
-
 
     return (
         <div className="p-4 max-w-md mx-auto">
