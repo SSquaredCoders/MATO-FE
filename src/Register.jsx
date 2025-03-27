@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Register = () => {
   const [userId, setUserId] = useState("");
@@ -8,6 +9,7 @@ const Register = () => {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isUserIdAvailable, setIsUserIdAvailable] = useState(null);
+  const navigate = useNavigate();
 
   // 아이디 중복 체크
   const checkUserId = async () => {
@@ -59,7 +61,7 @@ const Register = () => {
       setSuccessMessage("회원가입 성공! 로그인 페이지로 이동합니다.");
 
       setTimeout(() => {
-        window.location.href = "/login"; // 로그인 페이지로 이동
+        navigate("/login"); // 로그인 페이지로 이동
       }, 2000);
     } catch (err) {
       console.error("회원가입 실패: ", err)
