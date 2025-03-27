@@ -10,6 +10,8 @@ interface User {
 interface AuthContextType {
     user: User | null;
     accessToken: string | null;
+    login: (user: User, token: string) => void;
+    logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -24,13 +26,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedUser = localStorage.getItem('user');
         
         if (storedToken && storedUser) {
-            setAccessToken(storedToken);
-            setUser(JSON.parse(storedUser));
+            try {
+                setAccessToken(storedToken);
+                setUser(JSON.parse(storedUser));
+            } catch (error) {
+                console.error("사용자 정보 파싱 중 오류 발생:", error);
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('user');
+            }
         }
     }, []);
 
+    const login = (user: User, token: string) => {
+        localStorage.setItem('accessToken', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        setUser(user);
+        setAccessToken(token);
+    };
+
+    const logout = () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        setUser(null);
+        setAccessToken(null);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, accessToken }}>
+        <AuthContext.Provider value={{ user, accessToken, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
