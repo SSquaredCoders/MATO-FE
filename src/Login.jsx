@@ -1,9 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "./hooks/useAuth";
 
 const Login = () => {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (event) => {
     event.preventDefault(); // 로그인 전 새로고침 방지
@@ -27,13 +31,25 @@ const Login = () => {
         throw new Error("AccessToken을 가져올 수 없습니다.");
       }
 
-      // AccessToken을 LocalStorage에 저장
-      localStorage.setItem("accessToken", accessToken.replace("Bearer ", ""));
+      // 서버 응답에서 사용자 데이터 가져오기
+      const data = await response.json();
+      console.log("로그인 응답 데이터:", data);
+
+      // 사용자 데이터 구성 (백엔드 응답에 맞게 조정 필요)
+      const userData = {
+        id: data.id,
+        userId: data.userId,
+        nickname: data.nickname || userId, // nickname이 없으면 userId 사용
+        role: data.role || "USER" // role이 없으면 기본값 "USER"
+      };
+
+      // AuthContext의 login 메소드 사용
+      login(userData, accessToken.replace("Bearer ", ""));
 
       alert("로그인 성공!");
-      window.location.href = "/";
+      navigate("/");
     } catch (err) {
-      console.error("로그인 실패: ", err)
+      console.error("로그인 실패: ", err);
       setError("아이디 또는 비밀번호가 올바르지 않습니다.");
     }
   };
