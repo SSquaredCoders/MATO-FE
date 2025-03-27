@@ -37,6 +37,23 @@ export const updateMap = async (formData: MapFormData & { id: string }, accessTo
     }
 };
 
+export const getMap = async (mapId: string, accessToken: string) => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/api/maps/${mapId}`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        return { success: true, data: response.data };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : '맵 조회 중 오류가 발생했습니다.'
+        };
+    }
+};
+
 export const getMyMaps = async (accessToken: string) => {
     try {
         const response = await axios.get(`${API_BASE_URL}/api/maps/my`, {
