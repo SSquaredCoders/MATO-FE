@@ -1,5 +1,5 @@
 export interface MapFormData {
-    userId: number;
+    userId: string;
     name: string;
     description: string;
     isPublic: boolean;
