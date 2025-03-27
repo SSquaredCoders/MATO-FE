@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ReactPlayerComponent from "../components/ReactPlayerComponent";
 import { AnswerItem } from "../types/answer";
 import { HintItem } from "../types/hint";
 import { SongItem } from "../types/song";
+import { useAuth } from "../hooks/useAuth";
 
 const API_BASE = "http://localhost:8080/api";
 
 const CreateMapStep2 = () => {
-    const [searchParams] = useSearchParams();
+    const location = useLocation();
+    const searchParams = new URLSearchParams(location.search);
     const mapId = searchParams.get("mapId");
+    const { accessToken } = useAuth();
+    const navigate = useNavigate();
 
     const [youtubeUrl, setYoutubeUrl] = useState("");
     const [videoInfo, setVideoInfo] = useState<{ title: string; artist: string } | null>(null);
@@ -26,8 +30,6 @@ const CreateMapStep2 = () => {
     const [hints, setHints] = useState<HintItem[]>([]);
     const [songs, setSongs] = useState<SongItem[]>([]);
     const [selectedSongId, setSelectedSongId] = useState<number | null>(null);
-
-    const navigate = useNavigate();
 
     const normalizeUrl = (url: string) => {
         if (!url.startsWith("http")) {
@@ -143,6 +145,10 @@ const CreateMapStep2 = () => {
         if (!mapId || !youtubeUrl || !videoInfo || answers.length === 0) {
             return alert("모든 필드를 정확히 입력해주세요.");
         }
+        
+        if (!accessToken) {
+            return alert("로그인이 필요합니다.");
+        }
 
         try {
             const songPayload = {
@@ -163,7 +169,10 @@ const CreateMapStep2 = () => {
                 `${API_BASE}/songs${isEditing ? `/${targetSong!.songId}` : ""}`,
                 {
                     method: isEditing ? "PUT" : "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${accessToken}` 
+                    },
                     body: JSON.stringify(songPayload),
                 }
             );
@@ -180,23 +189,20 @@ const CreateMapStep2 = () => {
                 : `${API_BASE}/maps/${mapId}/songs`;
 
             const mapSongBody = {
-                songId: isEditing ? targetSong!.songId : song.id,
+                songId: isEditing && targetSong ? targetSong.songId : song.id,
+                newSong: null,
                 startTime,
                 endTime,
-                repeatCount,
-                newSong: null,
+                repeatCount
             };
 
-            console.log("🧪 PATCH MapSong 요청:", {
-                songId: targetSong!.songId,
-                startTime,
-                endTime,
-                repeatCount,
-                newSong: null,
-            });
+            console.log("🧪 MapSong 요청:", mapSongBody);
             const mapSongRes = await fetch(mapSongUrl, {
                 method: isEditing ? "PATCH" : "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${accessToken}`
+                },
                 body: JSON.stringify(mapSongBody),
             });
 
@@ -213,12 +219,18 @@ const CreateMapStep2 = () => {
             await Promise.all([
                 fetch(`${API_BASE}/maps/songs/${mapSong.id}/answers`, {
                     method: answerMethod,
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${accessToken}`
+                    },
                     body: JSON.stringify({ answerTexts: answers.map((a) => a.text) }),
                 }),
                 fetch(`${API_BASE}/maps/songs/${mapSong.id}/hints`, {
                     method: hintMethod,
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${accessToken}`
+                    },
                     body: JSON.stringify({
                         hints: hints.map((h) => ({
                             hintText: h.text,
