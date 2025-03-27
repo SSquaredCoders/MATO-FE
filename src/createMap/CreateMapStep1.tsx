@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {MapFormData} from "../types/mapSetp1";
+import { MapFormData } from "../types/mapSetp1";
+import { createMap } from "../api/mapApi";
+import { useAuth } from "../hooks/useAuth";
 
 const CreateMapStep1 = () => {
+    const { user, accessToken } = useAuth();
     const [formData, setFormData] = useState<MapFormData>({
-        userId: 1,  // 👈 여기 임시 유저 ID
+        userId: user?.id?.toString() || "",
         name: "",
         description: "",
         isPublic: true,
@@ -13,24 +16,21 @@ const CreateMapStep1 = () => {
 
     const handleNext = async () => {
         if (!formData.name.trim()) return alert("맵 이름을 입력하세요.");
+        if (!accessToken) return alert("로그인이 필요합니다.");
 
         try {
-            const response = await fetch("http://localhost:8080/api/maps", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
-            });
+            const result = await createMap(formData, accessToken);
+            
+            if (!result.success) {
+                throw new Error(result.error || "맵 생성 실패");
+            }
 
-            if (!response.ok) throw new Error("맵 생성 실패");
-
-            const map = await response.json();
-            navigate(`/create-map/step2?mapId=${map.id}`);
+            navigate(`/create-map/step2?mapId=${result.data?.id}`);
         } catch (err) {
             alert("맵 생성 중 오류 발생");
             console.error(err);
         }
     };
-
 
     return (
         <div className="p-4 max-w-md mx-auto">
