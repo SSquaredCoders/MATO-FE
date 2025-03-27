@@ -12,10 +12,11 @@ const EditMapStep1 = ({ mapId }: Props) => {
     const navigate = useNavigate();
     const { user, accessToken } = useAuth();
     const [formData, setFormData] = useState<MapFormData>({
-        userId: user?.id?.toString() || "",
+        userId: user?.userId || "",
         name: "",
         description: "",
         isPublic: true,
+        songs: [],
     });
 
     useEffect(() => {
@@ -27,7 +28,7 @@ const EditMapStep1 = ({ mapId }: Props) => {
             }
 
             try {
-                const result = await getMap(mapId, accessToken);
+                const result = await getMap(mapId);
                 
                 if (!result.success) {
                     throw new Error(result.error || "맵 데이터 불러오기 실패");
@@ -35,10 +36,11 @@ const EditMapStep1 = ({ mapId }: Props) => {
 
                 const data = result.data;
                 setFormData({
-                    userId: data.userId || user?.id?.toString() || "",
+                    userId: data.userId || user?.userId || "",
                     name: data.name,
                     description: data.description,
                     isPublic: data.isPublic,
+                    songs: data.songs || [],
                 });
             } catch (err) {
                 alert("맵 데이터를 불러오는 중 오류가 발생했습니다.");
@@ -47,17 +49,22 @@ const EditMapStep1 = ({ mapId }: Props) => {
         };
 
         fetchMapData();
-    }, [mapId, accessToken, user?.id, navigate]);
+    }, [mapId, accessToken, user?.userId, navigate]);
 
     const handleNext = async () => {
         if (!formData.name.trim()) return alert("맵 이름을 입력하세요.");
         if (!accessToken) return alert("로그인이 필요합니다.");
 
         try {
-            const result = await updateMap({
-                id: mapId,
-                ...formData
-            }, accessToken);
+            // 현재 노래 정보는 유지한 채 기본 정보만 업데이트
+            const updatedFormData = {
+                ...formData,
+                userId: user?.userId || formData.userId,
+            };
+            
+            console.log("맵 수정 데이터:", updatedFormData); // 디버깅용
+            
+            const result = await updateMap(mapId, updatedFormData, accessToken);
 
             if (!result.success) {
                 throw new Error(result.error || "맵 정보 수정 실패");
