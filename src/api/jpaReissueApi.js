@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_BASE_URL } from "../contants/env";
 
 // Axios 인스턴스 생성
 const jpaReissueApi = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -36,7 +37,7 @@ jpaReissueApi.interceptors.response.use(
         try {
           // Refresh Token으로 새로운 Access Token 요청
           const refreshResponse = await axios.post(
-              "http://localhost:8080/users/reissue",
+              `${API_BASE_URL}/users/reissue`,
               {},
               {withCredentials: true} // Refresh Token을 쿠키에서 읽기 위해 필요
           );
@@ -53,6 +54,7 @@ jpaReissueApi.interceptors.response.use(
               "Bearer ", "")}`;
           return jpaReissueApi(originalRequest);
         } catch (refreshError) {
+          console.error("Refresh Token 갱신 실패:", refreshError);
           console.error("Refresh Token이 만료되었습니다. 다시 로그인하세요.");
           localStorage.removeItem("accessToken"); // 로그아웃 처리
           window.location.href = "/login"; // 로그인 페이지로 이동
