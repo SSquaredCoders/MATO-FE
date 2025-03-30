@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { API_BASE_URL } from "./contants/env";
 
 const Login = () => {
   const [userId, setUserId] = useState("");
@@ -13,7 +14,7 @@ const Login = () => {
     event.preventDefault(); // 로그인 전 새로고침 방지
 
     try {
-      const response = await fetch("http://localhost:8080/users/login", {
+      const response = await fetch(`${API_BASE_URL}/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

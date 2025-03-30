@@ -3,8 +3,9 @@ import {useParams, useNavigate} from "react-router-dom";
 import {Client} from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import axios from "axios";
+import { API_BASE_URL } from "./contants/env";
 
-const API_URL = "http://localhost:8080";
+const API_URL = API_BASE_URL;
 
 function ChatRoom() {
   const {roomName} = useParams();

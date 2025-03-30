@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { MapFormData } from '../types/mapSetp1';
-
-const API_BASE_URL = 'http://localhost:8080';
+import { API_BASE_URL } from '../contants/env';
 
 // 새 맵 생성 (POST /api/maps)
 export const createMap = async (formData: MapFormData, accessToken: string) => {

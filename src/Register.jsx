@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "./contants/env";
 
 const Register = () => {
   const [userId, setUserId] = useState("");
@@ -19,7 +20,7 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/users/check-userId?userId=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/users/check-userId?userId=${userId}`);
       const data = await response.json();
 
       if (response.ok && data.available) {
@@ -45,7 +46,7 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8080/users/register", {
+      const response = await fetch(`${API_BASE_URL}/users/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

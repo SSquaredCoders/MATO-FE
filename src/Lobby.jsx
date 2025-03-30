@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "./contants/env";
 
-const API_URL = "http://localhost:8080";
+const API_URL = API_BASE_URL;
 
 function Lobby() {
   const [rooms, setRooms] = useState([]);

@@ -6,8 +6,9 @@ import { HintItem } from "../types/hint";
 import { SongItem } from "../types/song";
 import { MapItem } from "../types/mapSetp2";
 import { useAuth } from "../hooks/useAuth";
+import { API_BASE_URL } from "../contants/env";
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = `${API_BASE_URL}/api`;
 
 interface Props {
     mapId: string;

@@ -5,8 +5,9 @@ import { AnswerItem } from "../types/answer";
 import { HintItem } from "../types/hint";
 import { SongItem } from "../types/song";
 import { useAuth } from "../hooks/useAuth";
+import { API_BASE_URL } from "../contants/env";
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = `${API_BASE_URL}/api`;
 
 const CreateMapStep2 = () => {
     const location = useLocation();
