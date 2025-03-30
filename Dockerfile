@@ -1,13 +1,12 @@
-FROM node:20-alpine
+# 1단계: 빌드
+FROM node:20-alpine AS builder
 WORKDIR /app
-
-# 의존성 설치
-COPY package*.json ./
-RUN npm install
-
-# 소스 복사
 COPY . .
+RUN npm install && npm run build
 
-# 개발 서버 실행
-EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host"]
+# 2단계: Nginx로 정적 파일 서빙
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
