@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getMyMaps, deleteMap } from "./api/mapApi";
-import { useAuth } from "./hooks/useAuth";
+import { getMyMaps, deleteMap } from "../../api/mapApi.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 const MyMaps = () => {
     const [maps, setMaps] = useState([]);

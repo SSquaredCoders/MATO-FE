@@ -3,19 +3,19 @@ import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Navbar from "./components/Navbar";
 import Lobby from "./Lobby.jsx";
-import Login from "./Login.jsx";
-import Logout from "./Logout.jsx";
-import Register from "./Register.jsx";
-import UpdateUser from "./UpdateUser.jsx";
-import DeleteUser from "./DeleteUser.jsx";
-import RoomCreatePage from "./RoomCreatePage.jsx";
-import RoomUpdatePage from "./RoomUpdatePage.jsx";
-import ChatRoom from "./ChatRoom.jsx";
-import CreateMap from "./createMap/CreateMap.jsx";
-import MapList from "./MapList.jsx";
-import MapDetail from "./MapDetail";
-import EditMap from "./editmap/EditMap";
-import MyMaps from "./MyMaps";
+import Login from "./pages/auth/Login.jsx";
+import Logout from "./pages/auth/Logout.jsx";
+import Register from "./pages/auth/Register.jsx";
+import UpdateUser from "./pages/auth/UpdateUser.jsx";
+import DeleteUser from "./pages/auth/DeleteUser.jsx";
+import RoomCreatePage from "./pages/room/RoomCreatePage.jsx";
+import RoomUpdatePage from "./pages/room/RoomUpdatePage.jsx";
+import ChatRoom from "./pages/room/ChatRoom.jsx";
+import CreateMap from "./pages/map/createMap/CreateMap.jsx";
+import MapList from "./pages/map/MapList.jsx";
+import MapDetail from "./pages/map/MapDetail";
+import EditMap from "./pages/map/editmap/EditMap";
+import MyMaps from "./pages/map/MyMaps";
 
 function App() {
     return (

@@ -3,7 +3,7 @@ import {useParams, useNavigate} from "react-router-dom";
 import {Client} from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import axios from "axios";
-import { API_BASE_URL } from "./contants/env";
+import { API_BASE_URL } from "../../contants/env.js";
 
 const API_URL = API_BASE_URL;
 

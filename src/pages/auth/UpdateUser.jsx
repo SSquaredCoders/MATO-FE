@@ -1,5 +1,5 @@
 import {useState} from "react";
-import jpaReissueApi from "./api/jpaReissueApi";
+import jpaReissueApi from "../../api/jpaReissueApi.js";
 
 const UpdateUser = () => {
   const [nickname, setNickname] = useState("");

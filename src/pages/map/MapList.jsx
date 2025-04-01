@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getPublicMaps } from "./api/mapApi";
+import { getPublicMaps } from "../../api/mapApi.js";
 
 const MapList = () => {
     const [maps, setMaps] = useState([]);

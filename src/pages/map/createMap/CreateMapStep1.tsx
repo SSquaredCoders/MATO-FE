@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapFormData } from "../types/mapSetp1";
-import { createMap, checkMapExists } from "../api/mapApi";
-import { useAuth } from "../hooks/useAuth";
+import { MapFormData } from "../../../types/mapSetp1";
+import { createMap, checkMapExists } from "../../../api/mapApi";
+import { useAuth } from "../../../hooks/useAuth";
 
 const CreateMapStep1 = () => {
     const { user, accessToken } = useAuth();

@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import jpaReissueApi from './api/jpaReissueApi';
+import jpaReissueApi from '../../api/jpaReissueApi.js';
 
 const RoomUpdatePage = () => {
   const {roomName} = useParams();

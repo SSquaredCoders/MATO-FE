@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapFormData } from "../types/mapSetp1";
-import { updateMap, getMap } from "../api/mapApi";
-import { useAuth } from "../hooks/useAuth";
+import { MapFormData } from "../../../types/mapSetp1";
+import { updateMap, getMap } from "../../../api/mapApi";
+import { useAuth } from "../../../hooks/useAuth";
 
 interface Props {
     mapId: string;

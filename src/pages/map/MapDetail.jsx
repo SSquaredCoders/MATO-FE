@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getMap, deleteMap } from "./api/mapApi";
-import { useAuth } from "./hooks/useAuth";
+import { getMap, deleteMap } from "../../api/mapApi.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 const MapDetail = () => {
     const { id } = useParams();

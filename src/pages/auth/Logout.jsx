@@ -1,4 +1,4 @@
-import jpaReissueApi from "./api/jpaReissueApi";
+import jpaReissueApi from "../../api/jpaReissueApi.js";
 
 const Logout = () => {
   const handleLogout = async () => {
