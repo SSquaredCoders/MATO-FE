@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import jpaReissueApi from "./api/jpaReissueApi";
+import jpaReissueApi from "../../api/jpaReissueApi.js";
 
 const RoomCreatePage = () => {
   const [name, setName] = useState('');

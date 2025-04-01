@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
-import CreateMapStep1 from "./CreateMapStep1.js";
-import CreateMapStep2 from "./CreateMapStep2.js";
+import CreateMapStep1 from "./CreateMapStep1.tsx";
+import CreateMapStep2 from "./CreateMapStep2.tsx";
 
 const CreateMap = () => {
     return (

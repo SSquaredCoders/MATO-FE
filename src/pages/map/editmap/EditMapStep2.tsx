@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import ReactPlayerComponent from "../components/ReactPlayerComponent";
-import { AnswerItem } from "../types/answer";
-import { HintItem } from "../types/hint";
-import { SongItem } from "../types/song";
-import { useAuth } from "../hooks/useAuth";
-import { API_BASE_URL } from "../contants/env";
+import { useNavigate } from "react-router-dom";
+import ReactPlayerComponent from "../../../components/ReactPlayerComponent";
+import { AnswerItem } from "../../../types/answer";
+import { HintItem } from "../../../types/hint";
+import { SongItem } from "../../../types/song";
+import { MapItem } from "../../../types/mapSetp2";
+import { useAuth } from "../../../hooks/useAuth";
+import { API_BASE_URL } from "../../../contants/env";
 
 const API_BASE = `${API_BASE_URL}/api`;
 
-const CreateMapStep2 = () => {
-    const location = useLocation();
-    const searchParams = new URLSearchParams(location.search);
-    const mapId = searchParams.get("mapId");
-    const { accessToken } = useAuth();
-    const navigate = useNavigate();
+interface Props {
+    mapId: string;
+}
 
+const EditMapStep2 = ({ mapId }: Props) => {
+    const { accessToken } = useAuth();
     const [youtubeUrl, setYoutubeUrl] = useState("");
     const [videoInfo, setVideoInfo] = useState<{ title: string; artist: string } | null>(null);
 
@@ -30,7 +30,10 @@ const CreateMapStep2 = () => {
     const [answers, setAnswers] = useState<AnswerItem[]>([]);
     const [hints, setHints] = useState<HintItem[]>([]);
     const [songs, setSongs] = useState<SongItem[]>([]);
+
     const [selectedSongId, setSelectedSongId] = useState<number | null>(null);
+
+    const navigate = useNavigate();
 
     const normalizeUrl = (url: string) => {
         if (!url.startsWith("http")) {
@@ -106,6 +109,50 @@ const CreateMapStep2 = () => {
     };
 
     useEffect(() => {
+        const fetchMapData = async () => {
+            if (!mapId) return;
+            if (!accessToken) {
+                alert("로그인이 필요합니다.");
+                navigate("/login");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/maps/${mapId}`, {
+                    headers: {
+                        "Authorization": `Bearer ${accessToken}`
+                    }
+                });
+                if (!res.ok) throw new Error("맵 정보를 가져오는 데 실패했습니다.");
+
+                const data: MapItem = await res.json();
+
+                // 맵 전체 정보 저장하고, 노래 목록도 따로 분리
+                // (필요하면 setMapInfo(data)로 맵 기본 정보도 저장 가능)
+                const transformedSongs: SongItem[] = data.songs.map((song) => ({
+                    id: song.id,                  // MapSong ID
+                    songId: song.song.id,         // 실제 Song ID
+                    title: song.song.title,
+                    youtubeUrl: song.song.youtubeUrl,
+                    startTime: song.startTime,
+                    endTime: song.endTime,
+                    repeatCount: song.repeatCount,
+                    answers: song.answers.map((a) => ({ id: a.id, text: a.answerText })),
+                    hints: song.hints.map((h) => ({ id: h.id, text: h.hintText, revealTime: h.revealTime })),
+                }));
+
+                setSongs(transformedSongs);
+            } catch (err) {
+                const error = err as Error;
+                alert(`맵 정보를 불러오는 중 오류가 발생했습니다: ${error.message}`);
+            }
+        };
+
+        fetchMapData();
+    }, [mapId, accessToken, navigate]);
+
+
+    useEffect(() => {
         window.onbeforeunload = () => true;
         return () => { window.onbeforeunload = null; };
     }, []);
@@ -146,7 +193,7 @@ const CreateMapStep2 = () => {
         if (!mapId || !youtubeUrl || !videoInfo || answers.length === 0) {
             return alert("모든 필드를 정확히 입력해주세요.");
         }
-        
+
         if (!accessToken) {
             return alert("로그인이 필요합니다.");
         }
@@ -172,7 +219,7 @@ const CreateMapStep2 = () => {
                     method: isEditing ? "PUT" : "POST",
                     headers: { 
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${accessToken}` 
+                        "Authorization": `Bearer ${accessToken}`
                     },
                     body: JSON.stringify(songPayload),
                 }
@@ -189,9 +236,10 @@ const CreateMapStep2 = () => {
                 ? `${API_BASE}/maps/${mapId}/songs/${selectedSongId}`
                 : `${API_BASE}/maps/${mapId}/songs`;
 
+            // MapSongRequestDto 형식에 맞게 요청 본문 구성
             const mapSongBody = {
                 songId: isEditing && targetSong ? targetSong.songId : song.id,
-                newSong: null,
+                newSong: null, // 기존 노래를 사용할 때는 null
                 startTime,
                 endTime,
                 repeatCount
@@ -261,7 +309,7 @@ const CreateMapStep2 = () => {
             );
 
             resetForm();
-            alert(isEditing ? "노래 수정 완료!" : "노래 저장 완료!");
+            alert("노래 저장 완료!");
         } catch (err) {
             const error = err as Error;
             console.error(error);
@@ -456,4 +504,4 @@ const CreateMapStep2 = () => {
     );
 };
 
-export default CreateMapStep2;
+export default EditMapStep2;
