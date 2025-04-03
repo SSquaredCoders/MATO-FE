@@ -11,7 +11,7 @@ const DeleteUser = () => {
     }
 
     try {
-      await jpaReissueApi.delete("/users/delete");
+      await jpaReissueApi.delete("/api/users/delete");
 
       setMessage("회원 탈퇴가 완료되었습니다.");
       localStorage.removeItem("accessToken"); // 저장된 토큰 삭제
