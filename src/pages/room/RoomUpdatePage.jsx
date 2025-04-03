@@ -21,7 +21,7 @@ const RoomUpdatePage = () => {
 
   const fetchRoomData = async () => {
     try {
-      const res = await jpaReissueApi.get(`/rooms/${roomName}`);
+      const res = await jpaReissueApi.get(`/api/rooms/${roomName}`);
       const data = res.data;
       setRoomId(data.id);
       setRoomNameInput(data.name);
@@ -53,9 +53,10 @@ const RoomUpdatePage = () => {
     }
 
     try {
-      await jpaReissueApi.put(`/rooms/${roomId}`, {
+      await jpaReissueApi.put(`/api/rooms/${roomId}`, {
         name: roomNameInput,
         password,
+        gameStatus: 'WAITING',
         mapId: Number(mapId),
       });
 
