@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "./contants/env";
@@ -23,7 +23,7 @@ function Lobby() {
 
   const fetchRooms = async () => {
     try {
-      const response = await axios.get(`${API_URL}/rooms`);
+      const response = await axios.get(`${API_URL}/api/rooms`);
       setRooms(response.data);
       setFilteredRooms(response.data);
     } catch (error) {
@@ -89,7 +89,7 @@ function Lobby() {
                       인원: {room.participants}명 / 상태:{" "}
                       {statusLabel[room.gameStatus] ?? room.gameStatus}
                     </div>
-                    <div className="text-sm text-gray-500">맵: {room.mapName}</div>
+                    <div className="text-sm text-gray-500">맵: {room.map.name}</div>
                     <button
                         onClick={() => joinRoom(room.name)}
                         className="mt-2 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
