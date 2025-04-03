@@ -7,7 +7,7 @@ export type AnswerItem = {
 export interface AnswerDto {
     id: number;
     mapSongId: number;
-    answerText: string;
+    text: string;
 }
 
 // 백엔드 AnswerRequestDto에 대응하는 인터페이스
@@ -20,7 +20,7 @@ export interface AnswerRequest {
 export interface AnswerResponse {
     id: number;
     mapSongId: number;
-    answerText: string;
+    text: string;
 }
 
 
