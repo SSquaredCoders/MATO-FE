@@ -10,7 +10,7 @@ import UpdateUser from "./pages/auth/UpdateUser.jsx";
 import DeleteUser from "./pages/auth/DeleteUser.jsx";
 import RoomCreatePage from "./pages/room/RoomCreatePage.jsx";
 import RoomUpdatePage from "./pages/room/RoomUpdatePage.jsx";
-import ChatRoom from "./pages/room/ChatRoom.jsx";
+import GameRoom from "./pages/room/GameRoom.jsx";
 import CreateMap from "./pages/map/createMap/CreateMap.jsx";
 import MapList from "./pages/map/MapList.jsx";
 import MapDetail from "./pages/map/MapDetail";
@@ -32,7 +32,7 @@ function App() {
                     <Route path="/delete-user" element={<DeleteUser />} />
                     <Route path="/create-room" element={<RoomCreatePage />} />
                     <Route path="/update-room/:roomName" element={<RoomUpdatePage />} />
-                    <Route path="/room/:roomName" element={<ChatRoom />} />
+                    <Route path="/room/:roomName" element={<GameRoom />} />
 
                     {/* 🔁 중첩 라우팅을 위한 create-map */}
                     <Route path="/create-map/*" element={<CreateMap />} />
