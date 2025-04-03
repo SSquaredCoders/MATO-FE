@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import {useState, useEffect} from 'react';
 import jpaReissueApi from "../../api/jpaReissueApi.js";
 
 const RoomCreatePage = () => {
@@ -8,6 +8,8 @@ const RoomCreatePage = () => {
   const [availableMaps, setAvailableMaps] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [maxParticipants, setMaxParticipants] = useState(4); // 기본값 4명
+
 
   useEffect(() => {
     fetchMaps();
@@ -19,6 +21,10 @@ const RoomCreatePage = () => {
       setAvailableMaps(response.data);
     } catch (err) {
       console.error("맵 목록 가져오기 실패:", err);
+      if (err.response) {
+        console.error("서버 응답:", err.response.data);
+        console.error("상태 코드:", err.response.status);
+      }
     }
   };
 
@@ -33,11 +39,12 @@ const RoomCreatePage = () => {
     }
 
     try {
-      const response = await jpaReissueApi.post("/rooms", {
+      await jpaReissueApi.post("/api/rooms", {
         name,
         password,
         gameStatus: 'WAITING',
         mapId: Number(mapId),
+        maxParticipants: Number(maxParticipants), // ✅ 추가됨!
       });
 
       setSuccess(true);
@@ -90,6 +97,20 @@ const RoomCreatePage = () => {
               ))}
             </select>
           </div>
+
+          <div>
+            <label className="block font-semibold mb-1">최대 인원</label>
+            <input
+                type="number"
+                min={2}
+                max={10}
+                value={maxParticipants}
+                onChange={(e) => setMaxParticipants(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded"
+                required
+            />
+          </div>
+
 
           <button
               type="submit"
