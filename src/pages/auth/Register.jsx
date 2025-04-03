@@ -20,7 +20,7 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/check-userId?userId=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/api/users/check-userId?userId=${userId}`);
       const data = await response.json();
 
       if (response.ok && data.available) {
@@ -46,7 +46,7 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/register`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
