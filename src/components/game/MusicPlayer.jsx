@@ -7,6 +7,7 @@ const MusicPlayer = ({
   skipVotes, 
   totalParticipants, 
   showHint, 
+  setShowHint,
   isHost 
 }) => {
   const audioRef = useRef(null);
@@ -15,10 +16,21 @@ const MusicPlayer = ({
   const [hintTimer, setHintTimer] = useState(null);
   const [volume, setVolume] = useState(70);
 
+  // 디버깅을 위한 로그 추가
+  useEffect(() => {
+    console.log("MusicPlayer - 현재 노래 정보:", currentSong);
+  }, [currentSong]);
+
   // 노래가 변경되면 오디오 플레이어 초기화
   useEffect(() => {
     if (currentSong && audioRef.current) {
-      audioRef.current.src = currentSong.url;
+      // YouTube URL 또는 오디오 URL 설정
+      const audioUrl = currentSong.song?.youtubeUrl || currentSong.youtubeUrl;
+      console.log("오디오 URL 설정:", audioUrl);
+      
+      // 실제 구현에서는 YouTube API를 사용하거나 다른 방법으로 오디오 추출이 필요함
+      // 임시로 가짜 오디오 소스 설정 (실제 구현 필요)
+      audioRef.current.src = "https://example.com/audio.mp3";
       audioRef.current.volume = volume / 100;
       
       if (isPlaying) {
@@ -29,7 +41,9 @@ const MusicPlayer = ({
       
       // 힌트 타이머 설정 (20초 후 힌트 표시)
       const timer = setTimeout(() => {
-        showHint(true);
+        if (setShowHint && typeof setShowHint === 'function') {
+          setShowHint(true);
+        }
       }, 20000);
       
       setHintTimer(timer);
@@ -40,7 +54,7 @@ const MusicPlayer = ({
     return () => {
       if (hintTimer) clearTimeout(hintTimer);
     };
-  }, [currentSong, isPlaying]);
+  }, [currentSong, isPlaying, volume, setShowHint]);
 
   // 볼륨 변경 핸들러
   const handleVolumeChange = (e) => {
@@ -67,6 +81,20 @@ const MusicPlayer = ({
   const skipVotePercentage = Math.floor((skipVotes / totalParticipants) * 100);
   const skipThreshold = 50; // 50% 이상이 스킵 투표하면 노래 넘김
 
+  // 힌트 텍스트 추출 및 안전하게 접근
+  const getHintText = () => {
+    if (!currentSong) return '힌트 없음';
+    
+    // 힌트 접근 방식 여러 가지 시도
+    if (currentSong.hints && currentSong.hints.length > 0) {
+      // 백엔드 응답 구조에 따라 접근
+      const hint = currentSong.hints[0];
+      return hint.hintText || hint.text || '힌트 없음';
+    }
+    
+    return '힌트 없음';
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto bg-gray-800 rounded-lg p-4 shadow-lg">
       <audio 
@@ -81,7 +109,7 @@ const MusicPlayer = ({
         <div className="text-white">
           <div className="text-lg font-bold animate-pulse">
             {showHint 
-              ? `힌트: ${currentSong?.hints?.[0]?.text || '힌트 없음'}` 
+              ? `힌트: ${getHintText()}` 
               : '노래를 맞춰보세요!'}
           </div>
           {isHost && (
@@ -107,7 +135,7 @@ const MusicPlayer = ({
       <div className="flex items-center mb-4">
         <span className="text-white mr-2">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071a1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243a1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
           </svg>
         </span>
         <input 

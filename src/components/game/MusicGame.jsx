@@ -1,3 +1,4 @@
+import YouTube from 'react-youtube';
 import { useState, useEffect, useRef } from 'react';
 import MusicPlayer from './MusicPlayer';
 
@@ -11,7 +12,7 @@ const MusicGame = ({
 }) => {
   const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [currentSong, setCurrentSong] = useState(null);
-  const [audioPlayer, setAudioPlayer] = useState(null);
+  const [youtubePlayer, setYoutubePlayer] = useState(null);
   const [volume, setVolume] = useState(50);
   const [progress, setProgress] = useState(0);
   const [answer, setAnswer] = useState("");
@@ -24,6 +25,7 @@ const MusicGame = ({
   const [participantCount, setParticipantCount] = useState(0);
   const progressRef = useRef(null);
   const hintTimerRef = useRef(null);
+  const youtubeRef = useRef(null);
   
   // 맵 정보가 변경되면 게임 초기화
   useEffect(() => {
@@ -36,11 +38,24 @@ const MusicGame = ({
       setShowHint(false);
       setSkipVotes(0);
       setHasVoted(false);
-      setParticipantCount(mapInfo.participants || 1);
+      setSkipVoters([]);
+      setParticipantCount(mapInfo.participants?.length || 1);
     } else {
       console.log("유효한 맵 정보나 노래가 없습니다.");
     }
   }, [mapInfo]);
+  
+  // 노래 ID 추출 (YouTube URL에서)
+  const extractYouTubeId = (url) => {
+    if (!url) return null;
+    
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    
+    return (match && match[2].length === 11)
+      ? match[2]
+      : null;
+  };
   
   // 곡 변경 처리
   useEffect(() => {
@@ -51,6 +66,7 @@ const MusicGame = ({
       setShowHint(false);
       setSkipVotes(0);
       setHasVoted(false);
+      setSkipVoters([]);
       
       // 힌트 타이머 설정
       if (hintTimerRef.current) {
@@ -59,16 +75,32 @@ const MusicGame = ({
       
       // 15초 후에 힌트 표시
       hintTimerRef.current = setTimeout(() => {
-        // 힌트 생성 (곡 제목의 첫 글자만 보여주는 형태로 변경)
-        const songTitle = song.song?.title || song.title || "제목 없음";
-        const titleHint = songTitle.charAt(0) + "*".repeat(songTitle.length - 1);
-        setHint(`제목: ${titleHint}`);
-        setShowHint(true);
+        try {
+          // 힌트 생성 (곡 제목의 첫 글자만 보여주는 형태로 변경)
+          const songTitle = song.song?.title || song.title || "제목 없음";
+          const titleHint = songTitle.charAt(0) + "*".repeat(songTitle.length - 1);
+          setHint(`제목: ${titleHint}`);
+          setShowHint(true);
+          
+          // 백엔드에서 제공하는 힌트가 있는 경우
+          if (song.hints && song.hints.length > 0) {
+            const hintText = song.hints[0].hintText || song.hints[0].text;
+            if (hintText) {
+              setHint(`힌트: ${hintText}`);
+            }
+          }
+        } catch (error) {
+          console.error("힌트 설정 오류:", error);
+        }
       }, 15000);
       
-      // 오디오 플레이어 설정
-      if (audioPlayer) {
-        audioPlayer.pause();
+      // 유튜브 플레이어 설정
+      if (youtubePlayer) {
+        try {
+          youtubePlayer.stopVideo();
+        } catch (e) {
+          console.error("유튜브 플레이어 정지 오류:", e);
+        }
       }
 
       // 새 노래 정보 브로드캐스트 (방장만)
@@ -94,7 +126,20 @@ const MusicGame = ({
         });
       }
     }
-  }, [currentSongIndex, mapInfo, isHost, stompClient, roomName]);
+  }, [currentSongIndex, mapInfo, isHost, stompClient, roomName, youtubePlayer]);
+  
+  // YouTube 플레이어 준비 완료
+  const onYoutubeReady = (event) => {
+    setYoutubePlayer(event.target);
+    
+    if (isPlaying) {
+      try {
+        event.target.playVideo();
+      } catch (e) {
+        console.error("유튜브 재생 오류:", e);
+      }
+    }
+  };
   
   // 스킵 투표 처리
   const handleSkipVote = (forceSkip = false) => {
@@ -136,16 +181,32 @@ const MusicGame = ({
     console.log("정답 확인 중:", currentSong);
     
     const normalizedAnswer = message.toLowerCase().trim();
+    
+    // 정답 추출: 백엔드 응답 구조에 따라 다양한 경로 시도
+    let answers = [];
+    
+    // 노래 제목을 기본 정답으로 사용
     const songTitle = currentSong.song?.title || currentSong.title || "";
+    if (songTitle) answers.push(songTitle.toLowerCase().trim());
     
-    const normalizedTitle = songTitle.toLowerCase().trim();
+    // 정답 목록이 있는 경우 추가
+    if (currentSong.answers && currentSong.answers.length > 0) {
+      const additionalAnswers = currentSong.answers.map(a => 
+        (a.answerText || a.text || "").toLowerCase().trim()
+      ).filter(a => a.length > 0);
+      
+      answers = [...answers, ...additionalAnswers];
+    }
     
-    console.log("정답 후보:", { normalizedTitle });
+    console.log("정답 후보:", answers);
     
-    // 제목이 정답에 포함되어 있으면 정답 처리
-    const isCorrect = normalizedAnswer.includes(normalizedTitle);
+    // 답안 중 하나라도 포함되면 정답 처리
+    const isCorrect = answers.some(answer => 
+      normalizedAnswer.includes(answer) || answer.includes(normalizedAnswer)
+    );
     
     if (isCorrect) {
+      console.log("정답 일치!");
       // 정답 처리 - 점수 업데이트 및 다음 곡으로
       onScoreUpdate(nickname, 1);
       
@@ -171,6 +232,14 @@ const MusicGame = ({
     return false;
   };
   
+  // 유튜브 링크에서 ID 추출
+  const getYoutubeId = () => {
+    if (!currentSong) return null;
+    
+    const url = currentSong.song?.youtubeUrl || currentSong.youtubeUrl;
+    return extractYouTubeId(url);
+  };
+  
   if (!currentSong) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -178,6 +247,17 @@ const MusicGame = ({
       </div>
     );
   }
+  
+  const youtubeId = getYoutubeId();
+  const youtubeOpts = {
+    height: '0',
+    width: '0',
+    playerVars: {
+      autoplay: isPlaying ? 1 : 0,
+      controls: 0,
+      disablekb: 1
+    },
+  };
   
   return (
     <div className="flex flex-col items-center justify-center h-full">
@@ -188,13 +268,25 @@ const MusicGame = ({
         </span>
       </div>
       
+      {/* YouTube 플레이어 (숨김) */}
+      <div className="hidden">
+        {youtubeId && (
+          <YouTube
+            videoId={youtubeId}
+            opts={youtubeOpts}
+            onReady={onYoutubeReady}
+            ref={youtubeRef}
+          />
+        )}
+      </div>
+      
       {/* 음악 플레이어 */}
       <MusicPlayer 
         currentSong={currentSong}
         isPlaying={isPlaying}
         onSkipVote={handleSkipVote}
         skipVotes={skipVotes}
-        totalParticipants={totalParticipants}
+        totalParticipants={participantCount}
         showHint={showHint}
         setShowHint={setShowHint}
         isHost={isHost}
