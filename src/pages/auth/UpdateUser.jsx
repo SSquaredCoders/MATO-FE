@@ -22,7 +22,7 @@ const UpdateUser = () => {
     console.log("보낼 데이터:", requestData);
 
     try {
-      const response = await jpaReissueApi.put("/users/update", requestData);
+      const response = await jpaReissueApi.put("/api/users/update", requestData);
 
       setMessage("회원 정보가 성공적으로 수정되었습니다.");
       setError(""); // 오류 메시지 초기화
