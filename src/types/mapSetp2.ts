@@ -13,7 +13,7 @@ export interface MapItem {
         startTime: number;
         endTime: number;
         repeatCount: number;
-        answers: { id: number; answerText: string }[];
-        hints: { id: number; hintText: string; revealTime: number }[];
+        answers: { id: number; text: string }[];
+        hints: { id: number; text: string; revealTime: number }[];
     }[];
 }
