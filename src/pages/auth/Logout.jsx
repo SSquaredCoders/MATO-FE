@@ -4,7 +4,7 @@ const Logout = () => {
   const handleLogout = async () => {
     try {
       // 백엔드에 로그아웃 요청 (서버에서 Refresh Token 삭제)
-      await jpaReissueApi.post("/users/logout");
+      await jpaReissueApi.post("/api/users/logout");
 
       // LocalStorage에서 Access Token 삭제
       localStorage.removeItem("accessToken");
