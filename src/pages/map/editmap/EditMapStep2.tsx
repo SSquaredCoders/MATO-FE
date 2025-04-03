@@ -108,87 +108,6 @@ const EditMapStep2 = ({ mapId }: Props) => {
         setHints(selected.hints);
     };
 
-    useEffect(() => {
-        const fetchMapData = async () => {
-            if (!mapId) return;
-            if (!accessToken) {
-                alert("로그인이 필요합니다.");
-                navigate("/login");
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/maps/${mapId}`, {
-                    headers: {
-                        "Authorization": `Bearer ${accessToken}`
-                    }
-                });
-                if (!res.ok) throw new Error("맵 정보를 가져오는 데 실패했습니다.");
-
-                const data: MapItem = await res.json();
-
-                // 맵 전체 정보 저장하고, 노래 목록도 따로 분리
-                // (필요하면 setMapInfo(data)로 맵 기본 정보도 저장 가능)
-                const transformedSongs: SongItem[] = data.songs.map((song) => ({
-                    id: song.id,                  // MapSong ID
-                    songId: song.song.id,         // 실제 Song ID
-                    title: song.song.title,
-                    youtubeUrl: song.song.youtubeUrl,
-                    startTime: song.startTime,
-                    endTime: song.endTime,
-                    repeatCount: song.repeatCount,
-                    answers: song.answers.map((a) => ({ id: a.id, text: a.answerText })),
-                    hints: song.hints.map((h) => ({ id: h.id, text: h.hintText, revealTime: h.revealTime })),
-                }));
-
-                setSongs(transformedSongs);
-            } catch (err) {
-                const error = err as Error;
-                alert(`맵 정보를 불러오는 중 오류가 발생했습니다: ${error.message}`);
-            }
-        };
-
-        fetchMapData();
-    }, [mapId, accessToken, navigate]);
-
-
-    useEffect(() => {
-        window.onbeforeunload = () => true;
-        return () => { window.onbeforeunload = null; };
-    }, []);
-
-    const resetForm = () => {
-        setYoutubeUrl("");
-        setVideoInfo(null);
-        setStartTime(0);
-        setEndTime(30);
-        setRepeatCount(1);
-        setAnswers([]);
-        setHints([]);
-        setAnswerText("");
-        setHintText("");
-        setRevealTime(10);
-        setSelectedSongId(null);
-    };
-
-    useEffect(() => {
-        const savedSongs = localStorage.getItem(`songs_${mapId}`);
-        if (savedSongs) {
-            setSongs(JSON.parse(savedSongs));
-        }
-    }, [mapId]);
-
-    useEffect(() => {
-        if (songs.length > 0) {
-            localStorage.setItem(`songs_${mapId}`, JSON.stringify(songs));
-        }
-    }, [songs, mapId]);
-
-    const handleFinalMapSave = () => {
-        localStorage.removeItem(`songs_${mapId}`);
-        alert("맵 저장 완료!");
-    };
-
     const handleSubmit = async () => {
         if (!mapId || !youtubeUrl || !videoInfo || answers.length === 0) {
             return alert("모든 필드를 정확히 입력해주세요.");
@@ -282,7 +201,7 @@ const EditMapStep2 = ({ mapId }: Props) => {
                     },
                     body: JSON.stringify({
                         hints: hints.map((h) => ({
-                            hintText: h.text,
+                            text: h.text,
                             revealTime: h.revealTime,
                         })),
                     }),
@@ -315,6 +234,38 @@ const EditMapStep2 = ({ mapId }: Props) => {
             console.error(error);
             alert(`저장 중 오류 발생: ${error.message}`);
         }
+    };
+
+    const resetForm = () => {
+        setYoutubeUrl("");
+        setVideoInfo(null);
+        setStartTime(0);
+        setEndTime(30);
+        setRepeatCount(1);
+        setAnswers([]);
+        setHints([]);
+        setAnswerText("");
+        setHintText("");
+        setRevealTime(10);
+        setSelectedSongId(null);
+    };
+
+    useEffect(() => {
+        const savedSongs = localStorage.getItem(`songs_${mapId}`);
+        if (savedSongs) {
+            setSongs(JSON.parse(savedSongs));
+        }
+    }, [mapId]);
+
+    useEffect(() => {
+        if (songs.length > 0) {
+            localStorage.setItem(`songs_${mapId}`, JSON.stringify(songs));
+        }
+    }, [songs, mapId]);
+
+    const handleFinalMapSave = () => {
+        localStorage.removeItem(`songs_${mapId}`);
+        alert("맵 저장 완료!");
     };
 
     return (
