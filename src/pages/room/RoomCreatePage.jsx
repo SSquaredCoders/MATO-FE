@@ -1,5 +1,6 @@
 import {useState, useEffect} from 'react';
 import jpaReissueApi from "../../api/jpaReissueApi.js";
+import { useNavigate } from 'react-router-dom';
 
 const RoomCreatePage = () => {
   const [name, setName] = useState('');
@@ -7,9 +8,10 @@ const RoomCreatePage = () => {
   const [mapId, setMapId] = useState('');
   const [availableMaps, setAvailableMaps] = useState([]);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState(4); // 기본값 4명
-
+  
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchMaps();
@@ -31,28 +33,34 @@ const RoomCreatePage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    setLoading(true);
 
     if (!mapId) {
       setError("맵을 선택해주세요.");
+      setLoading(false);
       return;
     }
 
     try {
+      const roomName = name.trim();
+      
+      // 방 생성 요청
       await jpaReissueApi.post("/api/rooms", {
-        name,
+        name: roomName,
         password,
         gameStatus: 'WAITING',
         mapId: Number(mapId),
-        maxParticipants: Number(maxParticipants), // ✅ 추가됨!
+        maxParticipants: Number(maxParticipants),
       });
 
-      setSuccess(true);
-      setName('');
-      setPassword('');
-      setMapId('');
+      console.log(`방 '${roomName}' 생성 성공! 곧 입장합니다...`);
+      
+      // 방 생성 성공 후 바로 해당 방으로 이동
+      navigate(`/room/${roomName}`);
+      
     } catch (err) {
       setError(err.response?.data?.message || '방 생성에 실패했습니다.');
+      setLoading(false);
     }
   };
 
@@ -114,14 +122,16 @@ const RoomCreatePage = () => {
 
           <button
               type="submit"
-              className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+              disabled={loading}
+              className={`w-full py-2 rounded ${
+                loading 
+                  ? "bg-gray-400 cursor-not-allowed" 
+                  : "bg-blue-500 hover:bg-blue-600 text-white"
+              }`}
           >
-            방 생성하기
+            {loading ? "생성 중..." : "방 생성하기"}
           </button>
 
-          {success && (
-              <div className="text-green-600 mt-2">방이 성공적으로 생성되었습니다!</div>
-          )}
           {error && (
               <div className="text-red-600 mt-2">{error}</div>
           )}

@@ -2,22 +2,22 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Navbar from "./components/Navbar";
-import Lobby from "./Lobby.jsx";
-import Login from "./pages/auth/Login.jsx";
-import Logout from "./pages/auth/Logout.jsx";
-import Register from "./pages/auth/Register.jsx";
-import UpdateUser from "./pages/auth/UpdateUser.jsx";
-import DeleteUser from "./pages/auth/DeleteUser.jsx";
-import RoomCreatePage from "./pages/room/RoomCreatePage.jsx";
-import RoomUpdatePage from "./pages/room/RoomUpdatePage.jsx";
-import GameRoom from "./pages/room/GameRoom.jsx";
-import CreateMap from "./pages/map/createMap/CreateMap.jsx";
-import MapList from "./pages/map/MapList.jsx";
+import Lobby from "./Lobby";
+import Login from "./pages/auth/Login";
+import Logout from "./pages/auth/Logout";
+import Register from "./pages/auth/Register";
+import UpdateUser from "./pages/auth/UpdateUser";
+import DeleteUser from "./pages/auth/DeleteUser";
+import RoomCreatePage from "./pages/room/RoomCreatePage";
+import RoomUpdatePage from "./pages/room/RoomUpdatePage";
+import GameRoom from "./pages/room/GameRoom";
+import CreateMap from "./pages/map/createMap/CreateMap";
+import MapList from "./pages/map/MapList";
 import MapDetail from "./pages/map/MapDetail";
 import EditMap from "./pages/map/editmap/EditMap";
 import MyMaps from "./pages/map/MyMaps";
 
-function App() {
+const App: React.FC = () => {
     return (
         <AuthProvider>
             <div>
@@ -48,6 +48,6 @@ function App() {
             </div>
         </AuthProvider>
     );
-}
+};
 
 export default App;
