@@ -44,15 +44,20 @@ export const useWebSocket = (): UseWebSocketReturn => {
     if (!isComponentMounted.current) return null;
     
     try {
+      console.log('WebSocket 연결 시도 URL:', WS_BASE_URL);
+      
       // SockJS를 사용하여 웹소켓 엔드포인트에 연결
       const socket = new SockJS(WS_BASE_URL);
       
       const wsClient = new Client({
         webSocketFactory: () => socket,
-        // 자동 재연결 방지 (직접 구현)
+        connectHeaders: {}, // 빈 헤더로 시작
         reconnectDelay: 0,
-        heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000
+        heartbeatIncoming: 0, // 하트비트 비활성화
+        heartbeatOutgoing: 0, // 하트비트 비활성화
+        debug: (msg) => {
+          console.log('STOMP Debug:', msg);
+        }
       });
       
       return wsClient;
@@ -67,11 +72,13 @@ export const useWebSocket = (): UseWebSocketReturn => {
   const activateClient = useCallback((wsClient: Client, callbacks?: WebSocketCallbacks) => {
     if (!isComponentMounted.current) return;
     
+    console.log('WebSocket 클라이언트 활성화 시작');
+    
     // 연결 이벤트 핸들러 설정
-    wsClient.onConnect = () => {
+    wsClient.onConnect = (frame) => {
       if (!isComponentMounted.current) return;
       
-      console.log('WebSocket connected');
+      console.log('WebSocket connected with frame:', frame);
       setConnectionStatus('CONNECTED');
       setReconnecting(false);
       reconnectCount.current = 0;
@@ -82,10 +89,10 @@ export const useWebSocket = (): UseWebSocketReturn => {
     };
     
     // 연결 끊김 이벤트 핸들러 설정
-    wsClient.onDisconnect = () => {
+    wsClient.onDisconnect = (frame) => {
       if (!isComponentMounted.current) return;
       
-      console.log('WebSocket disconnected');
+      console.log('WebSocket disconnected with frame:', frame);
       setConnectionStatus('DISCONNECTED');
       setClient(null);
       
@@ -109,6 +116,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     };
     
     // 웹소켓 클라이언트 활성화
+    console.log('WebSocket 클라이언트 활성화 호출');
     wsClient.activate();
     
     return wsClient;
@@ -230,6 +238,13 @@ export const useWebSocket = (): UseWebSocketReturn => {
   
   // 연결 해제 함수
   const disconnect = useCallback(() => {
+    // 이미 연결 해제 중이거나 연결되지 않은 상태라면 무시
+    if (connectionStatus === 'DISCONNECTED' || !client) {
+      return;
+    }
+    
+    console.log('WebSocket 연결 해제 시작...');
+    
     // 연결 타임아웃 제거
     if (connectTimeoutRef.current !== null) {
       window.clearTimeout(connectTimeoutRef.current);
@@ -258,7 +273,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     
     setConnectionStatus('DISCONNECTED');
     setReconnecting(false);
-  }, [client]);
+  }, [client, connectionStatus]);
   
   // 메시지 구독 함수
   const subscribe = useCallback((destination: string, callback: MessageHandler): StompSubscription | null => {
@@ -329,13 +344,13 @@ export const useWebSocket = (): UseWebSocketReturn => {
     return () => {
       isComponentMounted.current = false;
       
-      // 연결 타임아웃 제거
+      // 언마운트 시 연결 정리
       if (connectTimeoutRef.current !== null) {
         window.clearTimeout(connectTimeoutRef.current);
         connectTimeoutRef.current = null;
       }
       
-      // 구독 및 클라이언트 정리
+      // 연결이 활성화된 상태에서만 정리 과정을 수행
       if (client) {
         subscriptions.current.forEach((subscription) => {
           try {
