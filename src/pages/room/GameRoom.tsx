@@ -1,5 +1,5 @@
-import React from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useGameRoom, GameRoomProvider } from '../../contexts/game/GameRoomFacade';
 import ParticipantList from '../../components/game/ParticipantList';
 import ScoreBoard from '../../components/game/ScoreBoard';
@@ -9,35 +9,53 @@ import ChatBox from '../../components/game/ChatBox';
 import MapInfoModal from '../../components/game/MapInfoModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorDisplay from '../../components/common/ErrorDisplay';
+import { useAuth } from '../../contexts/AuthContext';
+
+// 타입 정의
+interface GameRoomProps {
+  // 필요한 props가 있다면 여기에 추가
+}
 
 // 게임룸 컴포넌트
-const GameRoom: React.FC = () => {
-  // URL 파라미터에서 roomName을 가져옵니다.
+const GameRoom: React.FC<GameRoomProps> = () => {
+  const navigate = useNavigate();
   const { roomName } = useParams<{ roomName: string }>();
-  
-  // 로컬 스토리지에서 유저 정보를 가져옵니다.
-  const userString = localStorage.getItem('user');
-  let nickname = '';
-  
-  // user 객체가 있으면 JSON 파싱 후 nickname 추출
-  if (userString) {
-    try {
-      const userObj = JSON.parse(userString);
-      nickname = userObj.nickname || '';
-    } catch (error) {
-      console.error('유저 정보 파싱 오류:', error);
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const nickname = user?.nickname || '';
+
+  useEffect(() => {
+    // 필수 정보 확인
+    if (!roomName || !nickname) {
+      navigate('/');
+      return;
     }
-  }
-  
-  // 닉네임이 없으면 로그인 페이지로 리디렉션합니다.
+    
+    // 로딩 상태 관리
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [roomName, nickname, navigate]);
+
   if (!roomName || !nickname) {
-    return <Navigate to="/login" replace />;
+    return null;
   }
-  
+
   return (
-    <GameRoomProvider roomId={roomName} nickname={nickname}>
-      <GameRoomContent />
-    </GameRoomProvider>
+    <div>
+      {loading ? (
+        <div className="loading-container">
+          <LoadingSpinner />
+          <p>게임 방에 연결 중입니다...</p>
+        </div>
+      ) : (
+        <GameRoomProvider roomId={roomName} nickname={nickname}>
+          <GameRoomContent />
+        </GameRoomProvider>
+      )}
+    </div>
   );
 };
 
