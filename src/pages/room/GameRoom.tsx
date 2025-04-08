@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { useGameRoom, GameRoomProvider } from '../../contexts/game/GameRoomContext';
+import { useGameRoom, GameRoomProvider } from '../../contexts/game/GameRoomFacade';
 import ParticipantList from '../../components/game/ParticipantList';
 import ScoreBoard from '../../components/game/ScoreBoard';
 import GameControls from '../../components/game/GameControls';

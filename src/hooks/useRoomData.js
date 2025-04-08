@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../contants/env';
-import { useGameRoom } from '../contexts/GameRoomContext';
+import { useGameRoom } from '../contexts/game/GameRoomContext.js';
 
 const API_URL = API_BASE_URL;
 

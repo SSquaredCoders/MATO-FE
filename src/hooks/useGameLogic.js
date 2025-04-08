@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useGameRoom } from '../contexts/GameRoomContext';
+import { useGameRoom } from '../contexts/game/GameRoomContext.js';
 import { useWebSocket } from './useWebSocket';
 
 /**
