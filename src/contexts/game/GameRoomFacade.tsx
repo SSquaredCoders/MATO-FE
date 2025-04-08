@@ -137,6 +137,7 @@ export const GameRoomProvider: React.FC<{
           
           try {
             // 방 입장 메시지 전송
+            console.log(`방 입장 메시지 전송: roomId=${roomId}, nickname=${nickname}`);
             publish('/app/chat.join', JSON.stringify({
               roomName: roomId,
               sender: nickname,
@@ -145,14 +146,17 @@ export const GameRoomProvider: React.FC<{
             }));
             
             // 메시지 구독
-            subscribe(`/topic/rooms/${roomId}`, (message: IMessage) => {
+            console.log(`토픽 구독: /topic/rooms/${roomId}`);
+            const topicSubscription = subscribe(`/topic/rooms/${roomId}`, (message: IMessage) => {
+              console.log(`메시지 수신 from topic: ${message.body}`);
               handleMessage(message.body);
             });
             
-            // 참가자 개인 메시지 구독 - 백엔드에서 지원하지 않는 경우 주석 처리
-            // subscribe(`/user/queue/room/${roomId}`, (message: IMessage) => {
-            //   handleMessage(message.body);
-            // });
+            if (!topicSubscription) {
+              console.error('토픽 구독 실패');
+              connectionActions.setConnectionError('토픽 구독에 실패했습니다.');
+              return;
+            }
             
             gameStateActions.setRoomEntered(true);
             console.log('방 입장 완료:', roomId, nickname);
@@ -173,16 +177,17 @@ export const GameRoomProvider: React.FC<{
     
     // 웹소켓 연결
     useEffect(() => {
+      console.log('GameRoomFacade: 웹소켓 연결 시도 (client 없음)');
+      // 이미 연결된 경우 다시 연결하지 않음
       if (!client) {
         connect();
       }
       
       return () => {
-        if (client) {
-          disconnect();
-        }
+        // 명시적인 클린업 로직은 useGameWebSocket에서 처리
+        console.log('GameRoomFacade: 컴포넌트 언마운트');
       };
-    }, [client, connect, disconnect]);
+    }, [client, connect]);
     
     // 참가자 목록 가져오기 함수
     const fetchParticipants = useCallback(async () => {
