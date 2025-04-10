@@ -97,6 +97,7 @@ interface GameStateContextType {
     setMapInfo: (mapInfo: MapInfo | null) => void;
     setCurrentSongIndex: (index: number) => void;
     toggleMapInfo: () => void;
+    setShowMapInfo: (show: boolean) => void;
     setRoomEntered: (entered: boolean) => void;
     nextSong: () => void;
     getCurrentSong: () => Song | null;
@@ -139,6 +140,12 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     toggleMapInfo: useCallback(() => {
       dispatch({ type: ActionTypes.TOGGLE_MAP_INFO });
     }, []),
+    
+    setShowMapInfo: useCallback((show: boolean) => {
+      if (show !== state.showMapInfo) {
+        dispatch({ type: ActionTypes.TOGGLE_MAP_INFO });
+      }
+    }, [state.showMapInfo]),
     
     setRoomEntered: useCallback((entered: boolean) => {
       dispatch({ type: ActionTypes.SET_ROOM_ENTERED, payload: entered });
