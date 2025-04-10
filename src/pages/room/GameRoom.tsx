@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useGameRoom, GameRoomProvider } from '../../contexts/game/GameRoomFacade';
 import ParticipantList from '../../components/game/ParticipantList';
 import ScoreBoard from '../../components/game/ScoreBoard';
@@ -19,14 +19,40 @@ interface GameRoomProps {
 // 게임룸 컴포넌트
 const GameRoom: React.FC<GameRoomProps> = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { roomName } = useParams<{ roomName: string }>();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const nickname = user?.nickname || '';
+  
+  // 닉네임 우선순위: 
+  // 1. 경로 파라미터로 전달된 닉네임
+  // 2. localStorage에 저장된 닉네임
+  // 3. 로그인된 사용자 닉네임
+  // 4. 빈 문자열 (로비로 리다이렉트 판단용)
+  const [nickname, setNickname] = useState<string>(() => {
+    const passedNickname = location.state?.nickname;
+    const storedNickname = localStorage.getItem('nickname');
+    const userNickname = user?.nickname;
+    
+    console.log('닉네임 결정:', { 
+      passedNickname, 
+      storedNickname, 
+      userNickname 
+    });
+    
+    return passedNickname || storedNickname || userNickname || '';
+  });
 
   useEffect(() => {
     // 필수 정보 확인
-    if (!roomName || !nickname) {
+    if (!roomName) {
+      console.error('방 이름이 없습니다.');
+      navigate('/');
+      return;
+    }
+    
+    if (!nickname) {
+      console.error('닉네임이 설정되지 않았습니다.');
       navigate('/');
       return;
     }
@@ -89,24 +115,27 @@ const GameRoomContent: React.FC = () => {
     
     // 유틸리티
     canStartGame,
-    currentSong
+    currentSong,
+    
+    // UI 렌더링 함수
+    renderChatInput
   } = useGameRoom();
   
   // 현재 사용자의 준비 상태
   const isReady = participants.find(p => p.nickname === nickname)?.ready || false;
   
-  // 메시지 입력 핸들러
-  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 메시지 입력 핸들러 - 디바운스 처리
+  const handleMessageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
-  };
+  }, [setMessage]);
   
-  // 엔터키 입력 핸들러
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  // 엔터키 입력 핸들러 메모이제이션
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
-  };
+  }, [sendMessage]);
   
   // 연결 상태에 따른 UI 렌더링
   if (connectionStatus === 'CONNECTING' || connectionStatus === 'DISCONNECTED') {
@@ -232,6 +261,7 @@ const GameRoomContent: React.FC = () => {
             onMessageChange={handleMessageChange}
             onMessageSubmit={handleKeyDown}
             onSendMessage={sendMessage}
+            connectionStatus={connectionStatus}
           />
         </div>
       </div>
