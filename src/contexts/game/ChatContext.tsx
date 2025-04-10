@@ -46,6 +46,7 @@ interface ChatContextType {
     setChatLogs: (logs: string[]) => void;
     clearChatLogs: () => void;
     addSystemMessage: (text: string) => void;
+    addMessage: (sender: string, content: string) => void;
     checkAnswer: (message: string, currentSong: Song | null) => boolean;
   };
 }
@@ -77,6 +78,10 @@ export const ChatProvider: React.FC<{
     
     addSystemMessage: useCallback((text: string) => {
       dispatch({ type: ActionTypes.ADD_CHAT_LOG, payload: `[시스템] ${text}` });
+    }, []),
+    
+    addMessage: useCallback((sender: string, content: string) => {
+      dispatch({ type: ActionTypes.ADD_CHAT_LOG, payload: `${sender}: ${content}` });
     }, []),
     
     // 정답 체크 함수

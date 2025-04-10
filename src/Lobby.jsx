@@ -136,7 +136,8 @@ function Lobby() {
       setShowNicknameModal(true);
       return;
     }
-    navigate("/create-room");
+    // 방 생성 페이지로 닉네임 정보 함께 전달
+    navigate("/create-room", { state: { nickname } });
   };
 
   const joinRoom = (name) => {
@@ -144,7 +145,8 @@ function Lobby() {
       setShowNicknameModal(true);
       return;
     }
-    navigate(`/room/${name}`);
+    // 방 입장 시 닉네임 정보 함께 전달
+    navigate(`/room/${name}`, { state: { nickname } });
   };
 
   const handleSearch = (e) => {
@@ -164,6 +166,14 @@ function Lobby() {
     if (nickname.trim()) {
       localStorage.setItem("nickname", nickname);
       setShowNicknameModal(false);
+      console.log(`닉네임 저장 완료: ${nickname}`);
+      // 값이 localStorage에 정상적으로 저장되었는지 확인
+      const savedNickname = localStorage.getItem("nickname");
+      if (savedNickname !== nickname) {
+        console.warn("닉네임 저장 오류:", savedNickname, "!=", nickname);
+        // 다시 시도
+        localStorage.setItem("nickname", nickname);
+      }
     }
   };
 
