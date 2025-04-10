@@ -1,10 +1,11 @@
-import React, {useEffect, useState} from 'react';
-import {useParams, useNavigate} from 'react-router-dom';
+import {useEffect, useState} from 'react';
+import {useParams, useNavigate, useLocation} from 'react-router-dom';
 import jpaReissueApi from '../../api/jpaReissueApi.js';
 
 const RoomUpdatePage = () => {
   const {roomName} = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [roomId, setRoomId] = useState(null);
   const [roomNameInput, setRoomNameInput] = useState('');
@@ -13,8 +14,17 @@ const RoomUpdatePage = () => {
   const [availableMaps, setAvailableMaps] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  
+  // 로비에서 전달받은 닉네임 또는 localStorage에서 가져온 닉네임 사용
+  const nickname = location.state?.nickname || localStorage.getItem("nickname") || "";
 
   useEffect(() => {
+    // 닉네임이 없으면 로비로 리다이렉트
+    if (!nickname) {
+      navigate('/');
+      return;
+    }
+    
     fetchRoomData();
     fetchMapList();
   }, []);
@@ -58,6 +68,7 @@ const RoomUpdatePage = () => {
         password,
         gameStatus: 'WAITING',
         mapId: Number(mapId),
+        hostNickname: nickname // 닉네임 추가
       });
 
       setSuccess(true);
