@@ -18,6 +18,7 @@ export interface ChatBoxProps {
   onMessageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onMessageSubmit: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onSendMessage: () => void;
+  connectionStatus?: 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED' | 'ERROR';
 }
 
 export interface GameControlsProps {
