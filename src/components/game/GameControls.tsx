@@ -41,33 +41,39 @@ const GameControls: React.FC<GameControlsProps> = ({
   // 대기실 컨트롤 (기본 상태)
   return (
     <div className="game-controls mb-4 space-y-2">
-      {/* 호스트가 아닌 경우 준비 버튼 표시 */}
+      {/* 호스트가 아닌 경우에만 준비 버튼 표시 */}
       {!isHost && (
         <button
           onClick={onToggleReady}
-          className={`w-full px-4 py-2 rounded focus:outline-none focus:ring-2 ${
+          className={`w-full px-4 py-2 rounded focus:outline-none transition-colors ${
             isReady
-              ? "bg-green-500 text-white hover:bg-green-600 focus:ring-green-500"
-              : "bg-gray-200 hover:bg-gray-300 focus:ring-gray-500"
+              ? "bg-green-500 text-white hover:bg-green-600"
+              : "bg-gray-200 text-gray-800 hover:bg-gray-300"
           }`}
         >
-          {isReady ? "준비 완료" : "준비하기"}
+          {isReady ? "준비완료" : "준비하기"}
         </button>
       )}
 
       {/* 호스트인 경우 게임 시작 버튼 표시 */}
       {isHost && (
-        <button
-          onClick={onStartGame}
-          disabled={!canStartGame}
-          className={`w-full px-4 py-2 rounded focus:outline-none focus:ring-2 ${
-            canStartGame
-              ? "bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          게임 시작
-        </button>
+        <>
+          {/* 방장 상태 표시 */}
+          <div className="bg-yellow-100 text-yellow-800 p-2 rounded text-center mb-2 text-sm">
+            방장은 자동으로 준비 완료 상태입니다
+          </div>
+          <button
+            onClick={onStartGame}
+            disabled={!canStartGame}
+            className={`w-full px-4 py-2 rounded focus:outline-none focus:ring-2 ${
+              canStartGame
+                ? "bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            게임 시작
+          </button>
+        </>
       )}
     </div>
   );
