@@ -84,6 +84,7 @@ export const useGameWebSocket = ({
     // 처음 마운트 될 때 한 번만 연결 시도
     if (autoConnect && !subscribed) {
       console.log('게임 웹소켓 자동 연결 시작...');
+      console.log(`방 ${roomName}에 닉네임 '${nickname}'으로 연결합니다`);
       connect();
     }
     
@@ -99,7 +100,7 @@ export const useGameWebSocket = ({
         }
       }, 300);
     };
-  }, [autoConnect, connect, wsDisconnect, subscribed]);
+  }, [autoConnect, connect, wsDisconnect, subscribed, roomName, nickname]);
 
   // 채팅 메시지 전송
   const sendChat = useCallback((content: string) => {
