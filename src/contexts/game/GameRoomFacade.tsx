@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState, useRef, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { Participant, ScoreboardEntry, MapInfo, Song } from '../../types/game';
@@ -7,8 +7,9 @@ import { GameStateProvider, useGameState } from './GameStateContext';
 import { ChatProvider, useChat } from './ChatContext';
 import { ConnectionProvider, useConnection, ConnectionStatus } from './ConnectionContext';
 import { GameStatus } from './types';
-import { IMessage } from '@stomp/stompjs';
+import { IMessage, Client } from '@stomp/stompjs';
 import { API_BASE_URL } from '../../contants/env';
+import { roomApi } from '../../api';
 
 // 게임룸 컨텍스트 타입
 interface GameRoomContextType {
@@ -51,19 +52,104 @@ interface GameRoomContextType {
   // 게임 유틸리티 함수
   canStartGame: boolean;
   currentSong: Song | null;
+  
+  // UI 렌더링 함수
+  renderChatInput: () => React.ReactNode;
 }
 
 // 컨텍스트 생성
 const GameRoomFacade = createContext<GameRoomContextType | undefined>(undefined);
+
+// ChatInput 컴포넌트를 사용하여 메시지 상태 관리를 분리
+const MessageInput = memo(({ 
+  message, 
+  setMessage, 
+  onSendMessage, 
+  disabled
+}: {
+  message: string;
+  setMessage: React.Dispatch<React.SetStateAction<string>>;
+  onSendMessage: () => void;
+  disabled: boolean;
+}) => {
+  // 새로운 변경사항 상태를 로컬에서 관리
+  const [localMessage, setLocalMessage] = useState(message);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isComposing, setIsComposing] = useState(false); // 한글 조합 중인지 여부
+
+  // 외부 메시지 값이 변경되면 로컬 상태도 업데이트 (메시지 전송 후 상태 초기화 등의 경우)
+  useEffect(() => {
+    // 한글 조합 중이 아닐 때만 외부 값으로 업데이트
+    if (!isComposing) {
+      setLocalMessage(message);
+    }
+  }, [message, isComposing]);
+
+  // 로컬 변경사항 처리 - 타이핑할 때마다 부모 컴포넌트를 리렌더링하지 않음
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalMessage(e.target.value);
+  }, []);
+
+  // 한글 입력 시작 시 호출
+  const handleCompositionStart = useCallback(() => {
+    setIsComposing(true);
+  }, []);
+
+  // 한글 입력 완료 시 호출
+  const handleCompositionEnd = useCallback(() => {
+    setIsComposing(false);
+    // 조합 완료 후 현재 입력값을 부모에게 전달
+    if (inputRef.current) {
+      setLocalMessage(inputRef.current.value);
+    }
+  }, []);
+
+  // 엔터 키 처리
+  const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 한글 조합 중에는 엔터 키 처리를 하지 않음
+    if (e.key === 'Enter' && !disabled && localMessage.trim() && !isComposing) {
+      e.preventDefault(); // 기본 동작 방지
+      // 부모 상태 업데이트는 실제 제출 시에만 수행
+      setMessage(localMessage);
+      onSendMessage();
+      // 제출 후 입력창 초기화 (부모에서 message 상태 변경 시 useEffect에 의해 로컬 상태도 초기화됨)
+    }
+  }, [localMessage, disabled, setMessage, onSendMessage, isComposing]);
+
+  // 포커스 유지
+  useEffect(() => {
+    if (inputRef.current && !isComposing) {
+      inputRef.current.focus();
+    }
+  }, [isComposing]);
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={localMessage}
+      onChange={handleChange}
+      onKeyPress={handleKeyPress}
+      onCompositionStart={handleCompositionStart}
+      onCompositionEnd={handleCompositionEnd}
+      disabled={disabled}
+      placeholder="메시지를 입력하세요..."
+      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+      autoFocus
+    />
+  );
+});
 
 // 게임룸 프로바이더 컴포넌트
 export const GameRoomProvider: React.FC<{ 
   children: React.ReactNode;
   roomId: string;
   nickname: string;
-}> = ({ children, roomId, nickname }) => {
+}> = memo(({ children, roomId, nickname }) => {
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
+  const clientRef = useRef<Client | null>(null); // 웹소켓 클라이언트 참조 유지
+  const connectionAttemptedRef = useRef<boolean>(false); // 연결 시도 여부 추적
   
   // 웹소켓 연결 설정
   const {
@@ -76,6 +162,32 @@ export const GameRoomProvider: React.FC<{
     subscribe,
     publish
   } = useWebSocket();
+
+  // clientRef 업데이트 (client가 변경될 때만)
+  useEffect(() => {
+    if (client) {
+      clientRef.current = client;
+    }
+  }, [client]);
+  
+  // 최초 마운트 시 한 번만 연결 시도
+  useEffect(() => {
+    // 이미 연결 시도를 했으면 다시 시도하지 않음
+    if (!connectionAttemptedRef.current && !clientRef.current) {
+      console.log('GameRoomFacade: 최초 웹소켓 연결 시도');
+      connectionAttemptedRef.current = true;
+      connect();
+    }
+    
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      console.log('GameRoomFacade: 실제 컴포넌트 언마운트 - 정리 작업');
+      // 실제 언마운트 시에만 연결 해제
+      if (connectionAttemptedRef.current) {
+        connectionAttemptedRef.current = false;
+      }
+    };
+  }, []); // 의존성 배열을 비워 최초 마운트 시에만 실행
 
   // GameRoomFacade 내부에서 사용할 컴포넌트를 생성합니다.
   // 이 컴포넌트는 모든 컨텍스트 프로바이더를 사용합니다.
@@ -108,7 +220,6 @@ export const GameRoomProvider: React.FC<{
     } = useConnection();
     
     // 웹소켓 연결 상태를 연결 컨텍스트에 동기화
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
       connectionActions.setConnectionStatus(wsConnectionStatus);
       connectionActions.setReconnecting(wsReconnecting);
@@ -123,86 +234,7 @@ export const GameRoomProvider: React.FC<{
       }
     }, [wsConnectionStatus, wsReconnecting, wsConnectionError]);
     
-    // 방 입장 처리
-    useEffect(() => {
-      if (connectionStatus === 'CONNECTED' && !roomEntered) {
-        // 약간의 지연 후 방 입장 메시지 전송 (웹소켓 연결 완전 안정화를 위해)
-        const timer = setTimeout(() => {
-          // 연결 상태 재확인
-          if (connectionStatus !== 'CONNECTED') {
-            console.warn('WebSocket 연결이 불안정합니다. 다시 시도합니다.');
-            connectionActions.setConnectionError('웹소켓 연결이 불안정합니다.');
-            return;
-          }
-          
-          try {
-            // 방 입장 메시지 전송
-            console.log(`방 입장 메시지 전송: roomId=${roomId}, nickname=${nickname}`);
-            publish('/app/chat.join', JSON.stringify({
-              roomName: roomId,
-              sender: nickname,
-              content: "",
-              type: "JOIN"
-            }));
-            
-            // 메시지 구독
-            console.log(`토픽 구독: /topic/rooms/${roomId}`);
-            const topicSubscription = subscribe(`/topic/rooms/${roomId}`, (message: IMessage) => {
-              console.log(`메시지 수신 from topic: ${message.body}`);
-              handleMessage(message.body);
-            });
-            
-            if (!topicSubscription) {
-              console.error('토픽 구독 실패');
-              connectionActions.setConnectionError('토픽 구독에 실패했습니다.');
-              return;
-            }
-            
-            gameStateActions.setRoomEntered(true);
-            console.log('방 입장 완료:', roomId, nickname);
-          } catch (error) {
-            console.error('방 입장 중 오류 발생:', error);
-            connectionActions.setConnectionError('방 입장 중 오류가 발생했습니다.');
-            
-            // 5초 후 다시 시도
-            setTimeout(() => {
-              connect();
-            }, 5000);
-          }
-        }, 500); // 0.5초 지연
-        
-        return () => clearTimeout(timer);
-      }
-    }, [connectionStatus, roomEntered, roomId, nickname, publish, subscribe, gameStateActions, connectionActions, connect]);
-    
-    // 웹소켓 연결
-    useEffect(() => {
-      console.log('GameRoomFacade: 웹소켓 연결 시도 (client 없음)');
-      // 이미 연결된 경우 다시 연결하지 않음
-      if (!client) {
-        connect();
-      }
-      
-      return () => {
-        // 명시적인 클린업 로직은 useGameWebSocket에서 처리
-        console.log('GameRoomFacade: 컴포넌트 언마운트');
-      };
-    }, [client, connect]);
-    
-    // 참가자 목록 가져오기 함수
-    const fetchParticipants = useCallback(async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/participants`);
-        if (response.ok) {
-          const participants = await response.json();
-          participantActions.setParticipants(participants);
-        }
-      } catch (error) {
-        console.error('참가자 목록 조회 중 오류 발생:', error);
-      }
-    }, [roomId, participantActions]);
-    
-    // 방 정보 가져오기 함수
+    // 방 정보 가져오기 함수 - dependencies 최소화
     const fetchRoomInfo = useCallback(async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}`);
@@ -217,10 +249,23 @@ export const GameRoomProvider: React.FC<{
       } catch (error) {
         console.error('방 정보 조회 중 오류 발생:', error);
       }
-    }, [roomId, nickname, gameStateActions]);
+    }, [roomId, nickname]);
+    
+    // 참가자 목록 가져오기 함수 - dependencies 최소화
+    const fetchParticipants = useCallback(async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/participants`);
+        if (response.ok) {
+          const participants = await response.json();
+          participantActions.setParticipants(participants);
+        }
+      } catch (error) {
+        console.error('참가자 목록 조회 중 오류 발생:', error);
+      }
+    }, [roomId]);
     
     // 메시지 처리 함수
-    const handleMessage = (messageBody: string) => {
+    const handleMessage = useCallback((messageBody: string) => {
       try {
         const data = JSON.parse(messageBody);
         const { type, sender, content, roomName } = data;
@@ -242,198 +287,243 @@ export const GameRoomProvider: React.FC<{
             fetchParticipants();
             break;
             
-          case 'READY':
-            // 준비 상태 변경
-            fetchParticipants();
+          case 'CHAT':
+            // 일반 채팅 메시지
+            chatActions.addMessage(sender, content);
+            break;
+            
+          case 'PARTICIPANT_READY':
+            // 참가자 준비 상태 변경 처리 (실시간 업데이트)
+            const isReady = content === 'true';
+            participantActions.updateParticipant(sender, { ready: isReady });
             break;
             
           case 'GAME_START':
-            // 게임 시작
+            // 게임 시작 메시지
+            chatActions.addSystemMessage('게임이 시작되었습니다.');
             gameStateActions.setGameStatus('PLAYING');
-            gameStateActions.setCurrentSongIndex(0);
-            participantActions.resetScoreboard();
-            chatActions.addSystemMessage('게임이 시작되었습니다!');
             break;
             
           case 'GAME_END':
-            // 게임 종료
-            gameStateActions.setGameStatus('FINISHED');
-            chatActions.addSystemMessage('게임이 종료되었습니다!');
+            // 게임 종료 메시지
+            chatActions.addSystemMessage('게임이 종료되었습니다.');
+            gameStateActions.setGameStatus('WAITING');
             break;
             
           case 'NEXT_SONG':
-            // 다음 곡으로 이동
-            if (content) {
-              const songIndex = parseInt(content);
+            // 다음 곡 재생
+            const songIndex = parseInt(content);
+            if (!isNaN(songIndex)) {
               gameStateActions.setCurrentSongIndex(songIndex);
-              chatActions.addSystemMessage(`다음 곡으로 넘어갑니다. (${songIndex + 1}/${mapInfo?.songs.length || 0})`);
+              chatActions.addSystemMessage(`다음 곡이 시작됩니다: ${songIndex + 1}번째 곡`);
             }
             break;
             
-          case 'CHAT':
-            // 채팅 메시지 추가
-            chatActions.addChatLog(`${sender}: ${content}`);
-            break;
-            
           case 'SCORE_UPDATE':
-            // 점수 업데이트 - HTTP 요청으로 최신 점수 가져오기
+            // 점수 업데이트
+            fetchParticipants(); // 참가자 목록 업데이트 (점수 포함)
             break;
             
           case 'UPDATE_PARTICIPANTS':
             // 참가자 목록 업데이트
             fetchParticipants();
-            chatActions.addSystemMessage('참가자 목록이 업데이트되었습니다.');
             break;
             
-          case 'ERROR':
-            // 에러 메시지
-            connectionActions.setConnectionError(content);
+          case 'SYSTEM':
+            // 시스템 메시지
+            chatActions.addSystemMessage(content);
             break;
             
           default:
-            console.warn('알 수 없는 메시지 유형:', type);
+            console.warn('알 수 없는 메시지 타입:', type);
         }
       } catch (error) {
-        console.error('메시지 파싱 중 오류 발생:', error);
+        console.error('메시지 처리 중 오류 발생:', error);
       }
-    };
+    }, [chatActions, gameStateActions, fetchParticipants]);
     
-    // 메시지 전송 함수
+    // 방 입장 처리 - dependencies 최소화
+    const joinRoom = useCallback(() => {
+      if (connectionStatus !== 'CONNECTED' || roomEntered) return;
+      
+      try {
+        // 방 입장 메시지 전송
+        console.log(`방 입장 메시지 전송: roomId=${roomId}, nickname=${nickname}`);
+        
+        // localStorage에 저장된 닉네임과 비교 (디버깅용)
+        const storedNickname = localStorage.getItem('nickname');
+        if (storedNickname !== nickname) {
+          console.warn(`닉네임 불일치: 전달된 값(${nickname}) != localStorage(${storedNickname})`);
+          // localStorage에 현재 사용 중인 닉네임 업데이트
+          localStorage.setItem('nickname', nickname);
+        }
+        
+        publish('/app/chat.join', JSON.stringify({
+          roomName: roomId,
+          sender: nickname,
+          content: "",
+          type: "JOIN"
+        }));
+        
+        // 메시지 구독
+        console.log(`토픽 구독: /topic/rooms/${roomId}`);
+        const topicSubscription = subscribe(`/topic/rooms/${roomId}`, (message: IMessage) => {
+          console.log(`메시지 수신 from topic: ${message.body}`);
+          handleMessage(message.body);
+        });
+        
+        if (!topicSubscription) {
+          console.error('토픽 구독 실패');
+          connectionActions.setConnectionError('토픽 구독에 실패했습니다.');
+          return;
+        }
+        
+        gameStateActions.setRoomEntered(true);
+        console.log('방 입장 완료:', roomId, nickname);
+      } catch (error) {
+        console.error('방 입장 중 오류 발생:', error);
+        connectionActions.setConnectionError('방 입장 중 오류가 발생했습니다.');
+      }
+    }, [connectionStatus, roomEntered, roomId, nickname, publish, subscribe, handleMessage]);
+    
+    // 방 입장 타이머
+    useEffect(() => {
+      if (connectionStatus === 'CONNECTED' && !roomEntered) {
+        // 약간의 지연 후 방 입장 메시지 전송 (웹소켓 연결 완전 안정화를 위해)
+        const timer = setTimeout(joinRoom, 500);
+        return () => clearTimeout(timer);
+      }
+    }, [connectionStatus, roomEntered, joinRoom]);
+    
+    // 채팅 메시지 전송
     const sendMessage = useCallback(() => {
       if (!message.trim()) return;
       
-      // 연결 상태 확인
       if (connectionStatus !== 'CONNECTED') {
-        chatActions.addSystemMessage('연결 상태를 확인하세요. 메시지를 보낼 수 없습니다.');
-        return;
+        // 연결 상태가 아닐 때 사용자에게 알림
+        chatActions.addSystemMessage('연결 중입니다. 메시지는 연결 완료 후 전송됩니다.');
       }
       
-      // 정답 확인 (게임 중일 때만)
-      if (gameStatus === 'PLAYING') {
-        const currentSong = gameStateActions.getCurrentSong();
-        const isCorrect = chatActions.checkAnswer(message, currentSong);
-        
-        // 정답이면 서버에 정답 제출
-        if (isCorrect) {
-          try {
-            publish('/app/room/answer', JSON.stringify({
-              roomId,
-              nickname,
-              content: message
-            }));
-            setMessage('');
-          } catch (error) {
-            console.error('정답 제출 중 오류 발생:', error);
-            chatActions.addSystemMessage('메시지 전송 중 오류가 발생했습니다.');
-          }
-          return;
+      publish('/app/chat.send', JSON.stringify({
+        roomName: roomId,
+        sender: nickname,
+        content: message,
+        type: "CHAT"
+      }));
+      
+      // 메시지 전송 시도 후 입력창 초기화
+      setMessage('');
+    }, [message, connectionStatus, roomId, nickname, publish, chatActions]);
+    
+    // 게임 시작
+    const startGame = useCallback(() => {
+      if (!isHost || connectionStatus !== 'CONNECTED') return;
+      
+      publish('/app/game.start', JSON.stringify({
+        roomName: roomId,
+        sender: nickname
+      }));
+    }, [isHost, connectionStatus, roomId, nickname, publish]);
+    
+    // 게임 종료
+    const endGame = useCallback(() => {
+      if (!isHost || connectionStatus !== 'CONNECTED') return;
+      
+      publish('/app/game.end', JSON.stringify({
+        roomName: roomId,
+        sender: nickname
+      }));
+    }, [isHost, connectionStatus, roomId, nickname, publish]);
+    
+    // 준비 상태 토글
+    const toggleReady = useCallback(() => {
+      if (connectionStatus !== 'CONNECTED') return;
+      
+      const isReady = participants.find(p => p.nickname === nickname)?.ready || false;
+      
+      // 로컬에서 먼저 준비 상태 변경 (UI 즉시 반영)
+      participantActions.updateParticipant(nickname, { ready: !isReady });
+      
+      // WebSocket을 통해 준비 상태 변경 메시지 전송 (모든 참가자에게 즉시 알림)
+      publish('/app/chat.ready', JSON.stringify({
+        roomName: roomId,
+        sender: nickname,
+        content: (!isReady).toString(),
+        type: "PARTICIPANT_READY"
+      }));
+      
+      // 서버에 준비 상태 변경 요청 (DB 저장용)
+      roomApi.setReady(roomId, nickname, !isReady)
+        .catch(error => {
+          // 에러 발생 시 원래 상태로 롤백
+          participantActions.updateParticipant(nickname, { ready: isReady });
+          console.error('준비 상태 변경 중 오류 발생:', error);
+          
+          // 롤백 상태를 다른 참가자에게도 알림
+          publish('/app/chat.ready', JSON.stringify({
+            roomName: roomId,
+            sender: nickname,
+            content: isReady.toString(),
+            type: "PARTICIPANT_READY"
+          }));
+        });
+    }, [connectionStatus, participants, roomId, nickname, participantActions, publish]);
+    
+    // 맵 정보 토글
+    const toggleMapInfo = useCallback(() => {
+      gameStateActions.toggleMapInfo();
+    }, [gameStateActions]);
+    
+    // 답변 제출
+    const submitAnswer = useCallback((answer: string) => {
+      if (connectionStatus !== 'CONNECTED' || gameStatus !== 'PLAYING') return;
+      
+      publish('/app/game.answer', JSON.stringify({
+        roomName: roomId,
+        sender: nickname,
+        content: answer
+      }));
+    }, [connectionStatus, gameStatus, roomId, nickname, publish]);
+    
+    // 현재 곡 정보 계산
+    const currentSong = mapInfo && currentSongIndex < mapInfo.songs.length
+      ? mapInfo.songs[currentSongIndex]
+      : null;
+    
+    // 게임 시작 가능 여부 계산
+    const canStartGame = useMemo(() => {
+      if (!isHost || gameStatus !== 'WAITING') return false;
+      
+      // 방장은 항상 준비 완료 상태로 간주
+      // 최소 2명 이상의 참가자, 방장이 아닌 모든 참가자가 준비 상태여야 함
+      const nonHostParticipants = participants.filter(p => p.nickname !== roomHost);
+      const readyNonHostParticipants = nonHostParticipants.filter(p => p.ready);
+      
+      return participants.length >= 2 && 
+             nonHostParticipants.length === readyNonHostParticipants.length;
+    }, [isHost, gameStatus, participants, roomHost]);
+    
+    // 참가자 목록이 업데이트될 때마다 방장의 준비 상태를 확인하고 자동으로 설정
+    useEffect(() => {
+      if (isHost && roomHost && connectionStatus === 'CONNECTED') {
+        const host = participants.find(p => p.nickname === roomHost);
+        // 방장이 준비되지 않은 상태라면 자동으로 준비 상태로 설정
+        if (host && !host.ready) {
+          fetch(`${API_BASE_URL}/api/rooms/${roomId}/ready`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              nickname: roomHost,
+              ready: true
+            })
+          }).catch(error => {
+            console.error('방장 자동 준비 상태 설정 중 오류 발생:', error);
+          });
         }
       }
-      
-      // 일반 채팅 메시지 전송
-      try {
-        publish('/app/chat.send', JSON.stringify({
-          roomName: roomId,
-          sender: nickname,
-          content: message,
-          type: "CHAT"
-        }));
-        setMessage('');
-      } catch (error) {
-        console.error('채팅 메시지 전송 중 오류 발생:', error);
-        chatActions.addSystemMessage('메시지 전송 중 오류가 발생했습니다.');
-      }
-    }, [roomId, nickname, message, gameStatus, gameStateActions, chatActions, publish, connectionStatus]);
-    
-    // 준비 상태 토글 함수
-    const toggleReady = useCallback(() => {
-      // 연결 상태 확인
-      if (connectionStatus !== 'CONNECTED') {
-        chatActions.addSystemMessage('연결 상태를 확인하세요. 준비 상태를 변경할 수 없습니다.');
-        return;
-      }
-      
-      try {
-        publish('/app/chat.ready', JSON.stringify({
-          roomName: roomId,
-          sender: nickname,
-          content: "",
-          type: "READY"
-        }));
-      } catch (error) {
-        console.error('준비 상태 변경 중 오류 발생:', error);
-        chatActions.addSystemMessage('준비 상태 변경 중 오류가 발생했습니다.');
-      }
-    }, [roomId, nickname, participants, publish, connectionStatus, chatActions]);
-    
-    // 게임 시작 함수
-    const startGame = useCallback(() => {
-      if (!isHost || gameStatus !== 'WAITING') return;
-      
-      // 연결 상태 확인
-      if (connectionStatus !== 'CONNECTED') {
-        chatActions.addSystemMessage('연결 상태를 확인하세요. 게임을 시작할 수 없습니다.');
-        return;
-      }
-      
-      try {
-        publish('/app/game.start', JSON.stringify({
-          roomName: roomId,
-          sender: nickname,
-          content: "",
-          type: "GAME_START"
-        }));
-      } catch (error) {
-        console.error('게임 시작 중 오류 발생:', error);
-        chatActions.addSystemMessage('게임 시작 중 오류가 발생했습니다.');
-      }
-    }, [roomId, nickname, isHost, gameStatus, publish, connectionStatus, chatActions]);
-    
-    // 게임 종료 함수
-    const endGame = useCallback(() => {
-      if (!isHost || gameStatus !== 'PLAYING') return;
-      
-      // 연결 상태 확인
-      if (connectionStatus !== 'CONNECTED') {
-        chatActions.addSystemMessage('연결 상태를 확인하세요. 게임을 종료할 수 없습니다.');
-        return;
-      }
-      
-      try {
-        publish('/app/game.end', JSON.stringify({
-          roomName: roomId,
-          sender: nickname,
-          content: "",
-          type: "GAME_END"
-        }));
-      } catch (error) {
-        console.error('게임 종료 중 오류 발생:', error);
-        chatActions.addSystemMessage('게임 종료 중 오류가 발생했습니다.');
-      }
-    }, [roomId, nickname, isHost, gameStatus, publish, connectionStatus, chatActions]);
-    
-    // 정답 제출 함수
-    const submitAnswer = useCallback((answer: string) => {
-      if (gameStatus !== 'PLAYING') return;
-      
-      // 연결 상태 확인
-      if (connectionStatus !== 'CONNECTED') {
-        chatActions.addSystemMessage('연결 상태를 확인하세요. 정답을 제출할 수 없습니다.');
-        return;
-      }
-      
-      try {
-        publish('/app/score.update', JSON.stringify({
-          roomName: roomId,
-          sender: nickname,
-          content: answer,
-          type: "SCORE_UPDATE"
-        }));
-      } catch (error) {
-        console.error('정답 제출 중 오류 발생:', error);
-        chatActions.addSystemMessage('정답 제출 중 오류가 발생했습니다.');
-      }
-    }, [roomId, nickname, gameStatus, publish, connectionStatus, chatActions]);
+    }, [participants, isHost, roomHost, connectionStatus, roomId]);
     
     // 연결 끊기 함수 (방 나가기)
     const handleDisconnect = useCallback(() => {
@@ -462,47 +552,63 @@ export const GameRoomProvider: React.FC<{
       navigate('/');
     }, [roomId, nickname, connectionStatus, publish, disconnect, navigate]);
     
-    // 현재 곡 정보 및 게임 시작 가능 여부 계산
-    const currentSong = gameStateActions.getCurrentSong();
-    const canStartGame = gameStateActions.canStartGame(participants);
-    
-    // 컨텍스트 값 구성
-    const value: GameRoomContextType = {
-      // 상태
-      connectionStatus,
-      reconnecting,
-      connectionError,
-      gameStatus,
-      roomName,
-      roomHost,
-      isHost,
-      mapInfo,
-      currentSongIndex,
-      showMapInfo,
-      roomEntered,
-      participants,
-      scoreboard,
-      chatLogs,
-      message,
-      setMessage,
-      nickname,
-      
-      // 액션
-      sendMessage,
-      toggleReady,
-      startGame,
-      endGame,
-      toggleMapInfo: gameStateActions.toggleMapInfo,
-      disconnect: handleDisconnect,
-      submitAnswer,
-      
-      // 유틸리티
-      canStartGame,
-      currentSong
+    // ChatInput 컴포넌트 사용 예시 (실제 UI는 GameRoom 컴포넌트에서 구현)
+    const renderChatInput = () => {
+      return (
+        <MessageInput
+          message={message}
+          setMessage={setMessage}
+          onSendMessage={sendMessage}
+          disabled={connectionStatus !== 'CONNECTED'}
+        />
+      );
     };
     
     return (
-      <GameRoomFacade.Provider value={value}>
+      <GameRoomFacade.Provider value={{
+        // 웹소켓 연결 상태
+        connectionStatus,
+        reconnecting,
+        connectionError,
+        
+        // 게임 상태
+        gameStatus,
+        roomName,
+        roomHost,
+        isHost,
+        mapInfo,
+        currentSongIndex,
+        showMapInfo,
+        roomEntered,
+        
+        // 참가자 정보
+        participants,
+        scoreboard,
+        
+        // 채팅 정보
+        chatLogs,
+        message,
+        setMessage,
+        
+        // 사용자 정보
+        nickname,
+        
+        // 액션 함수
+        sendMessage,
+        toggleReady,
+        startGame,
+        endGame,
+        toggleMapInfo,
+        disconnect: handleDisconnect,
+        submitAnswer,
+        
+        // 게임 유틸리티 함수
+        canStartGame,
+        currentSong,
+        
+        // UI 렌더링 함수
+        renderChatInput
+      }}>
         {children}
       </GameRoomFacade.Provider>
     );
@@ -532,7 +638,7 @@ export const GameRoomProvider: React.FC<{
       </ParticipantProvider>
     </ConnectionProvider>
   );
-};
+});
 
 // 게임룸 컨텍스트 사용 훅
 export const useGameRoom = () => {
