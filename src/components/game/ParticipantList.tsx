@@ -26,7 +26,7 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
           >
             <div className="flex items-center">
               {participant.nickname === host && (
-                <span className="mr-2 px-1 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">
+                <span className="mr-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
                   방장
                 </span>
               )}
@@ -34,13 +34,13 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
                 {participant.nickname}
               </span>
             </div>
-            <div className="flex items-center">
+            <div>
               {participant.ready ? (
-                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                <span className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium">
                   준비완료
                 </span>
               ) : (
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
                   대기중
                 </span>
               )}
