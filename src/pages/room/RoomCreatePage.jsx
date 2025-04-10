@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import jpaReissueApi from "../../api/jpaReissueApi.js";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const RoomCreatePage = () => {
   const [name, setName] = useState('');
@@ -12,10 +12,20 @@ const RoomCreatePage = () => {
   const [maxParticipants, setMaxParticipants] = useState(4); // 기본값 4명
   
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // 로비에서 전달받은 닉네임 또는 localStorage에서 가져온 닉네임 사용
+  const nickname = location.state?.nickname || localStorage.getItem("nickname") || "";
 
   useEffect(() => {
+    // 닉네임이 없으면 로비로 리다이렉트
+    if (!nickname) {
+      navigate('/');
+      return;
+    }
+    
     fetchMaps();
-  }, []);
+  }, [nickname, navigate]);
 
   const fetchMaps = async () => {
     try {
@@ -44,19 +54,20 @@ const RoomCreatePage = () => {
     try {
       const roomName = name.trim();
       
-      // 방 생성 요청
+      // 방 생성 요청 - 닉네임을 요청 본문에 포함
       await jpaReissueApi.post("/api/rooms", {
         name: roomName,
         password,
         gameStatus: 'WAITING',
         mapId: Number(mapId),
         maxParticipants: Number(maxParticipants),
+        hostNickname: nickname // 닉네임을 요청 본문에 포함
       });
 
       console.log(`방 '${roomName}' 생성 성공! 곧 입장합니다...`);
       
-      // 방 생성 성공 후 바로 해당 방으로 이동
-      navigate(`/room/${roomName}`);
+      // 방 생성 성공 후 바로 해당 방으로 이동 (닉네임 전달)
+      navigate(`/room/${roomName}`, { state: { nickname } });
       
     } catch (err) {
       setError(err.response?.data?.message || '방 생성에 실패했습니다.');
