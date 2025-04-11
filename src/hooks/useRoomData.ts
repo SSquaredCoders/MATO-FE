@@ -1,16 +1,66 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../contants/env';
-import { useGameRoom } from '../contexts/game/GameRoomContext.js';
+import { useGameRoom } from '../contexts/game/GameRoomFacade';
 
 const API_URL = API_BASE_URL;
 
+// 타입 정의
+interface Participant {
+  nickname: string;
+  ready: boolean;
+}
+
+interface ScoreboardEntry {
+  nickname: string;
+  score: number;
+}
+
+interface Song {
+  id: number;
+  songId?: number;
+  song?: {
+    id: number;
+    title: string;
+    youtubeUrl: string;
+  };
+  title?: string;
+  youtubeUrl?: string;
+  startTime: number;
+  endTime: number;
+  repeatCount: number;
+  answers: Array<{
+    id: number;
+    answerText?: string;
+    text?: string;
+  }>;
+  hints: Array<{
+    id: number;
+    hintText?: string;
+    text?: string;
+    revealTime: number;
+  }>;
+}
+
+interface MapData {
+  id: number;
+  name: string;
+  description: string;
+  isPublic: boolean;
+  songs: Song[];
+  songCount?: number;
+  difficulty?: string;
+  playTime?: string;
+  creator?: string;
+  userId?: string;
+}
+
 /**
  * 방 정보와 참가자 목록을 관리하는 커스텀 훅
- * @param {string} roomName - 방 이름
- * @returns {Object} 방 정보와 참가자 관련 함수들
+ * @param roomName - 방 이름
+ * @returns 방 정보와 참가자 관련 함수들
  */
-export const useRoomData = (roomName) => {
+export const useRoomData = (roomName: string) => {
   const {
     state,
     setRoomInfo,
@@ -20,13 +70,13 @@ export const useRoomData = (roomName) => {
     updateParticipant,
     setMapInfo,
     setScoreboard
-  } = useGameRoom();
+  } = useGameRoom() as any;
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // 맵 데이터를 처리하고 필요한 형식으로 변환하는 함수
-  const processMapData = useCallback((rawMapData) => {
+  const processMapData = useCallback((rawMapData: any): MapData => {
     try {
       // rawMapData가 null이거나 유효하지 않은 형식일 경우 기본 구조 반환
       if (!rawMapData || !rawMapData.songs) {
@@ -43,7 +93,7 @@ export const useRoomData = (roomName) => {
       console.log("원본 맵 데이터:", rawMapData);
 
       // 노래 목록 가공
-      const processedSongs = rawMapData.songs.map(song => {
+      const processedSongs = rawMapData.songs.map((song: any) => {
         // 백엔드 구조 로깅
         console.log("원본 노래 데이터:", song);
 
@@ -59,11 +109,11 @@ export const useRoomData = (roomName) => {
           startTime: song.startTime || 0,
           endTime: song.endTime || 30,
           repeatCount: song.repeatCount || 1,
-          answers: Array.isArray(song.answers) ? song.answers.map(a => ({
+          answers: Array.isArray(song.answers) ? song.answers.map((a: any) => ({
             id: a.id || 0,
             text: a.answerText || "알 수 없는 정답" // answerText 필드 사용
           })) : [],
-          hints: Array.isArray(song.hints) ? song.hints.map(h => ({
+          hints: Array.isArray(song.hints) ? song.hints.map((h: any) => ({
             id: h.id || 0,
             text: h.hintText || "힌트 없음", // hintText 필드 사용
             revealTime: h.revealTime || 10
@@ -83,15 +133,75 @@ export const useRoomData = (roomName) => {
         songs: processedSongs,
         songCount: processedSongs.length,
         difficulty: rawMapData.difficulty || "보통",
-        playTime: `약 ${Math.round(processedSongs.reduce((total, song) => 
+        playTime: `약 ${Math.round(processedSongs.reduce((total: number, song: any) => 
           total + ((song.endTime - song.startTime) * song.repeatCount), 0) / 60)} 분`,
         creator: rawMapData.userId || "알 수 없음"
       };
     } catch (error) {
       console.error("맵 데이터 처리 중 오류 발생:", error);
-      return rawMapData;
+      return rawMapData as MapData;
     }
   }, []);
+
+  // 함수 선언을 먼저 합니다 - 호이스팅 문제 해결
+  // 맵 정보 가져오기
+  const fetchMapInfo = useCallback(async (mapId: number) => {
+    try {
+      console.log(`맵 정보 요청: ${API_URL}/api/maps/${mapId}`);
+      const response = await axios.get(`${API_URL}/api/maps/${mapId}`);
+
+      if (response.status === 200) {
+        const mapData = response.data;
+        console.log("맵 정보 응답:", mapData);
+
+        // 맵 데이터 처리
+        const processedMapData = processMapData(mapData);
+
+        // 맵 정보 설정
+        setMapInfo(processedMapData);
+      } else {
+        throw new Error("맵 정보를 가져오는데 실패했습니다.");
+      }
+    } catch (err: any) {
+      console.error("맵 정보 가져오기 오류:", err);
+      setError(err.message || "맵 정보를 가져오는 중 오류가 발생했습니다.");
+    }
+  }, [processMapData, setMapInfo]);
+
+  // 참가자 목록 가져오기
+  const fetchParticipants = useCallback(async () => {
+    try {
+      console.log(`참가자 목록 요청: ${API_URL}/api/rooms/${roomName}/participants`);
+      const response = await axios.get(`${API_URL}/api/rooms/${roomName}/participants`);
+
+      if (response.status === 200) {
+        const participantsData = response.data;
+        console.log("참가자 목록 응답:", participantsData);
+
+        // 참가자 목록 형식 변환 (백엔드 API에 따라 조정 필요)
+        const formattedParticipants: Participant[] = participantsData.map((p: any) => ({
+          nickname: p.nickname || p, // API 응답 형식에 따라 조정
+          ready: p.ready || false
+        }));
+
+        // 참가자 목록 설정
+        setParticipants(formattedParticipants);
+
+        // 스코어보드 초기화 (모든 참가자 0점으로)
+        const initialScoreboard: ScoreboardEntry[] = formattedParticipants.map(p => ({
+          nickname: p.nickname,
+          score: 0
+        }));
+
+        setScoreboard(initialScoreboard);
+      } else {
+        throw new Error("참가자 목록을 가져오는데 실패했습니다.");
+      }
+    } catch (err: any) {
+      console.error("참가자 목록 가져오기 오류:", err);
+      setError(err.message || "참가자 목록을 가져오는 중 오류가 발생했습니다.");
+    }
+  }, [roomName, setParticipants, setScoreboard]);
 
   // 방 정보 가져오기
   const fetchRoomInfo = useCallback(async () => {
@@ -121,74 +231,15 @@ export const useRoomData = (roomName) => {
       }
 
       setLoading(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("방 정보 가져오기 오류:", err);
       setError(err.message || "방 정보를 가져오는 중 오류가 발생했습니다.");
       setLoading(false);
     }
-  }, [roomName, setRoomInfo, fetchMapInfo]);
-
-  // 맵 정보 가져오기
-  const fetchMapInfo = useCallback(async (mapId) => {
-    try {
-      console.log(`맵 정보 요청: ${API_URL}/api/maps/${mapId}`);
-      const response = await axios.get(`${API_URL}/api/maps/${mapId}`);
-
-      if (response.status === 200) {
-        const mapData = response.data;
-        console.log("맵 정보 응답:", mapData);
-
-        // 맵 데이터 처리
-        const processedMapData = processMapData(mapData);
-
-        // 맵 정보 설정
-        setMapInfo(processedMapData);
-      } else {
-        throw new Error("맵 정보를 가져오는데 실패했습니다.");
-      }
-    } catch (err) {
-      console.error("맵 정보 가져오기 오류:", err);
-      setError(err.message || "맵 정보를 가져오는 중 오류가 발생했습니다.");
-    }
-  }, [processMapData, setMapInfo]);
-
-  // 참가자 목록 가져오기
-  const fetchParticipants = useCallback(async () => {
-    try {
-      console.log(`참가자 목록 요청: ${API_URL}/api/rooms/${roomName}/participants`);
-      const response = await axios.get(`${API_URL}/api/rooms/${roomName}/participants`);
-
-      if (response.status === 200) {
-        const participantsData = response.data;
-        console.log("참가자 목록 응답:", participantsData);
-
-        // 참가자 목록 형식 변환 (백엔드 API에 따라 조정 필요)
-        const formattedParticipants = participantsData.map(p => ({
-          nickname: p.nickname || p, // API 응답 형식에 따라 조정
-          ready: p.ready || false
-        }));
-
-        // 참가자 목록 설정
-        setParticipants(formattedParticipants);
-
-        // 스코어보드 초기화 (모든 참가자 0점으로)
-        const initialScoreboard = formattedParticipants.map(p => ({
-          nickname: p.nickname,
-          score: 0
-        }));
-
-        setScoreboard(initialScoreboard);
-      } else {
-        throw new Error("참가자 목록을 가져오는데 실패했습니다.");
-      }
-    } catch (err) {
-      console.error("참가자 목록 가져오기 오류:", err);
-      setError(err.message || "참가자 목록을 가져오는 중 오류가 발생했습니다.");
-    }
-  }, [roomName, setParticipants, setScoreboard]);
+  }, [roomName, setRoomInfo, fetchMapInfo, fetchParticipants]);
 
   // 참가자 추가
-  const addNewParticipant = useCallback(async (nickname) => {
+  const addNewParticipant = useCallback(async (nickname: string) => {
     try {
       console.log(`${roomName}에 참가자 추가: ${nickname}`);
       const response = await axios.post(`${API_URL}/api/rooms/${roomName}/participants`, { nickname });
@@ -206,7 +257,7 @@ export const useRoomData = (roomName) => {
       } else {
         throw new Error("참가자 추가에 실패했습니다.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("참가자 추가 오류:", err);
       setError(err.message || "참가자 추가 중 오류가 발생했습니다.");
       return false;
@@ -214,7 +265,7 @@ export const useRoomData = (roomName) => {
   }, [roomName, addParticipant]);
 
   // 참가자 제거
-  const removeExistingParticipant = useCallback(async (nickname) => {
+  const removeExistingParticipant = useCallback(async (nickname: string) => {
     try {
       console.log(`${roomName}에서 참가자 제거: ${nickname}`);
       await axios.delete(`${API_URL}/api/rooms/${roomName}/participants/${nickname}`);
@@ -223,7 +274,7 @@ export const useRoomData = (roomName) => {
       removeParticipant(nickname);
 
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error("참가자 제거 오류:", err);
       setError(err.message || "참가자 제거 중 오류가 발생했습니다.");
       return false;
@@ -246,7 +297,7 @@ export const useRoomData = (roomName) => {
           return true;
         }
       } catch (bulkErr) {
-        console.log("게스트 일괄 삭제 API가 없거나 실패:", bulkErr.message);
+        console.log("게스트 일괄 삭제 API가 없거나 실패:", (bulkErr as Error).message);
         // 일괄 제거 실패 시 개별 제거 로직으로 진행
       }
 
@@ -255,7 +306,7 @@ export const useRoomData = (roomName) => {
       const currentParticipants = participantsRes.data;
 
       // 게스트 사용자 필터링
-      const guestUsers = currentParticipants.filter(p =>
+      const guestUsers = currentParticipants.filter((p: any) =>
         (p.nickname && p.nickname.startsWith("게스트")) ||
         (typeof p === 'string' && p.startsWith("게스트"))
       );
@@ -277,7 +328,7 @@ export const useRoomData = (roomName) => {
       await fetchParticipants();
 
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error("게스트 사용자 정리 오류:", err);
       setError(err.message || "게스트 사용자 정리 중 오류가 발생했습니다.");
       return false;
@@ -300,4 +351,4 @@ export const useRoomData = (roomName) => {
     cleanupGuestUsers,
     updateParticipant
   };
-};
+}; 

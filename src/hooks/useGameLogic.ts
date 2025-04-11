@@ -1,13 +1,35 @@
 import { useCallback } from 'react';
-import { useGameRoom } from '../contexts/game/GameRoomContext.js';
+import { useGameRoom } from '../contexts/game/GameRoomFacade';
 import { useWebSocket } from './useWebSocket';
+
+// 타입 정의
+interface Participant {
+  nickname: string;
+  ready: boolean;
+}
+
+interface Song {
+  id: number;
+  song: {
+    id: number;
+    title: string;
+    artist: string;
+    youtubeUrl: string;
+  };
+  answers: Array<{
+    id: number;
+    text: string;
+  }>;
+}
+
+type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
 
 /**
  * 게임 로직을 관리하는 커스텀 훅
- * @param {string} roomName - 방 이름
- * @returns {Object} 게임 관련 함수들
+ * @param roomName - 방 이름
+ * @returns 게임 관련 함수들
  */
-export const useGameLogic = (roomName) => {
+export const useGameLogic = (roomName: string) => {
   const {
     state: {
       nickname,
@@ -22,9 +44,9 @@ export const useGameLogic = (roomName) => {
     setCurrentSongIndex,
     updateScore,
     updateParticipant
-  } = useGameRoom();
+  } = useGameRoom() as any;
   
-  const { publish } = useWebSocket(roomName, nickname);
+  const { publish } = useWebSocket() as any;
   
   // 준비 상태 토글
   const toggleReady = useCallback(() => {
@@ -34,7 +56,7 @@ export const useGameLogic = (roomName) => {
     }
     
     // 참가자 목록에서 내 정보 찾기
-    const myParticipant = participants.find(p => p.nickname === nickname);
+    const myParticipant = participants.find((p: Participant) => p.nickname === nickname);
     if (!myParticipant) {
       console.error("참가자 목록에서 나를 찾을 수 없습니다.");
       return false;
@@ -64,7 +86,7 @@ export const useGameLogic = (roomName) => {
     }
     
     // 게임 시작 조건 확인
-    const readyParticipantsCount = participants.filter(p => p.ready || p.nickname === roomHost).length;
+    const readyParticipantsCount = participants.filter((p: any) => p.ready || p.nickname === roomHost).length;
     const allReady = readyParticipantsCount === participants.length;
     
     if (participants.length < 2) {
@@ -165,7 +187,7 @@ export const useGameLogic = (roomName) => {
   ]);
   
   // 정답 확인
-  const checkAnswer = useCallback((message) => {
+  const checkAnswer = useCallback((message: string) => {
     if (gameStatus !== "PLAYING" || !mapInfo || !mapInfo.songs || mapInfo.songs.length === 0) {
       return false;
     }
@@ -223,7 +245,7 @@ export const useGameLogic = (roomName) => {
   const isHost = nickname === roomHost;
   
   // 현재 플레이어가 준비 상태인지 확인
-  const isReady = participants.find(p => p.nickname === nickname)?.ready || false;
+  const isReady = participants.find((p: Participant) => p.nickname === nickname)?.ready || false;
   
   // 현재 곡 정보
   const currentSong = mapInfo?.songs?.[currentSongIndex] || null;
@@ -233,7 +255,7 @@ export const useGameLogic = (roomName) => {
     isHost && 
     gameStatus === "WAITING" && 
     participants.length >= 2 && 
-    participants.every(p => p.ready || p.nickname === roomHost) &&
+    participants.every((p: any) => p.ready || p.nickname === roomHost) &&
     mapInfo && mapInfo.songs && mapInfo.songs.length > 0;
   
   return {
