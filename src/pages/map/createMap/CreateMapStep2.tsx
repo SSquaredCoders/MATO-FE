@@ -308,6 +308,7 @@ const CreateMapStep2 = () => {
                             startTime={startTime}
                             endTime={endTime}
                             repeatCount={repeatCount}
+                            visible={true}
                         />
                     )}
 
