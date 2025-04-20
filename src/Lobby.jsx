@@ -13,6 +13,8 @@ function Lobby() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [nickname, setNickname] = useState(() => localStorage.getItem("nickname") || "");
   const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [stompClient, setStompClient] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   const statusLabel = {
@@ -22,6 +24,7 @@ function Lobby() {
   };
 
   useEffect(() => {
+    // 초기 방 목록 가져오기
     fetchRooms();
     
     // 저장된 닉네임이 없으면 모달 표시
@@ -29,75 +32,83 @@ function Lobby() {
       setShowNicknameModal(true);
     }
     
-    // 더 자주 방 목록 업데이트 (3초마다)
-    const intervalId = setInterval(fetchRooms, 3000);
-    
     // WebSocket 연결 설정
     const socket = new SockJS(`${API_URL}/ws`);
     const client = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
         console.log("로비 WebSocket 연결됨");
+        setStompClient(client);
         
         // 글로벌 이벤트 구독 (방 참가자 변경, 방 생성/삭제 등)
         client.subscribe('/topic/lobby', (message) => {
-          const msg = JSON.parse(message.body);
-          console.log("로비 이벤트 수신:", msg);
-          
-          // 참가자 변경 이벤트가 오면 해당 방의 참가자 수만 업데이트
-          if (msg.type === "PARTICIPANT_CHANGE" && msg.content && msg.content.includes("|")) {
-            // content에서 방 이름과 참가자 수 추출 (형식: 방이름|참가자수)
-            const [roomName, participantCount] = msg.content.split("|");
-            const numParticipants = parseInt(participantCount);
+          try {
+            const msg = JSON.parse(message.body);
+            console.log("로비 이벤트 수신:", msg);
             
-            console.log(`참가자 변경 이벤트 - 방: ${roomName}, 참가자: ${numParticipants}명`);
-            
-            // 방 목록에서 해당 방을 찾아 참가자 수만 업데이트
-            setRooms(prevRooms => {
-              return prevRooms.map(room => {
-                if (room.name === roomName) {
-                  return {
-                    ...room,
-                    participantCount: numParticipants,
-                    participants: numParticipants
-                  };
+            switch (msg.type) {
+              case "PARTICIPANT_CHANGE":
+                // 참가자 변경 이벤트가 오면 해당 방의 참가자 수만 업데이트
+                if (msg.content && msg.content.includes("|")) {
+                  // content에서 방 이름과 참가자 수 추출 (형식: 방이름|참가자수)
+                  const [roomName, participantCount] = msg.content.split("|");
+                  const numParticipants = parseInt(participantCount);
+                  
+                  console.log(`참가자 변경 이벤트 - 방: ${roomName}, 참가자: ${numParticipants}명`);
+                  
+                  // 방 목록에서 해당 방을 찾아 참가자 수만 업데이트
+                  updateRoomParticipants(roomName, numParticipants);
                 }
-                return room;
-              });
-            });
-            
-            // 필터링된 방 목록도 업데이트
-            setFilteredRooms(prevFilteredRooms => {
-              return prevFilteredRooms.map(room => {
-                if (room.name === roomName) {
-                  return {
-                    ...room,
-                    participantCount: numParticipants,
-                    participants: numParticipants
-                  };
+                break;
+              
+              case "ROOM_DELETE":
+                // 방 삭제 이벤트인 경우 해당 방을 목록에서 제거
+                if (msg.content) {
+                  const deletedRoomName = msg.content;
+                  console.log(`방 삭제 이벤트 - 방: ${deletedRoomName}`);
+                  removeRoom(deletedRoomName);
                 }
-                return room;
-              });
-            });
-          }
-          // 방 삭제 이벤트인 경우 해당 방을 목록에서 제거
-          else if (msg.type === "ROOM_DELETE" && msg.content) {
-            const deletedRoomName = msg.content;
-            console.log(`방 삭제 이벤트 - 방: ${deletedRoomName}`);
-            
-            // 방 목록에서 해당 방 제거
-            setRooms(prevRooms => prevRooms.filter(room => room.name !== deletedRoomName));
-            setFilteredRooms(prevFilteredRooms => prevFilteredRooms.filter(room => room.name !== deletedRoomName));
-          }
-          // 강제 새로고침이 필요한 경우 전체 방 목록 갱신
-          else if (msg.type === "FORCE_REFRESH" || 
-                   msg.type === "ROOM_UPDATE" || 
-                   msg.type === "ROOM_CREATE") {
-            console.log(`${msg.type} 이벤트 수신: ${msg.content} - 방 목록 전체 갱신`);
-            // 약간의 지연을 두고 방 목록 새로고침 (서버 처리 시간 고려)
-            setTimeout(fetchRooms, 100);
+                break;
+              
+              case "ROOM_CREATE":
+                // 새 방이 생성되면 새 방 정보만 추가
+                if (msg.content) {
+                  // 서버 구현에 따라 content에 방 정보가 JSON으로 포함되어 있다면 파싱
+                  // 아니면 전체 목록을 다시 가져오기
+                  try {
+                    const roomData = JSON.parse(msg.content);
+                    addRoom(roomData);
+                  } catch {
+                    // JSON 파싱 실패 시 전체 방 목록 갱신
+                    fetchRooms();
+                  }
+                } else {
+                  // 방 데이터가 없으면 전체 목록 새로고침
+                  fetchRooms();
+                }
+                break;
+              
+              case "ROOM_UPDATE":
+              case "FORCE_REFRESH":
+              default:
+                // 방 정보 업데이트나 강제 새로고침 이벤트는 전체 방 목록 갱신
+                fetchRooms();
+                break;
+            }
+          } catch (error) {
+            console.error("웹소켓 메시지 처리 오류:", error);
+            // 오류 발생 시 안전하게 전체 목록 갱신
+            fetchRooms();
           }
         });
+        
+        // 연결 완료 시 다시 한번 방 목록 갱신
+        fetchRooms();
+      },
+      onStompError: (frame) => {
+        console.error('웹소켓 오류:', frame);
+        // 오류 발생 시 일정 시간 후 방 목록 갱신
+        setTimeout(fetchRooms, 1000);
       }
     });
     
@@ -105,14 +116,81 @@ function Lobby() {
     client.activate();
     
     return () => {
-      clearInterval(intervalId);
+      // 컴포넌트 언마운트 시 WebSocket 연결 해제
       if (client && client.connected) {
         client.deactivate();
       }
     };
   }, []);
 
+  // 방 목록에서 특정 방의 참가자 수 업데이트
+  const updateRoomParticipants = (roomName, participantCount) => {
+    // 방 목록 업데이트
+    setRooms(prevRooms => {
+      return prevRooms.map(room => {
+        if (room.name === roomName) {
+          return {
+            ...room,
+            participantCount: participantCount,
+            participants: participantCount
+          };
+        }
+        return room;
+      });
+    });
+    
+    // 필터링된 방 목록도 업데이트
+    setFilteredRooms(prevFilteredRooms => {
+      return prevFilteredRooms.map(room => {
+        if (room.name === roomName) {
+          return {
+            ...room,
+            participantCount: participantCount,
+            participants: participantCount
+          };
+        }
+        return room;
+      });
+    });
+  };
+  
+  // 방 목록에서 특정 방 제거
+  const removeRoom = (roomName) => {
+    setRooms(prevRooms => prevRooms.filter(room => room.name !== roomName));
+    setFilteredRooms(prevFilteredRooms => prevFilteredRooms.filter(room => room.name !== roomName));
+  };
+  
+  // 방 목록에 새 방 추가
+  const addRoom = (newRoom) => {
+    // 이미 있는 방인지 확인
+    setRooms(prevRooms => {
+      const exists = prevRooms.some(room => room.name === newRoom.name);
+      if (exists) {
+        return prevRooms.map(room => 
+          room.name === newRoom.name ? newRoom : room
+        );
+      } else {
+        return [...prevRooms, newRoom];
+      }
+    });
+    
+    // 필터링된 방 목록도 업데이트 (검색어에 맞는 경우만)
+    if (!searchKeyword || newRoom.name.toLowerCase().includes(searchKeyword.toLowerCase())) {
+      setFilteredRooms(prevFilteredRooms => {
+        const exists = prevFilteredRooms.some(room => room.name === newRoom.name);
+        if (exists) {
+          return prevFilteredRooms.map(room => 
+            room.name === newRoom.name ? newRoom : room
+          );
+        } else {
+          return [...prevFilteredRooms, newRoom];
+        }
+      });
+    }
+  };
+
   const fetchRooms = async () => {
+    setIsLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/rooms`);
       console.log("방 목록 가져오기 성공:", response.data);
@@ -128,6 +206,8 @@ function Lobby() {
       }
     } catch (error) {
       console.error("방 목록 불러오기 실패:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -237,11 +317,12 @@ function Lobby() {
           <button
             onClick={fetchRooms}
             className="text-blue-500 hover:text-blue-700 text-sm flex items-center"
+            disabled={isLoading}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            새로고침
+            {isLoading ? '로딩 중...' : '새로고침'}
           </button>
         </div>
 
