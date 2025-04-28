@@ -307,6 +307,7 @@ const EditMapStep2 = ({ mapId }: Props) => {
                             startTime={startTime}
                             endTime={endTime}
                             repeatCount={repeatCount}
+                            visible={true}
                         />
                     )}
 
