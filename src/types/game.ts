@@ -13,6 +13,15 @@ export interface Song {
   title: string;
   artist: string;
   difficulty?: number;
+  youtubeUrl?: string;
+  startTime?: number;
+  endTime?: number;
+  repeatCount?: number;
+  song?: {
+    title: string;
+    artist: string;
+    youtubeUrl: string;
+  };
   answers?: Array<{
     text: string;
   }>;
