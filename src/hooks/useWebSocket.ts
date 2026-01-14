@@ -408,7 +408,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     
     setConnectionStatus('DISCONNECTED');
     setReconnecting(false);
-  }, []);
+  }, [connectionStatus, client]);
   
   // 메시지 구독 함수
   const subscribe = useCallback((destination: string, callback: MessageHandler): StompSubscription | null => {
@@ -447,13 +447,8 @@ export const useWebSocket = (): UseWebSocketReturn => {
   const publish = useCallback((destination: string, body: string) => {
     if (!isComponentMounted.current) return;
     
-    // 클라이언트와 연결 상태를 함수 내부에서 직접 참조하여 최신 상태 확인
-    const currentClient = client;
-    const currentConnectionStatus = connectionStatus;
-    const currentReconnecting = reconnecting;
-    
     // 연결 상태 확인
-    if (!currentClient || currentConnectionStatus !== 'CONNECTED') {
+    if (!client || connectionStatus !== 'CONNECTED') {
       console.warn('WebSocket이 연결되지 않아 메시지를 큐에 저장합니다.');
       
       // 메시지를 큐에 저장
@@ -461,7 +456,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
       console.log(`메시지가 큐에 저장됨(${messageQueue.current.length}개): ${destination}`);
       
       // 연결이 되어 있지 않으면 연결 시도
-      if (currentConnectionStatus === 'DISCONNECTED' && !currentReconnecting) {
+      if (connectionStatus === 'DISCONNECTED' && !reconnecting) {
         console.log('WebSocket 자동 연결 시도 중...');
         connect();
       }
@@ -470,7 +465,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     }
     
     try {
-      currentClient.publish({
+      client.publish({
         destination,
         body,
         headers: { 'content-type': 'application/json' }
@@ -482,7 +477,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
       console.log(`전송 실패한 메시지를 큐에 저장함: ${destination}`);
       handleError(error as Error);
     }
-  }, [connect, handleError]);
+  }, [client, connectionStatus, reconnecting, connect, handleError]);
   
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
