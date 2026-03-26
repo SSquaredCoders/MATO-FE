@@ -8,7 +8,6 @@ interface AppShellProps {
 
 const links = [
   { to: "/", label: "로비" },
-  { to: "/room/demo-room", label: "방" },
   { to: "/maps", label: "맵" },
   { to: "/roadmap", label: "로드맵" },
   { to: "/account", label: "계정" },

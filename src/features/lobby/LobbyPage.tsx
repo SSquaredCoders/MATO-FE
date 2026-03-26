@@ -128,12 +128,6 @@ export default function LobbyPage() {
             <button className="button" onClick={handleCreateRoom}>
               {createRoomMutation.isPending ? "생성 중..." : "방 만들기"}
             </button>
-            <button
-              className="button button--ghost"
-              onClick={() => handleJoinRoom("demo-room")}
-            >
-              demo-room 입장
-            </button>
           </div>
 
           {createRoomMutation.error ? (
@@ -181,7 +175,7 @@ export default function LobbyPage() {
             {rooms.length === 0 && !roomsQuery.isLoading ? (
               <div className="room-card">
                 <strong>아직 방이 없습니다</strong>
-                <p>방을 만들면 다음 조회에서 목록이 갱신됩니다.</p>
+                <p>방을 만들면 여기 목록에서 바로 입장할 수 있습니다.</p>
               </div>
             ) : null}
           </div>
