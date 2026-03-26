@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { APP_TITLE, API_BASE_URL, WS_BASE_URL } from "../../shared/config/env";
 
 interface AppShellProps {
@@ -15,14 +15,19 @@ const links = [
 ];
 
 export function AppShell({ children }: AppShellProps) {
+  const location = useLocation();
+  const isRoomRoute = location.pathname.startsWith("/room/");
+
   return (
-    <div className="shell">
-      <header className="shell__header">
+    <div className={isRoomRoute ? "shell shell--room" : "shell"}>
+      <header
+        className={isRoomRoute ? "shell__header shell__header--room" : "shell__header"}
+      >
         <div className="shell__brand">
-          <p className="eyebrow">MATO V2 리빌드</p>
+          <p className="eyebrow">MATO V2 ROOM</p>
           <h1>{APP_TITLE}</h1>
           <p className="shell__summary">
-            실시간 음악 퀴즈 웹앱을 위한 정리된 방 중심 구조입니다.
+            실시간 방 플레이를 중심으로 다시 정리한 웹 게임 프로토타입입니다.
           </p>
         </div>
 
@@ -43,13 +48,15 @@ export function AppShell({ children }: AppShellProps) {
 
       <main className="shell__content">{children}</main>
 
-      <footer className="shell__footer">
-        <div className="chip-list">
-          <span className="chip">REST {API_BASE_URL}</span>
-          <span className="chip">실시간 {WS_BASE_URL}</span>
-          <span className="chip">Query + STOMP 방 스트림</span>
-        </div>
-      </footer>
+      {!isRoomRoute ? (
+        <footer className="shell__footer">
+          <div className="chip-list">
+            <span className="chip">REST {API_BASE_URL}</span>
+            <span className="chip">실시간 {WS_BASE_URL}</span>
+            <span className="chip">Query + STOMP 방 스트림</span>
+          </div>
+        </footer>
+      ) : null}
     </div>
   );
 }

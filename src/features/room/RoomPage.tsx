@@ -69,7 +69,7 @@ export default function RoomPage() {
     }
 
     setTransientMessages((current) =>
-      [...current.filter((item) => item.id !== message.id), message].slice(-3),
+      [...current.filter((item) => item.id !== message.id), message].slice(-2),
     );
 
     const timer = setTimeout(() => {
@@ -77,7 +77,7 @@ export default function RoomPage() {
         current.filter((item) => item.id !== message.id),
       );
       transientTimersRef.current.delete(message.id);
-    }, 4500);
+    }, 4200);
 
     transientTimersRef.current.set(message.id, timer);
   };
@@ -209,48 +209,41 @@ export default function RoomPage() {
     : currentPlayer?.nickname ?? currentNickname;
 
   return (
-    <div className="grid grid--two">
-      <section className="panel stack">
-        <div className="panel__header">
+    <div className="room-view">
+      <section className="panel room-stage">
+        <div className="room-stage__header">
           <div>
-            <p className="eyebrow">방 세션</p>
+            <p className="eyebrow">Live Room</p>
             <h2>{roomName}</h2>
           </div>
-
           <span className={`status-pill status-pill--${connection}`}>
             {connectionLabels[connection]}
           </span>
         </div>
 
-        <div className="stat-list">
-          <div>
+        <div className="room-stage__meta">
+          <div className="room-stage__meta-card">
             <span>방장</span>
             <strong>{room.hostNickname}</strong>
           </div>
-          <div>
+          <div className="room-stage__meta-card">
             <span>상태</span>
             <strong>{phaseLabels[room.phase]}</strong>
           </div>
-          <div>
+          <div className="room-stage__meta-card">
             <span>라운드</span>
             <strong>
               {room.round}/{room.totalRounds}
             </strong>
           </div>
-          <div>
+          <div className="room-stage__meta-card">
             <span>맵</span>
             <strong>{room.map?.name ?? "맵 미선택"}</strong>
           </div>
         </div>
 
-        <p className="lede">{room.currentPrompt}</p>
-        <p className="footnote">{room.lastEvent}</p>
-        {room.currentReveal ? (
-          <p className="reveal">직전 공개: {room.currentReveal}</p>
-        ) : null}
-
-        {transientMessages.length > 0 ? (
-          <div className="flash-feed">
+        <div className="room-stage__board">
+          <div className="room-stage__overlay">
             {transientMessages.map((message) => (
               <article
                 className={`flash-message flash-message--${message.tone}`}
@@ -261,82 +254,100 @@ export default function RoomPage() {
               </article>
             ))}
           </div>
-        ) : (
-          <p className="footnote">
-            누군가 입력하면 몇 초 동안 여기 표시됩니다.
-          </p>
-        )}
 
-        <label className="field">
-          <span>현재 플레이어</span>
-          <select
-            value={participantValue}
-            onChange={(event) => setCurrentNickname(event.target.value)}
-          >
-            {nicknameOptions.map((nicknameOption) => (
-              <option key={nicknameOption} value={nicknameOption}>
-                {nicknameOption}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="button-row">
-          <button
-            className="button"
-            onClick={() =>
-              publishEvent("room.ready.set", {
-                nickname: currentNickname,
-                ready: !currentPlayer?.ready,
-              })
-            }
-          >
-            준비 전환
-          </button>
-          <button
-            className="button"
-            onClick={() => publishEvent("game.start", { nickname: currentNickname })}
-          >
-            게임 시작
-          </button>
-          <button
-            className="button"
-            onClick={() =>
-              publishEvent("game.next.request", { nickname: currentNickname })
-            }
-          >
-            다음 라운드
-          </button>
+          <div className="room-stage__board-copy">
+            <p className="eyebrow">Now Playing</p>
+            <h3>{room.currentPrompt}</h3>
+            <p className="footnote">{room.lastEvent}</p>
+            {room.currentReveal ? (
+              <p className="reveal">직전 공개: {room.currentReveal}</p>
+            ) : null}
+          </div>
         </div>
 
-        <div className="button-row">
-          <button
-            className="button button--ghost"
-            onClick={() => publishEvent("presence.ping", { nickname: currentNickname })}
-          >
-            상태 새로고침
-          </button>
-          <button className="button button--ghost" onClick={handleJoinAsWatcher}>
-            관전자 추가
-          </button>
-        </div>
-
-        <form className="answer-box" onSubmit={handleAnswerSubmit}>
+        <form className="answer-box answer-box--room" onSubmit={handleAnswerSubmit}>
           <label className="field">
             <span>채팅 / 정답 입력</span>
             <input
               value={answer}
               onChange={(event) => setAnswer(event.target.value)}
-              placeholder="입력하면 몇 초 동안 표시되고, 게임 중이면 정답 판정도 같이 합니다."
+              placeholder="입력하면 잠깐 보이고, 게임 중이면 정답 판정도 같이 합니다."
             />
           </label>
+          <button className="button answer-box__submit" type="submit">
+            전송
+          </button>
+        </form>
+      </section>
+
+      <section className="panel room-sidebar">
+        <div className="room-sidebar__section">
+          <div className="panel__header">
+            <div>
+              <p className="eyebrow">플레이어</p>
+              <h3>현재 조작 대상</h3>
+            </div>
+          </div>
+
+          <label className="field">
+            <span>닉네임</span>
+            <select
+              value={participantValue}
+              onChange={(event) => setCurrentNickname(event.target.value)}
+            >
+              {nicknameOptions.map((nicknameOption) => (
+                <option key={nicknameOption} value={nicknameOption}>
+                  {nicknameOption}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="button-row">
-            <button className="button" type="submit">
-              전송
+            <button
+              className="button"
+              onClick={() =>
+                publishEvent("room.ready.set", {
+                  nickname: currentNickname,
+                  ready: !currentPlayer?.ready,
+                })
+              }
+            >
+              준비 전환
+            </button>
+            <button
+              className="button"
+              onClick={() => publishEvent("game.start", { nickname: currentNickname })}
+            >
+              게임 시작
+            </button>
+          </div>
+
+          <div className="button-row">
+            <button
+              className="button button--ghost"
+              onClick={() =>
+                publishEvent("game.next.request", { nickname: currentNickname })
+              }
+            >
+              다음 라운드
             </button>
             <button
               className="button button--ghost"
-              type="button"
+              onClick={() =>
+                publishEvent("presence.ping", { nickname: currentNickname })
+              }
+            >
+              상태 새로고침
+            </button>
+          </div>
+
+          <div className="button-row">
+            <button className="button button--ghost" onClick={handleJoinAsWatcher}>
+              관전자 추가
+            </button>
+            <button
+              className="button button--ghost"
               onClick={() => {
                 publishEvent("room.leave", { nickname: currentNickname });
                 navigate("/");
@@ -345,49 +356,52 @@ export default function RoomPage() {
               방 나가기
             </button>
           </div>
+
           <p className="footnote">{feedback}</p>
-        </form>
-      </section>
+        </div>
 
-      <section className="panel stack">
-        <div className="panel__header">
-          <div>
-            <p className="eyebrow">실시간 참가자</p>
-            <h2>온라인 인원</h2>
+        <div className="room-sidebar__section room-sidebar__section--fill">
+          <div className="panel__header">
+            <div>
+              <p className="eyebrow">온라인 인원</p>
+              <h3>{sortedParticipants.length}명 접속 중</h3>
+            </div>
+          </div>
+
+          <div className="participant-list participant-list--room">
+            {sortedParticipants.map((participant: RoomParticipant) => (
+              <article className="participant-card" key={participant.id}>
+                <div>
+                  <p className="participant-card__name">{participant.nickname}</p>
+                  <p className="participant-card__meta">
+                    준비 {participant.ready ? "완료" : "대기"} | 접속:{" "}
+                    {participant.connected ? "연결됨" : "끊김"}
+                  </p>
+                </div>
+                <strong>{participant.score}점</strong>
+              </article>
+            ))}
           </div>
         </div>
 
-        <div className="participant-list">
-          {sortedParticipants.map((participant: RoomParticipant) => (
-            <article className="participant-card" key={participant.id}>
-              <div>
-                <p className="participant-card__name">{participant.nickname}</p>
-                <p className="participant-card__meta">
-                  준비 {participant.ready ? "완료" : "대기"} | 접속:{" "}
-                  {participant.connected ? "연결됨" : "끊김"}
-                </p>
-              </div>
-              <strong>{participant.score}점</strong>
-            </article>
-          ))}
-        </div>
-
-        <div className="stat-list">
-          <div>
-            <span>현재 플레이어</span>
-            <strong>{currentNickname}</strong>
-          </div>
-          <div>
-            <span>내 준비 상태</span>
-            <strong>{currentPlayer?.ready ? "완료" : "대기"}</strong>
-          </div>
-          <div>
-            <span>방장 여부</span>
-            <strong>{currentNickname === room.hostNickname ? "예" : "아니오"}</strong>
-          </div>
-          <div>
-            <span>실행 모드</span>
-            <strong>백엔드 v2</strong>
+        <div className="room-sidebar__section">
+          <div className="stat-list stat-list--compact">
+            <div>
+              <span>현재 플레이어</span>
+              <strong>{currentNickname}</strong>
+            </div>
+            <div>
+              <span>내 준비 상태</span>
+              <strong>{currentPlayer?.ready ? "완료" : "대기"}</strong>
+            </div>
+            <div>
+              <span>방장 여부</span>
+              <strong>{currentNickname === room.hostNickname ? "예" : "아니오"}</strong>
+            </div>
+            <div>
+              <span>실행 모드</span>
+              <strong>실시간 룸 v2</strong>
+            </div>
           </div>
         </div>
       </section>

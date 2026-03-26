@@ -28,6 +28,7 @@
 html,
 body,
 #root {
+  height: 100%;
   min-height: 100%;
 }
 
@@ -62,6 +63,15 @@ button {
   padding: 32px 0 48px;
 }
 
+.shell--room {
+  width: min(1420px, calc(100% - 28px));
+  height: 100vh;
+  padding: 14px 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
 .shell__header,
 .shell__footer,
 .panel,
@@ -82,6 +92,12 @@ button {
   display: grid;
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.shell__header--room {
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 18px 22px;
 }
 
 .shell__brand h1,
@@ -136,6 +152,10 @@ button {
 .stack {
   display: grid;
   gap: 24px;
+}
+
+.shell--room .shell__content {
+  min-height: 0;
 }
 
 .hero {
@@ -336,6 +356,108 @@ button {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.room-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
+  gap: 20px;
+  min-height: 0;
+  height: 100%;
+}
+
+.room-stage,
+.room-sidebar {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.room-stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 18px;
+}
+
+.room-stage__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+
+.room-stage__meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.room-stage__meta-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.room-stage__meta-card span {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.room-stage__meta-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.02rem;
+}
+
+.room-stage__board {
+  position: relative;
+  min-height: 0;
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(240, 123, 63, 0.2), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  overflow: hidden;
+}
+
+.room-stage__board::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border-radius: 22px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.room-stage__board-copy {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 620px);
+  display: grid;
+  gap: 16px;
+}
+
+.room-stage__board-copy h3 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.9rem);
+  line-height: 1.08;
+}
+
+.room-stage__overlay {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 28px;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  pointer-events: none;
+}
+
 .flash-feed {
   display: grid;
   gap: 10px;
@@ -347,7 +469,10 @@ button {
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(9, 10, 12, 0.84);
+  backdrop-filter: blur(12px);
+  max-width: min(420px, 100%);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
 }
 
 .flash-message strong,
@@ -369,6 +494,45 @@ button {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.answer-box--room {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.answer-box--room .field {
+  min-width: 0;
+}
+
+.answer-box__submit {
+  min-width: 112px;
+}
+
+.room-sidebar {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 16px;
+}
+
+.room-sidebar__section {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+}
+
+.room-sidebar__section--fill {
+  min-height: 0;
+}
+
+.participant-list--room {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.stat-list--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .reveal {
   margin: 0;
   color: #ffd7a8;
@@ -387,6 +551,13 @@ button {
     padding-top: 20px;
   }
 
+  .shell--room {
+    width: min(100%, calc(100% - 20px));
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .shell__header,
   .shell__footer,
   .panel,
@@ -399,5 +570,33 @@ button {
   .participant-card {
     flex-direction: column;
     align-items: start;
+  }
+
+  .room-view {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .room-stage,
+  .room-sidebar {
+    overflow: visible;
+  }
+
+  .room-stage__meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .room-stage__overlay {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+  }
+
+  .answer-box--room {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-list--compact {
+    grid-template-columns: 1fr;
   }
 }
