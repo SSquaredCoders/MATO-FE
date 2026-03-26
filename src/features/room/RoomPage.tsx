@@ -142,8 +142,11 @@ export default function RoomPage() {
   }, [connection, currentNickname, publishEvent, roomName]);
 
   const nicknameOptions = useMemo(() => {
-    const options = room?.participants.map((participant) => participant.nickname) ?? [];
-    return options.includes(currentNickname) ? options : [currentNickname, ...options];
+    const options =
+      room?.participants.map((participant) => participant.nickname) ?? [];
+    return options.includes(currentNickname)
+      ? options
+      : [currentNickname, ...options];
   }, [currentNickname, room?.participants]);
 
   const sortedParticipants = useMemo(() => {
@@ -184,6 +187,16 @@ export default function RoomPage() {
   const currentPlayer = room.participants.find(
     (participant) => participant.nickname === currentNickname,
   );
+  const participantValue = nicknameOptions.includes(currentNickname)
+    ? currentNickname
+    : currentPlayer?.nickname ?? currentNickname;
+  const isHost = currentNickname === room.hostNickname;
+  const isReady = Boolean(currentPlayer?.ready);
+  const canSubmitAnswer = Boolean(currentPlayer?.connected);
+  const readyLabel = isReady ? "준비 해제" : "준비 완료";
+  const helperText = isHost
+    ? "방장입니다. 다른 참가자들이 준비되면 게임을 시작할 수 있습니다."
+    : "준비를 마치면 방장이 게임을 시작할 수 있습니다.";
 
   const handleAnswerSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -203,10 +216,6 @@ export default function RoomPage() {
     publishEvent("room.join", { nickname: watcherName });
     setCurrentNickname(watcherName);
   };
-
-  const participantValue = nicknameOptions.includes(currentNickname)
-    ? currentNickname
-    : currentPlayer?.nickname ?? currentNickname;
 
   return (
     <div className="room-view">
@@ -258,7 +267,7 @@ export default function RoomPage() {
           <div className="room-stage__board-copy">
             <p className="eyebrow">Now Playing</p>
             <h3>{room.currentPrompt}</h3>
-            <p className="footnote">{feedback}</p>
+            <p className="footnote room-stage__feedback">{feedback}</p>
             {room.currentReveal ? (
               <p className="reveal">직전 공개: {room.currentReveal}</p>
             ) : null}
@@ -272,9 +281,14 @@ export default function RoomPage() {
               value={answer}
               onChange={(event) => setAnswer(event.target.value)}
               placeholder="입력하면 잠깐 보이고, 게임 중이면 정답 판정도 같이 합니다."
+              disabled={!canSubmitAnswer}
             />
           </label>
-          <button className="button answer-box__submit" type="submit">
+          <button
+            className="button answer-box__submit"
+            type="submit"
+            disabled={!canSubmitAnswer}
+          >
             전송
           </button>
         </form>
@@ -303,61 +317,48 @@ export default function RoomPage() {
             </select>
           </label>
 
-          <div className="button-row">
+          <div className="action-stack">
             <button
-              className="button"
+              className={`button action-stack__button${
+                isReady ? " button--active" : ""
+              }`}
               onClick={() =>
                 publishEvent("room.ready.set", {
                   nickname: currentNickname,
                   ready: !currentPlayer?.ready,
                 })
               }
+              disabled={!currentPlayer}
+              type="button"
             >
-              준비 전환
+              {readyLabel}
             </button>
-            <button
-              className="button"
-              onClick={() => publishEvent("game.start", { nickname: currentNickname })}
-            >
-              게임 시작
-            </button>
-          </div>
 
-          <div className="button-row">
-            <button
-              className="button button--ghost"
-              onClick={() =>
-                publishEvent("game.next.request", { nickname: currentNickname })
-              }
-            >
-              다음 라운드
-            </button>
-            <button
-              className="button button--ghost"
-              onClick={() =>
-                publishEvent("presence.ping", { nickname: currentNickname })
-              }
-            >
-              상태 새로고침
-            </button>
-          </div>
+            {isHost ? (
+              <button
+                className="button action-stack__button"
+                onClick={() =>
+                  publishEvent("game.start", { nickname: currentNickname })
+                }
+                type="button"
+              >
+                게임 시작
+              </button>
+            ) : null}
 
-          <div className="button-row">
-            <button className="button button--ghost" onClick={handleJoinAsWatcher}>
-              관전자 추가
-            </button>
             <button
-              className="button button--ghost"
+              className="button button--ghost button--danger action-stack__button"
               onClick={() => {
                 publishEvent("room.leave", { nickname: currentNickname });
                 navigate("/");
               }}
+              type="button"
             >
               방 나가기
             </button>
           </div>
 
-          <p className="footnote">{feedback}</p>
+          <p className="footnote">{helperText}</p>
         </div>
 
         <div className="room-sidebar__section room-sidebar__section--fill">
@@ -384,26 +385,36 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <div className="room-sidebar__section">
-          <div className="stat-list stat-list--compact">
-            <div>
-              <span>현재 플레이어</span>
-              <strong>{currentNickname}</strong>
-            </div>
-            <div>
-              <span>내 준비 상태</span>
-              <strong>{currentPlayer?.ready ? "완료" : "대기"}</strong>
-            </div>
-            <div>
-              <span>방장 여부</span>
-              <strong>{currentNickname === room.hostNickname ? "예" : "아니오"}</strong>
-            </div>
-            <div>
-              <span>실행 모드</span>
-              <strong>실시간 룸 v2</strong>
-            </div>
+        <details className="dev-tools">
+          <summary>테스트 도구</summary>
+          <div className="dev-tools__actions">
+            <button
+              className="button button--ghost"
+              onClick={() =>
+                publishEvent("presence.ping", { nickname: currentNickname })
+              }
+              type="button"
+            >
+              상태 새로고침
+            </button>
+            <button
+              className="button button--ghost"
+              onClick={handleJoinAsWatcher}
+              type="button"
+            >
+              관전자 추가
+            </button>
+            <button
+              className="button button--ghost"
+              onClick={() =>
+                publishEvent("game.next.request", { nickname: currentNickname })
+              }
+              type="button"
+            >
+              다음 라운드
+            </button>
           </div>
-        </div>
+        </details>
       </section>
     </div>
   );

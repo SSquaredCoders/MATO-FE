@@ -294,11 +294,35 @@ button {
   border: 1px solid rgba(240, 123, 63, 0.45);
   background: linear-gradient(180deg, rgba(240, 123, 63, 0.34), rgba(200, 88, 39, 0.24));
   color: #fffaf4;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    opacity 140ms ease;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .button--ghost {
   border-color: var(--border);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.button--active {
+  border-color: rgba(99, 197, 155, 0.42);
+  background: linear-gradient(180deg, rgba(99, 197, 155, 0.32), rgba(35, 103, 77, 0.3));
+}
+
+.button--danger {
+  border-color: rgba(255, 123, 114, 0.26);
+  color: #ffd8d3;
 }
 
 .list,
@@ -358,7 +382,7 @@ button {
 
 .room-view {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 2.15fr) minmax(320px, 0.82fr);
   gap: 20px;
   min-height: 0;
   height: 100%;
@@ -373,8 +397,8 @@ button {
 .room-stage {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  gap: 18px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 14px;
 }
 
 .room-stage__header {
@@ -414,7 +438,7 @@ button {
 .room-stage__board {
   position: relative;
   min-height: 0;
-  padding: 28px;
+  padding: 36px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
@@ -435,15 +459,18 @@ button {
 .room-stage__board-copy {
   position: relative;
   z-index: 1;
-  width: min(100%, 620px);
+  width: min(100%, 780px);
+  min-height: 100%;
   display: grid;
-  gap: 16px;
+  align-content: end;
+  gap: 18px;
 }
 
 .room-stage__board-copy h3 {
   margin: 0;
-  font-size: clamp(1.8rem, 3vw, 2.9rem);
-  line-height: 1.08;
+  font-size: clamp(2.7rem, 5vw, 5rem);
+  line-height: 0.98;
+  max-width: 12ch;
 }
 
 .room-stage__overlay {
@@ -456,6 +483,11 @@ button {
   gap: 10px;
   justify-items: start;
   pointer-events: none;
+}
+
+.room-stage__feedback {
+  max-width: 720px;
+  font-size: 1rem;
 }
 
 .flash-feed {
@@ -526,7 +558,8 @@ button {
 
 .participant-list--room {
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .stat-list--compact {
@@ -536,6 +569,35 @@ button {
 .reveal {
   margin: 0;
   color: #ffd7a8;
+}
+
+.action-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.action-stack__button {
+  width: 100%;
+}
+
+.dev-tools {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dev-tools summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.dev-tools__actions {
+  display: grid;
+  gap: 10px;
 }
 
 .code-list code {
