@@ -101,7 +101,7 @@ export default function RoomPage() {
         queryClient.removeQueries({ queryKey: ["room", roomName] });
       }
 
-      if (envelope.payload.message) {
+      if (envelope.payload.message && envelope.type !== "room.chat.message") {
         setFeedback(envelope.payload.message);
       }
 
@@ -258,7 +258,7 @@ export default function RoomPage() {
           <div className="room-stage__board-copy">
             <p className="eyebrow">Now Playing</p>
             <h3>{room.currentPrompt}</h3>
-            <p className="footnote">{room.lastEvent}</p>
+            <p className="footnote">{feedback}</p>
             {room.currentReveal ? (
               <p className="reveal">직전 공개: {room.currentReveal}</p>
             ) : null}
