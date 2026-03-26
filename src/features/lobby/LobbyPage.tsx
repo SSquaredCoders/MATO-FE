@@ -1,9 +1,21 @@
-import React, { startTransition, useState } from "react";
+import React, { startTransition, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchRebuildBlueprint } from "../../shared/api/blueprint";
+import { fetchMaps } from "../../shared/api/maps";
 import { createRoom, fetchLobbyRooms } from "../../shared/api/rooms";
 import { useSessionStore } from "../../shared/store/useSessionStore";
+
+const difficultyLabels = {
+  easy: "쉬움",
+  normal: "보통",
+  hard: "어려움",
+} as const;
+
+const visibilityLabels = {
+  public: "공개",
+  private: "비공개",
+} as const;
 
 export default function LobbyPage() {
   const navigate = useNavigate();
@@ -14,6 +26,8 @@ export default function LobbyPage() {
   );
   const [roomName, setRoomName] = useState("ranked-demo");
   const [nickname, setNickname] = useState(currentNickname);
+  const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
+
   const blueprintQuery = useQuery({
     queryKey: ["rebuild-blueprint"],
     queryFn: fetchRebuildBlueprint,
@@ -22,6 +36,17 @@ export default function LobbyPage() {
     queryKey: ["lobby-rooms"],
     queryFn: fetchLobbyRooms,
   });
+  const mapsQuery = useQuery({
+    queryKey: ["maps"],
+    queryFn: fetchMaps,
+  });
+
+  useEffect(() => {
+    if (!selectedMapId && mapsQuery.data?.length) {
+      setSelectedMapId(mapsQuery.data[0].id);
+    }
+  }, [mapsQuery.data, selectedMapId]);
+
   const createRoomMutation = useMutation({
     mutationFn: createRoom,
     onSuccess: (snapshot) => {
@@ -34,16 +59,19 @@ export default function LobbyPage() {
   });
 
   if (!blueprintQuery.data) {
-    return <section className="panel">구조 정보를 불러오는 중...</section>;
+    return <section className="panel">구조 정보를 불러오는 중입니다.</section>;
   }
 
   const rooms = roomsQuery.data ?? [];
+  const maps = mapsQuery.data ?? [];
+  const selectedMap = maps.find((map) => map.id === selectedMapId) ?? null;
 
   const handleCreateRoom = () => {
     setCurrentNickname(nickname);
     createRoomMutation.mutate({
       roomName,
       hostNickname: nickname,
+      mapId: selectedMapId ?? undefined,
     });
   };
 
@@ -59,10 +87,10 @@ export default function LobbyPage() {
       <section className="hero">
         <div>
           <p className="eyebrow">방 루프 재구축</p>
-          <h2>v2는 낡은 화면이 아니라 방 계약부터 다시 시작합니다.</h2>
+          <h2>v2는 룸 상태와 맵 카탈로그를 먼저 고정합니다.</h2>
           <p className="lede">
-            프론트는 REST로 로비를 읽고, 방 안 변화는 하나의 웹소켓 스트림으로만
-            받습니다.
+            로비는 REST로 읽고, 방과 게임 진행은 실시간 이벤트로만
+            흘려보내는 구조입니다.
           </p>
         </div>
 
@@ -72,11 +100,11 @@ export default function LobbyPage() {
             <strong>{blueprintQuery.data.principles.length}</strong>
           </div>
           <div className="metric">
-            <span className="metric__label">REST 경로</span>
-            <strong>{blueprintQuery.data.restRoutes.length}</strong>
+            <span className="metric__label">맵 카탈로그</span>
+            <strong>{maps.length}</strong>
           </div>
           <div className="metric">
-            <span className="metric__label">소켓 이벤트</span>
+            <span className="metric__label">실시간 이벤트</span>
             <strong>
               {blueprintQuery.data.clientEvents.length +
                 blueprintQuery.data.serverEvents.length}
@@ -102,8 +130,8 @@ export default function LobbyPage() {
       <section className="grid grid--two">
         <article className="panel stack">
           <div>
-            <p className="eyebrow">실시간 로비</p>
-            <h3>백엔드 v2 런타임에 방을 만듭니다.</h3>
+            <p className="eyebrow">방 만들기</p>
+            <h3>닉네임과 맵을 정하고 바로 방을 띄웁니다.</h3>
           </div>
 
           <label className="field">
@@ -124,6 +152,28 @@ export default function LobbyPage() {
             />
           </label>
 
+          <label className="field">
+            <span>시작 맵</span>
+            <select
+              value={selectedMapId ?? ""}
+              onChange={(event) => setSelectedMapId(Number(event.target.value))}
+            >
+              {maps.map((map) => (
+                <option key={map.id} value={map.id}>
+                  {map.name} · {map.songCount}곡 ·{" "}
+                  {difficultyLabels[map.difficulty]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {selectedMap ? (
+            <p className="footnote">
+              선택 맵: {selectedMap.name} / {selectedMap.songCount}곡 /{" "}
+              {visibilityLabels[selectedMap.visibility]}
+            </p>
+          ) : null}
+
           <div className="button-row">
             <button className="button" onClick={handleCreateRoom}>
               {createRoomMutation.isPending ? "생성 중..." : "방 만들기"}
@@ -139,8 +189,8 @@ export default function LobbyPage() {
 
         <article className="panel stack">
           <div>
-            <p className="eyebrow">활성 방</p>
-            <h3>백엔드 방 스냅샷</h3>
+            <p className="eyebrow">생성된 방</p>
+            <h3>지금 들어갈 수 있는 방 목록입니다.</h3>
           </div>
 
           {roomsQuery.error ? (
@@ -153,6 +203,7 @@ export default function LobbyPage() {
                 className="room-card"
                 key={room.name}
                 onClick={() => handleJoinRoom(room.name)}
+                type="button"
               >
                 <div className="room-card__header">
                   <strong>{room.name}</strong>
@@ -175,7 +226,7 @@ export default function LobbyPage() {
             {rooms.length === 0 && !roomsQuery.isLoading ? (
               <div className="room-card">
                 <strong>아직 방이 없습니다</strong>
-                <p>방을 만들면 여기 목록에서 바로 입장할 수 있습니다.</p>
+                <p>맵을 고른 뒤 방을 만들면 여기서 바로 입장할 수 있습니다.</p>
               </div>
             ) : null}
           </div>

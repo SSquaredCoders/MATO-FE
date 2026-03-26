@@ -20,6 +20,34 @@ export interface MapSummary {
   visibility: "public" | "private";
 }
 
+export interface MapSongDefinition {
+  clue: string;
+  title: string;
+  artist: string;
+  answers: string[];
+}
+
+export interface MapDetail {
+  id: number;
+  name: string;
+  description: string;
+  createdBy: string;
+  difficulty: "easy" | "normal" | "hard";
+  visibility: "public" | "private";
+  roundTimeLimitSeconds: number;
+  songs: MapSongDefinition[];
+}
+
+export interface CreateMapRequest {
+  name: string;
+  description: string;
+  createdBy: string;
+  difficulty: "easy" | "normal" | "hard";
+  visibility: "public" | "private";
+  roundTimeLimitSeconds: number;
+  songs: MapSongDefinition[];
+}
+
 export interface RoomParticipant {
   id: string;
   nickname: string;
@@ -113,6 +141,7 @@ export interface PresencePayload {
 export interface CreateRoomRequest {
   roomName: string;
   hostNickname: string;
+  mapId?: number;
 }
 
 export interface RoomEventPayload {
