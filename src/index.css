@@ -524,6 +524,35 @@ button {
   font-size: 1rem;
 }
 
+.room-stage__hint {
+  display: grid;
+  gap: 6px;
+  max-width: 720px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(240, 123, 63, 0.26);
+  background: rgba(240, 123, 63, 0.08);
+}
+
+.room-stage__hint span {
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.room-stage__hint strong {
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.room-stage__hint--pending {
+  color: var(--muted);
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .flash-feed {
   display: grid;
   gap: 10px;

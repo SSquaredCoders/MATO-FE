@@ -29,6 +29,10 @@ const phaseLabels: Record<GamePhase, string> = {
   FINISHED: "종료",
 };
 
+function formatHintText(clue: string) {
+  return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
+}
+
 export default function RoomPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -41,6 +45,7 @@ export default function RoomPage() {
   const [feedback, setFeedback] = useState(
     "방에 연결되면 채팅과 정답 입력을 바로 사용할 수 있습니다.",
   );
+  const [hintClock, setHintClock] = useState(() => Date.now());
   const [connection, setConnection] = useState<ConnectionState>("idle");
   const [transientMessages, setTransientMessages] = useState<RoomChatMessage[]>(
     [],
@@ -127,6 +132,28 @@ export default function RoomPage() {
   const room = roomQuery.data;
 
   useEffect(() => {
+    setHintClock(Date.now());
+
+    if (!room?.hintRevealAt) {
+      return;
+    }
+
+    const revealAt = Date.parse(room.hintRevealAt);
+    if (!Number.isFinite(revealAt) || revealAt <= Date.now()) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setHintClock(Date.now());
+      if (Date.now() >= revealAt) {
+        clearInterval(timer);
+      }
+    }, 250);
+
+    return () => clearInterval(timer);
+  }, [room?.hintRevealAt, room?.currentHint, room?.phase]);
+
+  useEffect(() => {
     if (connection !== "connected") {
       return;
     }
@@ -197,6 +224,21 @@ export default function RoomPage() {
   const helperText = isHost
     ? "방장입니다. 다른 참가자들이 준비되면 게임을 시작할 수 있습니다."
     : "준비를 마치면 방장이 게임을 시작할 수 있습니다.";
+  const hintRevealAtMs = room.hintRevealAt ? Date.parse(room.hintRevealAt) : null;
+  const isHintVisible = Boolean(room.currentHint) && (
+    room.phase !== "PLAYING" ||
+    hintRevealAtMs === null ||
+    !Number.isFinite(hintRevealAtMs) ||
+    hintRevealAtMs <= hintClock
+  );
+  const hintCountdown =
+    room.phase === "PLAYING" &&
+    room.currentHint &&
+    hintRevealAtMs !== null &&
+    Number.isFinite(hintRevealAtMs) &&
+    hintRevealAtMs > hintClock
+      ? Math.max(1, Math.ceil((hintRevealAtMs - hintClock) / 1000))
+      : 0;
 
   const handleAnswerSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -267,6 +309,17 @@ export default function RoomPage() {
           <div className="room-stage__board-copy">
             <p className="eyebrow">Now Playing</p>
             <h3>{room.currentPrompt}</h3>
+            {isHintVisible && room.currentHint ? (
+              <p className="room-stage__hint">
+                <span>힌트</span>
+                <strong>{formatHintText(room.currentHint)}</strong>
+              </p>
+            ) : null}
+            {!isHintVisible && hintCountdown > 0 ? (
+              <p className="room-stage__hint room-stage__hint--pending">
+                힌트 공개까지 {hintCountdown}초
+              </p>
+            ) : null}
             <p className="footnote room-stage__feedback">{feedback}</p>
             {room.currentReveal ? (
               <p className="reveal">직전 공개: {room.currentReveal}</p>

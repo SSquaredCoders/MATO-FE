@@ -20,6 +20,10 @@ interface SongDraftRow {
   answersText: string;
 }
 
+function formatHintText(clue: string) {
+  return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
+}
+
 const difficultyLabels = {
   easy: "쉬움",
   normal: "보통",
@@ -56,6 +60,7 @@ export default function MapsPage() {
   );
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [roundTimeLimitSeconds, setRoundTimeLimitSeconds] = useState("30");
+  const [hintRevealDelaySeconds, setHintRevealDelaySeconds] = useState("8");
   const [songRows, setSongRows] = useState<SongDraftRow[]>([createBlankSongRow()]);
 
   const mapsQuery = useQuery({
@@ -86,6 +91,7 @@ export default function MapsPage() {
       setDifficulty("normal");
       setVisibility("public");
       setRoundTimeLimitSeconds("30");
+      setHintRevealDelaySeconds("8");
       setSongRows([createBlankSongRow()]);
     },
   });
@@ -144,6 +150,7 @@ export default function MapsPage() {
       difficulty,
       visibility,
       roundTimeLimitSeconds: Number(roundTimeLimitSeconds),
+      hintRevealDelaySeconds: Number(hintRevealDelaySeconds),
       songs,
     };
 
@@ -166,7 +173,7 @@ export default function MapsPage() {
           </div>
 
           <p className="lede">
-            지금 단계에서는 맵이 `문제 / 정답 / 제한시간`의 기준입니다.
+            지금 단계에서는 맵이 `정답 / 제한시간 / 힌트 공개 시점`의 기준입니다.
             저장한 맵은 바로 로비의 방 만들기 화면에서 선택할 수 있습니다.
           </p>
 
@@ -204,9 +211,12 @@ export default function MapsPage() {
               <h3>{selectedMap?.name ?? "맵을 선택하세요"}</h3>
             </div>
             {selectedMap ? (
-              <span className="chip">
-                {selectedMap.roundTimeLimitSeconds}초 제한
-              </span>
+              <div className="chip-list">
+                <span className="chip">{selectedMap.roundTimeLimitSeconds}초 제한</span>
+                <span className="chip">
+                  힌트 {selectedMap.hintRevealDelaySeconds}초 후 공개
+                </span>
+              </div>
             ) : null}
           </div>
 
@@ -233,6 +243,10 @@ export default function MapsPage() {
                   <span>정답 별칭</span>
                   <strong>{totalAnswerAliases}개</strong>
                 </div>
+                <div>
+                  <span>힌트 공개</span>
+                  <strong>{selectedMap.hintRevealDelaySeconds}초 후</strong>
+                </div>
               </div>
 
               <div className="map-song-list">
@@ -244,7 +258,7 @@ export default function MapsPage() {
                       </strong>
                       <span>{song.artist}</span>
                     </div>
-                    <p>{song.clue}</p>
+                    <p>힌트: {formatHintText(song.clue)}</p>
                     <div className="chip-list">
                       {song.answers.map((answer) => (
                         <span className="chip" key={`${song.title}-${answer}`}>
@@ -334,10 +348,20 @@ export default function MapsPage() {
           />
         </label>
 
+        <label className="field">
+          <span>힌트 공개 지연(초)</span>
+          <input
+            value={hintRevealDelaySeconds}
+            onChange={(event) => setHintRevealDelaySeconds(event.target.value)}
+            inputMode="numeric"
+            placeholder="8"
+          />
+        </label>
+
         <div className="map-song-editor">
           <div className="panel__header">
             <div>
-              <p className="eyebrow">문제 편집</p>
+              <p className="eyebrow">곡 편집</p>
               <h3>{songRows.length}곡 작성 중</h3>
             </div>
             <button
@@ -347,14 +371,14 @@ export default function MapsPage() {
               }
               type="button"
             >
-              문제 추가
+              곡 추가
             </button>
           </div>
 
           {songRows.map((row, index) => (
             <article className="map-song-editor__row" key={row.id}>
               <div className="map-song-editor__head">
-                <strong>{index + 1}번 문제</strong>
+                <strong>{index + 1}번 곡</strong>
                 <button
                   className="button button--ghost"
                   onClick={() => removeSongRow(row.id)}
@@ -365,13 +389,13 @@ export default function MapsPage() {
               </div>
 
               <label className="field">
-                <span>문제 문구</span>
+                <span>힌트 문구</span>
                 <input
                   value={row.clue}
                   onChange={(event) =>
                     updateSongRow(row.id, "clue", event.target.value)
                   }
-                  placeholder="문제: 에반게리온 오프닝입니다."
+                  placeholder="에반게리온 오프닝입니다."
                 />
               </label>
 

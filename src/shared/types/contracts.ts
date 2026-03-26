@@ -35,6 +35,7 @@ export interface MapDetail {
   difficulty: "easy" | "normal" | "hard";
   visibility: "public" | "private";
   roundTimeLimitSeconds: number;
+  hintRevealDelaySeconds: number;
   songs: MapSongDefinition[];
 }
 
@@ -45,6 +46,7 @@ export interface CreateMapRequest {
   difficulty: "easy" | "normal" | "hard";
   visibility: "public" | "private";
   roundTimeLimitSeconds: number;
+  hintRevealDelaySeconds: number;
   songs: MapSongDefinition[];
 }
 
@@ -82,6 +84,8 @@ export interface RoomSnapshot {
   round: number;
   totalRounds: number;
   currentPrompt: string;
+  currentHint: string | null;
+  hintRevealAt: string | null;
   lastEvent: string;
   currentReveal: string | null;
   participants: RoomParticipant[];
