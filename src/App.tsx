@@ -1,53 +1,41 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import Navbar from "./components/Navbar";
-import Lobby from "./Lobby";
-import Login from "./pages/auth/Login";
-import Logout from "./pages/auth/Logout";
-import Register from "./pages/auth/Register";
-import UpdateUser from "./pages/auth/UpdateUser";
-import DeleteUser from "./pages/auth/DeleteUser";
-import RoomCreatePage from "./pages/room/RoomCreatePage";
-import RoomUpdatePage from "./pages/room/RoomUpdatePage";
-import GameRoom from "./pages/room/GameRoom";
-import CreateMap from "./pages/map/createMap/CreateMap";
-import MapList from "./pages/map/MapList";
-import MapDetail from "./pages/map/MapDetail";
-import EditMap from "./pages/map/editmap/EditMap";
-import MyMaps from "./pages/map/MyMaps";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { AppShell } from "./app/layout/AppShell";
+import { AppProviders } from "./app/providers/AppProviders";
+import AccountPage from "./features/account/AccountPage";
+import LobbyPage from "./features/lobby/LobbyPage";
+import MapsPage from "./features/maps/MapsPage";
+import RoadmapPage from "./features/roadmap/RoadmapPage";
+import RoomPage from "./features/room/RoomPage";
 
-const App: React.FC = () => {
+export default function App() {
     return (
-        <AuthProvider>
-            <div>
-                <Navbar />
-
+        <AppProviders>
+            <AppShell>
                 <Routes>
-                    <Route path="/" element={<Lobby />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Register />} />
-                    <Route path="/logout" element={<Logout />} />
-                    <Route path="/update-user" element={<UpdateUser />} />
-                    <Route path="/delete-user" element={<DeleteUser />} />
-                    <Route path="/create-room" element={<RoomCreatePage />} />
-                    <Route path="/update-room/:roomName" element={<RoomUpdatePage />} />
-                    <Route path="/room/:roomName" element={<GameRoom />} />
-
-                    {/* 🔁 중첩 라우팅을 위한 create-map */}
-                    <Route path="/create-map/*" element={<CreateMap />} />
-
-                    {/* ✨ 맵 수정 전용 라우트 */}
-                    <Route path="/edit-map/:mapId/*" element={<EditMap />} />
-
-                    <Route path="/map-list" element={<MapList />} />
-                    <Route path="/maps" element={<MapList />} />
-                    <Route path="/maps/:id" element={<MapDetail />} />
-                    <Route path="/my-maps" element={<MyMaps />} />
+                    <Route path="/" element={<LobbyPage />} />
+                    <Route path="/room/:roomName" element={<RoomPage />} />
+                    <Route path="/rooms/:roomName" element={<RoomPage />} />
+                    <Route path="/maps" element={<MapsPage />} />
+                    <Route path="/map-list" element={<MapsPage />} />
+                    <Route path="/my-maps" element={<MapsPage />} />
+                    <Route path="/create-map/*" element={<MapsPage />} />
+                    <Route path="/edit-map/:mapId/*" element={<MapsPage />} />
+                    <Route path="/roadmap" element={<RoadmapPage />} />
+                    <Route path="/account" element={<AccountPage />} />
+                    <Route path="/login" element={<AccountPage />} />
+                    <Route path="/signup" element={<AccountPage />} />
+                    <Route path="/logout" element={<AccountPage />} />
+                    <Route path="/update-user" element={<AccountPage />} />
+                    <Route path="/delete-user" element={<AccountPage />} />
+                    <Route path="/create-room" element={<Navigate replace to="/" />} />
+                    <Route
+                        path="/update-room/:roomName"
+                        element={<Navigate replace to="/" />}
+                    />
+                    <Route path="*" element={<Navigate replace to="/" />} />
                 </Routes>
-            </div>
-        </AuthProvider>
+            </AppShell>
+        </AppProviders>
     );
-};
-
-export default App;
+}

@@ -62,4 +62,8 @@ npm-shrinkwrap.json
 yarn.lock
 pnpm-lock.yaml
 
+# local work artifacts
+output/
+progress.md
+
 
