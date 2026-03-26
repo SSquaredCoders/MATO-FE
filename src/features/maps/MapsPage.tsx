@@ -4,11 +4,11 @@ import {
   createMap,
   fetchMapDetail,
   fetchMaps,
+  uploadMapAudioFile,
 } from "../../shared/api/maps";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
   CreateMapRequest,
-  MapDetail,
   MapSongDefinition,
 } from "../../shared/types/contracts";
 
@@ -18,6 +18,11 @@ interface SongDraftRow {
   title: string;
   artist: string;
   answersText: string;
+  audioSourceType: "youtube" | "file";
+  audioSourceValue: string;
+  audioSourceLabel: string;
+  isUploading: boolean;
+  uploadError: string | null;
 }
 
 function formatHintText(clue: string) {
@@ -35,6 +40,11 @@ const visibilityLabels = {
   private: "비공개",
 } as const;
 
+const audioSourceLabels = {
+  youtube: "유튜브 링크",
+  file: "파일 업로드",
+} as const;
+
 function createBlankSongRow(): SongDraftRow {
   return {
     id: `song-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -42,6 +52,11 @@ function createBlankSongRow(): SongDraftRow {
     title: "",
     artist: "",
     answersText: "",
+    audioSourceType: "youtube",
+    audioSourceValue: "",
+    audioSourceLabel: "",
+    isUploading: false,
+    uploadError: null,
   };
 }
 
@@ -61,30 +76,40 @@ export default function MapsPage() {
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [roundTimeLimitSeconds, setRoundTimeLimitSeconds] = useState("30");
   const [hintRevealDelaySeconds, setHintRevealDelaySeconds] = useState("8");
-  const [songRows, setSongRows] = useState<SongDraftRow[]>([createBlankSongRow()]);
+  const [songRows, setSongRows] = useState<SongDraftRow[]>([
+    createBlankSongRow(),
+  ]);
+  const viewerNickname = nickname.trim() || currentNickname;
 
   const mapsQuery = useQuery({
-    queryKey: ["maps"],
-    queryFn: fetchMaps,
+    queryKey: ["maps", viewerNickname],
+    queryFn: () => fetchMaps(viewerNickname),
   });
 
   useEffect(() => {
     if (!selectedMapId && mapsQuery.data?.length) {
       setSelectedMapId(mapsQuery.data[0].id);
     }
+
+    if (
+      selectedMapId &&
+      mapsQuery.data?.every((map) => map.id !== selectedMapId)
+    ) {
+      setSelectedMapId(mapsQuery.data[0]?.id ?? null);
+    }
   }, [mapsQuery.data, selectedMapId]);
 
   const selectedMapQuery = useQuery({
-    queryKey: ["maps", selectedMapId],
-    queryFn: () => fetchMapDetail(selectedMapId as number),
-    enabled: selectedMapId !== null,
+    queryKey: ["maps", selectedMapId, viewerNickname],
+    queryFn: () => fetchMapDetail(selectedMapId as number, viewerNickname),
+    enabled: selectedMapId !== null && Boolean(viewerNickname),
   });
 
   const createMapMutation = useMutation({
     mutationFn: createMap,
     onSuccess: (createdMap) => {
-      queryClient.invalidateQueries({ queryKey: ["maps"] });
-      queryClient.setQueryData(["maps", createdMap.id], createdMap);
+      queryClient.invalidateQueries({ queryKey: ["maps", viewerNickname] });
+      queryClient.setQueryData(["maps", createdMap.id, viewerNickname], createdMap);
       setSelectedMapId(createdMap.id);
       setName("");
       setDescription("");
@@ -109,7 +134,7 @@ export default function MapsPage() {
   const updateSongRow = (
     rowId: string,
     field: keyof Omit<SongDraftRow, "id">,
-    value: string,
+    value: string | boolean | null,
   ) => {
     setSongRows((current) =>
       current.map((row) =>
@@ -123,6 +148,15 @@ export default function MapsPage() {
     );
   };
 
+  const updateSongRowState = (
+    rowId: string,
+    updater: (row: SongDraftRow) => SongDraftRow,
+  ) => {
+    setSongRows((current) =>
+      current.map((row) => (row.id === rowId ? updater(row) : row)),
+    );
+  };
+
   const removeSongRow = (rowId: string) => {
     setSongRows((current) =>
       current.length === 1
@@ -131,8 +165,39 @@ export default function MapsPage() {
     );
   };
 
+  const handleSongFileUpload = async (rowId: string, file?: File) => {
+    if (!file) {
+      return;
+    }
+
+    updateSongRowState(rowId, (row) => ({
+      ...row,
+      isUploading: true,
+      uploadError: null,
+      audioSourceLabel: file.name,
+    }));
+
+    try {
+      const asset = await uploadMapAudioFile(file);
+      updateSongRowState(rowId, (row) => ({
+        ...row,
+        audioSourceType: "file",
+        audioSourceValue: asset.assetUrl,
+        audioSourceLabel: asset.originalFileName,
+        isUploading: false,
+        uploadError: null,
+      }));
+    } catch (error) {
+      updateSongRowState(rowId, (row) => ({
+        ...row,
+        isUploading: false,
+        uploadError: (error as Error).message,
+      }));
+    }
+  };
+
   const handleCreateMap = () => {
-    const createdBy = nickname.trim() || currentNickname;
+    const createdBy = viewerNickname;
     const songs = songRows.map<MapSongDefinition>((row) => ({
       clue: row.clue.trim(),
       title: row.title.trim(),
@@ -141,6 +206,9 @@ export default function MapsPage() {
         .split(",")
         .map((value) => value.trim())
         .filter(Boolean),
+      audioSourceType: row.audioSourceType,
+      audioSourceValue: row.audioSourceValue.trim() || null,
+      audioSourceLabel: row.audioSourceLabel.trim() || null,
     }));
 
     const request: CreateMapRequest = {
@@ -158,6 +226,25 @@ export default function MapsPage() {
     createMapMutation.mutate(request);
   };
 
+  const formatAudioSource = (
+    song: Pick<
+      MapSongDefinition,
+      "audioSourceType" | "audioSourceLabel" | "audioSourceValue"
+    >,
+  ) => {
+    if (!song.audioSourceType || !song.audioSourceValue) {
+      return "소스 없음";
+    }
+
+    if (song.audioSourceType === "file") {
+      return song.audioSourceLabel || "업로드 파일";
+    }
+
+    return song.audioSourceLabel || song.audioSourceValue;
+  };
+
+  const maps = mapsQuery.data ?? [];
+
   return (
     <div className="map-layout">
       <div className="map-stack">
@@ -165,16 +252,14 @@ export default function MapsPage() {
           <div className="panel__header">
             <div>
               <p className="eyebrow">맵 카탈로그</p>
-              <h2>방에서 쓸 문제집을 먼저 고정합니다.</h2>
+              <h2>현재 닉네임으로 만든 맵만 따로 관리합니다.</h2>
             </div>
-            <span className="chip">
-              {mapsQuery.data?.length ?? 0}개 맵
-            </span>
+            <span className="chip">{maps.length}개 맵</span>
           </div>
 
           <p className="lede">
-            지금 단계에서는 맵이 `정답 / 제한시간 / 힌트 공개 시점`의 기준입니다.
-            저장한 맵은 바로 로비의 방 만들기 화면에서 선택할 수 있습니다.
+            다른 사람이 만든 맵은 숨기고, 지금 입력한 닉네임의 맵만 보입니다.
+            각 곡에는 유튜브 링크나 업로드 파일을 연결할 수 있습니다.
           </p>
 
           {mapsQuery.error ? (
@@ -182,7 +267,7 @@ export default function MapsPage() {
           ) : null}
 
           <div className="room-list">
-            {(mapsQuery.data ?? []).map((map) => (
+            {maps.map((map) => (
               <button
                 className={`room-card${
                   selectedMapId === map.id ? " room-card--selected" : ""
@@ -201,6 +286,13 @@ export default function MapsPage() {
                 <p>{map.songCount}곡</p>
               </button>
             ))}
+
+            {maps.length === 0 && !mapsQuery.isLoading ? (
+              <div className="room-card">
+                <strong>내 맵이 없습니다</strong>
+                <p>다른 사람 맵은 감추고, 현재 닉네임의 맵만 보여줍니다.</p>
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -212,7 +304,9 @@ export default function MapsPage() {
             </div>
             {selectedMap ? (
               <div className="chip-list">
-                <span className="chip">{selectedMap.roundTimeLimitSeconds}초 제한</span>
+                <span className="chip">
+                  {selectedMap.roundTimeLimitSeconds}초 제한
+                </span>
                 <span className="chip">
                   힌트 {selectedMap.hintRevealDelaySeconds}초 후 공개
                 </span>
@@ -251,7 +345,10 @@ export default function MapsPage() {
 
               <div className="map-song-list">
                 {selectedMap.songs.map((song, index) => (
-                  <article className="map-song-card" key={`${song.title}-${index}`}>
+                  <article
+                    className="map-song-card"
+                    key={`${song.title}-${index}`}
+                  >
                     <div className="map-song-card__head">
                       <strong>
                         {index + 1}. {song.title}
@@ -259,6 +356,7 @@ export default function MapsPage() {
                       <span>{song.artist}</span>
                     </div>
                     <p>힌트: {formatHintText(song.clue)}</p>
+                    <p>소스: {formatAudioSource(song)}</p>
                     <div className="chip-list">
                       {song.answers.map((answer) => (
                         <span className="chip" key={`${song.title}-${answer}`}>
@@ -271,7 +369,7 @@ export default function MapsPage() {
               </div>
             </>
           ) : (
-            <p className="footnote">맵을 고르면 곡 목록과 정답 별칭이 보입니다.</p>
+            <p className="footnote">맵을 고르면 곡 목록과 오디오 소스가 보입니다.</p>
           )}
         </section>
       </div>
@@ -279,14 +377,18 @@ export default function MapsPage() {
       <section className="panel stack">
         <div>
           <p className="eyebrow">맵 만들기</p>
-          <h2>지금 쓸 v2 맵을 여기서 바로 추가합니다.</h2>
+          <h2>내 맵에 곡과 음원 소스를 같이 저장합니다.</h2>
         </div>
 
         <label className="field">
           <span>제작자 닉네임</span>
           <input
             value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
+            onChange={(event) => {
+              const nextNickname = event.target.value;
+              setNickname(nextNickname);
+              setCurrentNickname(nextNickname);
+            }}
             placeholder="host-01"
           />
         </label>
@@ -399,6 +501,71 @@ export default function MapsPage() {
                 />
               </label>
 
+              <label className="field">
+                <span>오디오 소스</span>
+                <select
+                  value={row.audioSourceType}
+                  onChange={(event) =>
+                    updateSongRowState(row.id, (currentRow) => ({
+                      ...currentRow,
+                      audioSourceType: event.target.value as "youtube" | "file",
+                      audioSourceValue:
+                        event.target.value === "youtube" &&
+                        currentRow.audioSourceType !== "youtube"
+                          ? ""
+                          : currentRow.audioSourceValue,
+                      audioSourceLabel:
+                        event.target.value === "youtube"
+                          ? ""
+                          : currentRow.audioSourceLabel,
+                      uploadError: null,
+                    }))
+                  }
+                >
+                  <option value="youtube">{audioSourceLabels.youtube}</option>
+                  <option value="file">{audioSourceLabels.file}</option>
+                </select>
+              </label>
+
+              {row.audioSourceType === "youtube" ? (
+                <label className="field">
+                  <span>유튜브 링크</span>
+                  <input
+                    value={row.audioSourceValue}
+                    onChange={(event) =>
+                      updateSongRowState(row.id, (currentRow) => ({
+                        ...currentRow,
+                        audioSourceValue: event.target.value,
+                        audioSourceLabel: event.target.value,
+                        uploadError: null,
+                      }))
+                    }
+                    placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                </label>
+              ) : (
+                <div className="field">
+                  <span>음원 파일</span>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(event) =>
+                      void handleSongFileUpload(row.id, event.target.files?.[0])
+                    }
+                  />
+                  <p className="footnote">
+                    {row.isUploading
+                      ? "파일 업로드 중..."
+                      : row.audioSourceValue
+                        ? `업로드됨: ${row.audioSourceLabel}`
+                        : "mp3, wav 같은 오디오 파일을 업로드할 수 있습니다."}
+                  </p>
+                  {row.uploadError ? (
+                    <p className="footnote">{row.uploadError}</p>
+                  ) : null}
+                </div>
+              )}
+
               <div className="grid grid--two">
                 <label className="field">
                   <span>곡 제목</span>
@@ -449,7 +616,7 @@ export default function MapsPage() {
           </p>
         ) : (
           <p className="footnote">
-            저장한 맵은 왼쪽 목록과 로비의 시작 맵 선택에 바로 반영됩니다.
+            저장한 맵은 현재 닉네임에서만 보이고, 각 곡에 유튜브 링크나 파일 소스를 남길 수 있습니다.
           </p>
         )}
       </section>

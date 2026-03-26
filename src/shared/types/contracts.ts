@@ -25,6 +25,9 @@ export interface MapSongDefinition {
   title: string;
   artist: string;
   answers: string[];
+  audioSourceType: "youtube" | "file" | null;
+  audioSourceValue: string | null;
+  audioSourceLabel: string | null;
 }
 
 export interface MapDetail {
@@ -48,6 +51,14 @@ export interface CreateMapRequest {
   roundTimeLimitSeconds: number;
   hintRevealDelaySeconds: number;
   songs: MapSongDefinition[];
+}
+
+export interface MapAudioAsset {
+  assetId: string;
+  originalFileName: string;
+  assetUrl: string;
+  contentType: string;
+  size: number;
 }
 
 export interface RoomParticipant {

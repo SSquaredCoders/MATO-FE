@@ -1,6 +1,7 @@
 import { API_BASE_URL } from "../config/env";
 import type {
   CreateMapRequest,
+  MapAudioAsset,
   MapDetail,
   MapSummary,
 } from "../types/contracts";
@@ -22,12 +23,22 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function fetchMaps() {
-  return requestJson<MapSummary[]>("/api/v2/maps");
+export function fetchMaps(viewer: string) {
+  const query = new URLSearchParams();
+  if (viewer.trim()) {
+    query.set("viewer", viewer.trim());
+  }
+  return requestJson<MapSummary[]>(`/api/v2/maps?${query.toString()}`);
 }
 
-export function fetchMapDetail(mapId: number) {
-  return requestJson<MapDetail>(`/api/v2/maps/${mapId}`);
+export function fetchMapDetail(mapId: number, viewer: string) {
+  const query = new URLSearchParams();
+  if (viewer.trim()) {
+    query.set("viewer", viewer.trim());
+  }
+  return requestJson<MapDetail>(
+    `/api/v2/maps/${mapId}?${query.toString()}`,
+  );
 }
 
 export function createMap(request: CreateMapRequest) {
@@ -35,4 +46,21 @@ export function createMap(request: CreateMapRequest) {
     method: "POST",
     body: JSON.stringify(request),
   });
+}
+
+export async function uploadMapAudioFile(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/api/v2/maps/assets`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "File upload failed.");
+  }
+
+  return (await response.json()) as MapAudioAsset;
 }

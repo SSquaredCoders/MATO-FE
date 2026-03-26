@@ -27,6 +27,7 @@ export default function LobbyPage() {
   const [roomName, setRoomName] = useState("ranked-demo");
   const [nickname, setNickname] = useState(currentNickname);
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
+  const viewerNickname = nickname.trim() || currentNickname;
 
   const blueprintQuery = useQuery({
     queryKey: ["rebuild-blueprint"],
@@ -37,13 +38,16 @@ export default function LobbyPage() {
     queryFn: fetchLobbyRooms,
   });
   const mapsQuery = useQuery({
-    queryKey: ["maps"],
-    queryFn: fetchMaps,
+    queryKey: ["maps", viewerNickname],
+    queryFn: () => fetchMaps(viewerNickname),
   });
 
   useEffect(() => {
     if (!selectedMapId && mapsQuery.data?.length) {
       setSelectedMapId(mapsQuery.data[0].id);
+    }
+    if (selectedMapId && mapsQuery.data?.every((map) => map.id !== selectedMapId)) {
+      setSelectedMapId(mapsQuery.data[0]?.id ?? null);
     }
   }, [mapsQuery.data, selectedMapId]);
 
@@ -157,7 +161,11 @@ export default function LobbyPage() {
             <select
               value={selectedMapId ?? ""}
               onChange={(event) => setSelectedMapId(Number(event.target.value))}
+              disabled={maps.length === 0}
             >
+              {maps.length === 0 ? (
+                <option value="">선택 가능한 내 맵이 없습니다</option>
+              ) : null}
               {maps.map((map) => (
                 <option key={map.id} value={map.id}>
                   {map.name} · {map.songCount}곡 ·{" "}
@@ -172,10 +180,18 @@ export default function LobbyPage() {
               선택 맵: {selectedMap.name} / {selectedMap.songCount}곡 /{" "}
               {visibilityLabels[selectedMap.visibility]}
             </p>
-          ) : null}
+          ) : (
+            <p className="footnote">
+              현재 닉네임 기준으로 보이는 맵만 고를 수 있습니다. 먼저 맵 탭에서 내 맵을 만드세요.
+            </p>
+          )}
 
           <div className="button-row">
-            <button className="button" onClick={handleCreateRoom}>
+            <button
+              className="button"
+              onClick={handleCreateRoom}
+              disabled={!selectedMapId}
+            >
               {createRoomMutation.isPending ? "생성 중..." : "방 만들기"}
             </button>
           </div>
