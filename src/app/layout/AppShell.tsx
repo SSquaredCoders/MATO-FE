@@ -23,15 +23,17 @@ export function AppShell({ children }: AppShellProps) {
       <header
         className={isRoomRoute ? "shell__header shell__header--room" : "shell__header"}
       >
-        <div className="shell__brand">
-          <p className="eyebrow">MATO V2 ROOM</p>
+        <div className={isRoomRoute ? "shell__brand shell__brand--room" : "shell__brand"}>
+          <p className="eyebrow">{isRoomRoute ? "MATO ROOM" : "MATO V2 ROOM"}</p>
           <h1>{APP_TITLE}</h1>
-          <p className="shell__summary">
-            실시간 방 플레이를 중심으로 다시 정리한 웹 게임 프로토타입입니다.
-          </p>
+          {!isRoomRoute ? (
+            <p className="shell__summary">
+              실시간 방 플레이를 중심으로 다시 정리한 웹 게임 프로토타입입니다.
+            </p>
+          ) : null}
         </div>
 
-        <nav className="nav">
+        <nav className={isRoomRoute ? "nav nav--room" : "nav"}>
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -53,7 +55,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="chip-list">
             <span className="chip">REST {API_BASE_URL}</span>
             <span className="chip">실시간 {WS_BASE_URL}</span>
-            <span className="chip">Query + STOMP 방 스트림</span>
+            <span className="chip">Query + STOMP 룸 스트림</span>
           </div>
         </footer>
       ) : null}

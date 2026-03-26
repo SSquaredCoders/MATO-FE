@@ -66,7 +66,7 @@ button {
 .shell--room {
   width: min(1420px, calc(100% - 28px));
   height: 100vh;
-  padding: 14px 0;
+  padding: 10px 0;
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
@@ -95,9 +95,36 @@ button {
 }
 
 .shell__header--room {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 14px 18px;
+}
+
+.shell__brand--room {
+  display: flex;
+  align-items: center;
   gap: 14px;
-  margin-bottom: 16px;
-  padding: 18px 22px;
+}
+
+.shell__brand--room .eyebrow {
+  margin: 0;
+}
+
+.shell__brand--room h1 {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.nav--room {
+  justify-content: end;
+  gap: 8px;
+}
+
+.nav--room .nav__link {
+  padding: 8px 13px;
+  font-size: 0.92rem;
 }
 
 .shell__brand h1,
@@ -382,7 +409,7 @@ button {
 
 .room-view {
   display: grid;
-  grid-template-columns: minmax(0, 2.15fr) minmax(320px, 0.82fr);
+  grid-template-columns: minmax(0, 2.45fr) minmax(300px, 0.72fr);
   gap: 20px;
   min-height: 0;
   height: 100%;
@@ -415,7 +442,7 @@ button {
 }
 
 .room-stage__meta-card {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 18px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
@@ -438,7 +465,8 @@ button {
 .room-stage__board {
   position: relative;
   min-height: 0;
-  padding: 36px;
+  min-block-size: 430px;
+  padding: 38px 42px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
@@ -459,18 +487,19 @@ button {
 .room-stage__board-copy {
   position: relative;
   z-index: 1;
-  width: min(100%, 780px);
+  width: min(100%, 880px);
   min-height: 100%;
   display: grid;
   align-content: end;
-  gap: 18px;
+  gap: 14px;
 }
 
 .room-stage__board-copy h3 {
   margin: 0;
-  font-size: clamp(2.7rem, 5vw, 5rem);
-  line-height: 0.98;
-  max-width: 12ch;
+  font-size: clamp(2.15rem, 3.8vw, 3.85rem);
+  line-height: 1.03;
+  max-width: 15ch;
+  text-wrap: balance;
 }
 
 .room-stage__overlay {
@@ -520,7 +549,7 @@ button {
 .answer-box {
   display: grid;
   gap: 16px;
-  padding: 18px;
+  padding: 16px 18px;
   border-radius: 20px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
@@ -543,7 +572,7 @@ button {
 .room-sidebar {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 16px;
+  gap: 14px;
 }
 
 .room-sidebar__section {
@@ -620,6 +649,24 @@ button {
     overflow: visible;
   }
 
+  .shell__header--room {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .shell__brand--room {
+    display: grid;
+    gap: 8px;
+  }
+
+  .shell__brand--room h1 {
+    font-size: 2.25rem;
+  }
+
+  .nav--room {
+    justify-content: start;
+  }
+
   .shell__header,
   .shell__footer,
   .panel,
@@ -652,6 +699,16 @@ button {
     left: 18px;
     right: 18px;
     bottom: 18px;
+  }
+
+  .room-stage__board {
+    min-block-size: 320px;
+    padding: 24px 22px;
+  }
+
+  .room-stage__board-copy h3 {
+    font-size: clamp(1.8rem, 7vw, 2.8rem);
+    max-width: none;
   }
 
   .answer-box--room {
