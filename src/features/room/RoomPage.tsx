@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
+import { API_BASE_URL } from "../../shared/config/env";
 import { fetchRoomSnapshot } from "../../shared/api/rooms";
 import { useRoomRealtime } from "../../shared/realtime/useRoomRealtime";
 import { useSessionStore } from "../../shared/store/useSessionStore";
@@ -31,6 +32,45 @@ const phaseLabels: Record<GamePhase, string> = {
 
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
+}
+
+function resolveMediaUrl(sourceValue: string) {
+  if (/^https?:\/\//i.test(sourceValue)) {
+    return sourceValue;
+  }
+
+  return `${API_BASE_URL}${sourceValue}`;
+}
+
+function getYouTubeEmbedUrl(sourceValue: string | null) {
+  if (!sourceValue) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(sourceValue);
+    let videoId = "";
+
+    if (parsed.hostname.includes("youtu.be")) {
+      videoId = parsed.pathname.replace(/^\/+/, "");
+    } else if (parsed.searchParams.get("v")) {
+      videoId = parsed.searchParams.get("v") ?? "";
+    } else {
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      const embedIndex = segments.indexOf("embed");
+      if (embedIndex >= 0 && segments[embedIndex + 1]) {
+        videoId = segments[embedIndex + 1];
+      }
+    }
+
+    if (!videoId) {
+      return null;
+    }
+
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&modestbranding=1`;
+  } catch {
+    return null;
+  }
 }
 
 export default function RoomPage() {
@@ -239,6 +279,16 @@ export default function RoomPage() {
     hintRevealAtMs > hintClock
       ? Math.max(1, Math.ceil((hintRevealAtMs - hintClock) / 1000))
       : 0;
+  const currentAudioSourceUrl = room.currentAudioSourceValue
+    ? resolveMediaUrl(room.currentAudioSourceValue)
+    : null;
+  const currentYouTubeEmbedUrl =
+    room.currentAudioSourceType === "youtube"
+      ? getYouTubeEmbedUrl(room.currentAudioSourceValue)
+      : null;
+  const mediaKey = `${room.round}-${room.currentAudioSourceType ?? "none"}-${
+    room.currentAudioSourceValue ?? "none"
+  }`;
 
   const handleAnswerSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -305,6 +355,53 @@ export default function RoomPage() {
               </article>
             ))}
           </div>
+
+          {room.phase === "PLAYING" && room.currentAudioSourceValue ? (
+            <div className="room-stage__media">
+              <div className="room-stage__media-meta">
+                <span className="room-stage__media-eyebrow">Audio Source</span>
+                <strong>
+                  {room.currentAudioSourceLabel ??
+                    (room.currentAudioSourceType === "youtube"
+                      ? "YouTube source"
+                      : "Uploaded audio")}
+                </strong>
+              </div>
+
+              {room.currentAudioSourceType === "file" && currentAudioSourceUrl ? (
+                <audio
+                  key={mediaKey}
+                  className="room-stage__audio-player"
+                  controls
+                  autoPlay
+                  preload="auto"
+                  src={currentAudioSourceUrl}
+                />
+              ) : null}
+
+              {room.currentAudioSourceType === "youtube" ? (
+                currentYouTubeEmbedUrl ? (
+                  <iframe
+                    key={mediaKey}
+                    className="room-stage__video-frame"
+                    src={currentYouTubeEmbedUrl}
+                    title={room.currentAudioSourceLabel ?? "YouTube audio source"}
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : room.currentAudioSourceValue ? (
+                  <a
+                    className="room-stage__media-link"
+                    href={room.currentAudioSourceValue}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    유효한 YouTube 링크가 아니라 새 탭으로 엽니다.
+                  </a>
+                ) : null
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="room-stage__board-copy">
             <p className="eyebrow">Now Playing</p>

@@ -99,6 +99,9 @@ export interface RoomSnapshot {
   hintRevealAt: string | null;
   lastEvent: string;
   currentReveal: string | null;
+  currentAudioSourceType: "youtube" | "file" | null;
+  currentAudioSourceValue: string | null;
+  currentAudioSourceLabel: string | null;
   participants: RoomParticipant[];
 }
 
