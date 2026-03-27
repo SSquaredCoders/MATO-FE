@@ -157,11 +157,7 @@ function resolveMediaUrl(sourceValue: string) {
   return `${API_BASE_URL}${sourceValue}`;
 }
 
-function getYouTubeEmbedUrl(
-  sourceValue: string,
-  clipStartSeconds: number,
-  clipEndSeconds: number | null,
-) {
+function getYouTubeVideoId(sourceValue: string) {
   try {
     const parsed = new URL(sourceValue);
     let videoId = "";
@@ -177,6 +173,61 @@ function getYouTubeEmbedUrl(
         videoId = segments[embedIndex + 1];
       }
     }
+
+    if (!videoId) {
+      return null;
+    }
+
+    return videoId;
+  } catch {
+    return null;
+  }
+}
+
+function ensureYouTubeApi() {
+  if (window.YT?.Player) {
+    return Promise.resolve(window.YT);
+  }
+
+  if (window.__matoYouTubeApiPromise) {
+    return window.__matoYouTubeApiPromise;
+  }
+
+  window.__matoYouTubeApiPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://www.youtube.com/iframe_api"]',
+    );
+
+    const handleReady = () => {
+      if (window.YT?.Player) {
+        resolve(window.YT);
+      }
+    };
+
+    window.onYouTubeIframeAPIReady = handleReady;
+
+    if (existingScript) {
+      existingScript.addEventListener("load", handleReady, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://www.youtube.com/iframe_api";
+    script.async = true;
+    script.onerror = () => reject(new Error("유튜브 플레이어 스크립트를 불러오지 못했습니다."));
+    document.body.appendChild(script);
+  });
+
+  return window.__matoYouTubeApiPromise;
+}
+
+function getYouTubeEmbedUrl(
+  sourceValue: string,
+  clipStartSeconds: number,
+  clipEndSeconds: number | null,
+) {
+  try {
+    const videoId = getYouTubeVideoId(sourceValue);
 
     if (!videoId) {
       return null;
@@ -214,7 +265,7 @@ interface SongPreviewPlayerProps {
   onClipEndChange: (value: string) => void;
 }
 
-function SongPreviewPlayer({
+function LegacySongPreviewPlayer({
   row,
   clipStartSeconds,
   clipEndSeconds,
@@ -224,18 +275,19 @@ function SongPreviewPlayer({
 }: SongPreviewPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const youtubeContainerRef = useRef<HTMLDivElement | null>(null);
+  const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
+  const youtubeSyncTimerRef = useRef<number | null>(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(clipStartSeconds);
   const [isPlaying, setIsPlaying] = useState(false);
   const [dragHandle, setDragHandle] = useState<"start" | "end" | null>(null);
-
-  const previewEmbedUrl =
-    row.audioSourceType === "youtube" && row.audioSourceValue
-      ? getYouTubeEmbedUrl(
-          row.audioSourceValue,
-          clipStartSeconds,
-          clipEndSeconds,
-        )
+  const isFileSource = row.audioSourceType === "file";
+  const isYouTubeSource = row.audioSourceType === "youtube";
+  const youtubeContainerId = `youtube-preview-${row.id}`;
+  const youtubeVideoId =
+    isYouTubeSource && row.audioSourceValue
+      ? getYouTubeVideoId(row.audioSourceValue)
       : null;
   const timelineMaxSeconds = Math.max(
     1,
@@ -256,6 +308,7 @@ function SongPreviewPlayer({
     100;
 
   useEffect(() => {
+    setDurationSeconds(0);
     setCurrentTimeSeconds(clipStartSeconds);
     setIsPlaying(false);
   }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
@@ -336,6 +389,126 @@ function SongPreviewPlayer({
     };
   }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
 
+  useEffect(() => {
+    if (!isYouTubeSource || !row.audioSourceValue || !youtubeContainerRef.current) {
+      return;
+    }
+
+    const videoId = youtubeVideoId;
+    if (!videoId) {
+      return;
+    }
+
+    let isDisposed = false;
+
+    const syncPlayerState = () => {
+      const player = youtubePlayerRef.current;
+      if (
+        !player ||
+        typeof player.getDuration !== "function" ||
+        typeof player.getCurrentTime !== "function"
+      ) {
+        return;
+      }
+
+      const duration = Number(player.getDuration()) || 0;
+      if (duration > 0) {
+        setDurationSeconds(duration);
+      }
+
+      const current = Number(player.getCurrentTime()) || clipStartSeconds;
+      const clipLimit = clipEndSeconds ?? (duration || clipStartSeconds);
+
+      if (current >= clipLimit) {
+        player.pauseVideo();
+        setCurrentTimeSeconds(clipLimit);
+        setIsPlaying(false);
+        return;
+      }
+
+      setCurrentTimeSeconds(current);
+    };
+
+    ensureYouTubeApi()
+      .then((YT) => {
+        if (isDisposed || !youtubeContainerRef.current) {
+          return;
+        }
+
+        youtubeContainerRef.current.innerHTML = "";
+        const player = new YT.Player(youtubeContainerId, {
+          width: "100%",
+          height: "100%",
+          videoId,
+          playerVars: {
+            autoplay: 0,
+            controls: 1,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            start: clipStartSeconds,
+            end: clipEndSeconds ?? undefined,
+          },
+          events: {
+            onReady: () => {
+              if (isDisposed) {
+                return;
+              }
+
+              const readyPlayer = youtubePlayerRef.current;
+              if (
+                !readyPlayer ||
+                typeof readyPlayer.getDuration !== "function" ||
+                typeof readyPlayer.seekTo !== "function"
+              ) {
+                return;
+              }
+
+              const duration =
+                typeof readyPlayer.getDuration === "function"
+                  ? Number(readyPlayer.getDuration()) || 0
+                  : 0;
+              setDurationSeconds(duration);
+              setCurrentTimeSeconds(clipStartSeconds);
+              readyPlayer.seekTo(clipStartSeconds, true);
+
+              if (youtubeSyncTimerRef.current !== null) {
+                window.clearInterval(youtubeSyncTimerRef.current);
+              }
+
+              youtubeSyncTimerRef.current = window.setInterval(syncPlayerState, 250);
+            },
+            onStateChange: ({ data }) => {
+              const playingState = YT.PlayerState?.PLAYING ?? 1;
+              setIsPlaying(data === playingState);
+            },
+          },
+        });
+        youtubePlayerRef.current = player;
+      })
+      .catch(() => {
+        setIsPlaying(false);
+      });
+
+    return () => {
+      isDisposed = true;
+
+      if (youtubeSyncTimerRef.current !== null) {
+        window.clearInterval(youtubeSyncTimerRef.current);
+        youtubeSyncTimerRef.current = null;
+      }
+
+      youtubePlayerRef.current?.destroy();
+      youtubePlayerRef.current = null;
+    };
+  }, [
+    clipEndSeconds,
+    clipStartSeconds,
+    isYouTubeSource,
+    row.audioSourceValue,
+    youtubeVideoId,
+  ]);
+
   const updateHandleFromClientX = (
     clientX: number,
     targetHandle: "start" | "end",
@@ -385,7 +558,26 @@ function SongPreviewPlayer({
   }, [clipStartSeconds, dragHandle, effectiveClipEndSeconds, timelineMaxSeconds]);
 
   const handleTogglePlayback = () => {
-    if (row.audioSourceType !== "file" || !audioRef.current) {
+    if (isYouTubeSource && youtubePlayerRef.current) {
+      if (isPlaying) {
+        youtubePlayerRef.current.pauseVideo();
+        return;
+      }
+
+      const clipLimit =
+        clipEndSeconds ??
+        (durationSeconds > 0 ? durationSeconds : clipStartSeconds);
+
+      if (currentTimeSeconds >= clipLimit) {
+        youtubePlayerRef.current.seekTo(clipStartSeconds, true);
+        setCurrentTimeSeconds(clipStartSeconds);
+      }
+
+      youtubePlayerRef.current.playVideo();
+      return;
+    }
+
+    if (!isFileSource || !audioRef.current) {
       return;
     }
 
@@ -416,7 +608,22 @@ function SongPreviewPlayer({
   };
 
   const seekWithinPreview = (nextOffsetSeconds: number) => {
-    if (row.audioSourceType !== "file" || !audioRef.current) {
+    if (isYouTubeSource && youtubePlayerRef.current) {
+      const clipLimit =
+        clipEndSeconds ??
+        (durationSeconds > 0 ? durationSeconds : clipStartSeconds);
+      const nextTime = clampSeconds(
+        clipStartSeconds + nextOffsetSeconds,
+        clipStartSeconds,
+        Math.max(clipStartSeconds, clipLimit),
+      );
+
+      youtubePlayerRef.current.seekTo(nextTime, true);
+      setCurrentTimeSeconds(nextTime);
+      return;
+    }
+
+    if (!isFileSource || !audioRef.current) {
       return;
     }
 
@@ -609,22 +816,613 @@ function SongPreviewPlayer({
           </div>
         </>
       ) : (
-        <div className="song-preview__media">
-          {previewEmbedUrl ? (
-            <iframe
-              key={previewEmbedUrl}
-              className="song-preview__frame"
-              src={previewEmbedUrl}
-              title={`${formatSongSummary(row)} 미리듣기`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+        <>
+          <div className="song-preview__transport">
+            <div className="song-preview__time-row">
+              <strong>{formatSecondsLabel(currentTimeSeconds)}</strong>
+              <span>구간 길이 {formatSecondsLabel(previewDurationSeconds || 0)}</span>
+            </div>
+
+            <div className="clip-timeline">
+              <div className="clip-timeline__labels">
+                <span>시작 {formatSecondsLabel(clipStartSeconds)}</span>
+                <span>현재 {formatSecondsLabel(currentTimeSeconds)}</span>
+                <span>
+                  끝{" "}
+                  {clipEndSeconds !== null
+                    ? formatSecondsLabel(clipEndSeconds)
+                    : "전체"}
+                </span>
+              </div>
+              <div
+                ref={timelineRef}
+                className="clip-timeline__track"
+                onPointerDown={(event) => {
+                  const timelineElement = timelineRef.current;
+                  if (!timelineElement) {
+                    return;
+                  }
+
+                  const bounds = timelineElement.getBoundingClientRect();
+                  const clickedSeconds = Math.round(
+                    (clampSeconds(event.clientX - bounds.left, 0, bounds.width) /
+                      bounds.width) *
+                      timelineMaxSeconds,
+                  );
+                  const targetHandle =
+                    Math.abs(clickedSeconds - clipStartSeconds) <=
+                    Math.abs(clickedSeconds - effectiveClipEndSeconds)
+                      ? "start"
+                      : "end";
+
+                  updateHandleFromClientX(event.clientX, targetHandle);
+                  setDragHandle(targetHandle);
+                }}
+              >
+                <div className="clip-timeline__base" />
+                <div
+                  className="clip-timeline__selection"
+                  style={{
+                    left: `${timelineStartPercent}%`,
+                    width: `${Math.max(0, timelineEndPercent - timelineStartPercent)}%`,
+                  }}
+                />
+                <div
+                  className="clip-timeline__playhead"
+                  style={{ left: `${timelinePlayheadPercent}%` }}
+                />
+                <button
+                  className="clip-timeline__handle clip-timeline__handle--start"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    setDragHandle("start");
+                  }}
+                  style={{ left: `${timelineStartPercent}%` }}
+                  type="button"
+                  aria-label="시작점 이동"
+                />
+                <button
+                  className="clip-timeline__handle clip-timeline__handle--end"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    setDragHandle("end");
+                  }}
+                  style={{ left: `${timelineEndPercent}%` }}
+                  type="button"
+                  aria-label="끝점 이동"
+                />
+              </div>
+            </div>
+
+            <div className="song-preview__button-row">
+              <button
+                className="button song-preview__button"
+                onClick={handleTogglePlayback}
+                type="button"
+              >
+                {isPlaying ? "일시정지" : "재생"}
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => seekWithinPreview(0)}
+                type="button"
+              >
+                처음
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() =>
+                  seekWithinPreview(
+                    Math.max(0, currentTimeSeconds - clipStartSeconds - 3),
+                  )
+                }
+                type="button"
+              >
+                -3초
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() =>
+                  seekWithinPreview(
+                    Math.min(
+                      previewDurationSeconds || timelineMaxSeconds,
+                      currentTimeSeconds - clipStartSeconds + 3,
+                    ),
+                  )
+                }
+                type="button"
+              >
+                +3초
+              </button>
+            </div>
+
+            <div className="song-preview__button-row">
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipStartChange(captureSeconds())}
+                type="button"
+              >
+                현재 위치를 시작점으로
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange(captureSeconds())}
+                type="button"
+              >
+                현재 위치를 끝점으로
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange("")}
+                type="button"
+              >
+                끝까지 재생
+              </button>
+            </div>
+          </div>
+
+          <div className="song-preview__media">
+            {youtubeVideoId ? (
+              <div
+                ref={youtubeContainerRef}
+                id={youtubeContainerId}
+                className="song-preview__frame"
+                aria-label="유튜브 미리듣기"
+                title={`${formatSongSummary(row)} 미리듣기`}
+              />
           ) : (
             <p className="footnote">
               유튜브 링크를 다시 확인해 주세요. 미리듣기 주소를 만들 수 없습니다.
             </p>
           )}
         </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SongPreviewPlayer({
+  row,
+  clipStartSeconds,
+  clipEndSeconds,
+  sliderMaxSeconds,
+  onClipStartChange,
+  onClipEndChange,
+}: SongPreviewPlayerProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const [durationSeconds, setDurationSeconds] = useState(0);
+  const [currentTimeSeconds, setCurrentTimeSeconds] = useState(clipStartSeconds);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [dragHandle, setDragHandle] = useState<"start" | "end" | null>(null);
+  const isFileSource = row.audioSourceType === "file";
+  const isYouTubeSource = row.audioSourceType === "youtube";
+  const youtubePreviewUrl = useMemo(() => {
+    if (!isYouTubeSource || !row.audioSourceValue) {
+      return null;
+    }
+
+    return getYouTubeEmbedUrl(
+      row.audioSourceValue,
+      clipStartSeconds,
+      clipEndSeconds,
+    );
+  }, [
+    clipEndSeconds,
+    clipStartSeconds,
+    isYouTubeSource,
+    row.audioSourceValue,
+  ]);
+  const timelineMaxSeconds = Math.max(
+    1,
+    sliderMaxSeconds,
+    Math.ceil(durationSeconds || 0),
+    clipEndSeconds ?? 0,
+    clipStartSeconds + 1,
+  );
+  const effectiveClipEndSeconds = clipEndSeconds ?? timelineMaxSeconds;
+  const previewDurationSeconds =
+    clipEndSeconds !== null
+      ? Math.max(0, clipEndSeconds - clipStartSeconds)
+      : Math.max(0, timelineMaxSeconds - clipStartSeconds);
+  const timelineStartPercent = (clipStartSeconds / timelineMaxSeconds) * 100;
+  const timelineEndPercent = (effectiveClipEndSeconds / timelineMaxSeconds) * 100;
+  const timelinePlayheadPercent =
+    (clampSeconds(currentTimeSeconds, 0, timelineMaxSeconds) / timelineMaxSeconds) *
+    100;
+
+  useEffect(() => {
+    setDurationSeconds(0);
+    setCurrentTimeSeconds(clipStartSeconds);
+    setIsPlaying(false);
+  }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+
+  useEffect(() => {
+    if (row.audioSourceType !== "file" || !row.audioSourceValue || !audioRef.current) {
+      return;
+    }
+
+    const audio = audioRef.current;
+
+    const syncToClipStart = () => {
+      const clipLimit =
+        clipEndSeconds ??
+        (Number.isFinite(audio.duration) ? audio.duration : clipStartSeconds);
+      const nextTime = clampSeconds(
+        clipStartSeconds,
+        0,
+        Math.max(clipStartSeconds, clipLimit),
+      );
+
+      try {
+        audio.currentTime = nextTime;
+      } catch {
+        // Ignore currentTime sync failures until metadata is ready.
+      }
+
+      setCurrentTimeSeconds(nextTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      setDurationSeconds(Number.isFinite(audio.duration) ? audio.duration : 0);
+      syncToClipStart();
+    };
+
+    const handleTimeUpdate = () => {
+      const clipLimit =
+        clipEndSeconds ??
+        (Number.isFinite(audio.duration) ? audio.duration : audio.currentTime);
+
+      if (audio.currentTime >= clipLimit) {
+        audio.pause();
+        setCurrentTimeSeconds(clipLimit);
+        setIsPlaying(false);
+        return;
+      }
+
+      setCurrentTimeSeconds(audio.currentTime);
+    };
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTimeSeconds(
+        clipEndSeconds ??
+          (Number.isFinite(audio.duration) ? audio.duration : clipStartSeconds),
+      );
+    };
+
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("ended", handleEnded);
+
+    if (audio.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+
+  const updateHandleFromClientX = (
+    clientX: number,
+    targetHandle: "start" | "end",
+  ) => {
+    const timelineElement = timelineRef.current;
+    if (!timelineElement) {
+      return;
+    }
+
+    const bounds = timelineElement.getBoundingClientRect();
+    const relativeX = clampSeconds(clientX - bounds.left, 0, bounds.width);
+    const seconds = Math.round((relativeX / bounds.width) * timelineMaxSeconds);
+
+    if (targetHandle === "start") {
+      onClipStartChange(String(Math.min(seconds, effectiveClipEndSeconds)));
+      return;
+    }
+
+    if (seconds >= timelineMaxSeconds) {
+      onClipEndChange("");
+      return;
+    }
+
+    onClipEndChange(String(Math.max(seconds, clipStartSeconds)));
+  };
+
+  useEffect(() => {
+    if (!dragHandle) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      updateHandleFromClientX(event.clientX, dragHandle);
+    };
+
+    const handlePointerUp = () => {
+      setDragHandle(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [clipStartSeconds, dragHandle, effectiveClipEndSeconds, timelineMaxSeconds]);
+
+  const handleTimelinePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const timelineElement = timelineRef.current;
+    if (!timelineElement) {
+      return;
+    }
+
+    const bounds = timelineElement.getBoundingClientRect();
+    const clickedSeconds = Math.round(
+      (clampSeconds(event.clientX - bounds.left, 0, bounds.width) / bounds.width) *
+        timelineMaxSeconds,
+    );
+    const targetHandle =
+      Math.abs(clickedSeconds - clipStartSeconds) <=
+      Math.abs(clickedSeconds - effectiveClipEndSeconds)
+        ? "start"
+        : "end";
+
+    updateHandleFromClientX(event.clientX, targetHandle);
+    setDragHandle(targetHandle);
+  };
+
+  const handleTogglePlayback = () => {
+    if (!isFileSource || !audioRef.current) {
+      return;
+    }
+
+    const audio = audioRef.current;
+
+    if (isPlaying) {
+      audio.pause();
+      return;
+    }
+
+    const clipLimit =
+      clipEndSeconds ??
+      (Number.isFinite(audio.duration) ? audio.duration : clipStartSeconds);
+
+    if (audio.currentTime >= clipLimit) {
+      try {
+        audio.currentTime = clipStartSeconds;
+      } catch {
+        // Ignore resets until metadata is ready.
+      }
+
+      setCurrentTimeSeconds(clipStartSeconds);
+    }
+
+    void audio.play().catch(() => {
+      setIsPlaying(false);
+    });
+  };
+
+  const seekWithinPreview = (nextOffsetSeconds: number) => {
+    if (!isFileSource || !audioRef.current) {
+      return;
+    }
+
+    const clipLimit =
+      clipEndSeconds ??
+      (Number.isFinite(audioRef.current.duration)
+        ? audioRef.current.duration
+        : clipStartSeconds);
+    const nextTime = clampSeconds(
+      clipStartSeconds + nextOffsetSeconds,
+      clipStartSeconds,
+      Math.max(clipStartSeconds, clipLimit),
+    );
+
+    try {
+      audioRef.current.currentTime = nextTime;
+    } catch {
+      // Ignore currentTime sync failures until metadata is ready.
+    }
+
+    setCurrentTimeSeconds(nextTime);
+  };
+
+  const captureSeconds = () => String(Math.max(0, Math.round(currentTimeSeconds)));
+
+  const renderClipTimeline = () => (
+    <div className="clip-timeline">
+      <div className="clip-timeline__labels">
+        <span>시작 {formatSecondsLabel(clipStartSeconds)}</span>
+        <span>현재 {formatSecondsLabel(currentTimeSeconds)}</span>
+        <span>
+          끝{" "}
+          {clipEndSeconds !== null
+            ? formatSecondsLabel(clipEndSeconds)
+            : "전체"}
+        </span>
+      </div>
+      <div
+        ref={timelineRef}
+        className="clip-timeline__track"
+        onPointerDown={handleTimelinePointerDown}
+      >
+        <div className="clip-timeline__base" />
+        <div
+          className="clip-timeline__selection"
+          style={{
+            left: `${timelineStartPercent}%`,
+            width: `${Math.max(0, timelineEndPercent - timelineStartPercent)}%`,
+          }}
+        />
+        <div
+          className="clip-timeline__playhead"
+          style={{ left: `${timelinePlayheadPercent}%` }}
+        />
+        <button
+          className="clip-timeline__handle clip-timeline__handle--start"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            setDragHandle("start");
+          }}
+          style={{ left: `${timelineStartPercent}%` }}
+          type="button"
+          aria-label="시작점 이동"
+        />
+        <button
+          className="clip-timeline__handle clip-timeline__handle--end"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            setDragHandle("end");
+          }}
+          style={{ left: `${timelineEndPercent}%` }}
+          type="button"
+          aria-label="끝점 이동"
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="song-preview">
+      <div className="song-preview__meta">
+        <p className="eyebrow">Clip Preview</p>
+        <strong>{row.audioSourceLabel || formatSongSummary(row)}</strong>
+        <p className="footnote">
+          {clipStartSeconds}초부터{" "}
+          {clipEndSeconds !== null ? `${clipEndSeconds}초까지` : "끝까지"} 미리듣기
+        </p>
+      </div>
+
+      {isFileSource ? (
+        <>
+          <audio
+            ref={audioRef}
+            className="song-preview__audio"
+            preload="metadata"
+            src={resolveMediaUrl(row.audioSourceValue)}
+          />
+
+          <div className="song-preview__transport">
+            <div className="song-preview__time-row">
+              <strong>{formatSecondsLabel(currentTimeSeconds)}</strong>
+              <span>구간 길이 {formatSecondsLabel(previewDurationSeconds || 0)}</span>
+            </div>
+
+            {renderClipTimeline()}
+
+            <div className="song-preview__button-row">
+              <button
+                className="button song-preview__button"
+                onClick={handleTogglePlayback}
+                type="button"
+              >
+                {isPlaying ? "일시정지" : "재생"}
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => seekWithinPreview(0)}
+                type="button"
+              >
+                처음
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() =>
+                  seekWithinPreview(
+                    Math.max(0, currentTimeSeconds - clipStartSeconds - 3),
+                  )
+                }
+                type="button"
+              >
+                -3초
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() =>
+                  seekWithinPreview(
+                    Math.min(
+                      previewDurationSeconds || timelineMaxSeconds,
+                      currentTimeSeconds - clipStartSeconds + 3,
+                    ),
+                  )
+                }
+                type="button"
+              >
+                +3초
+              </button>
+            </div>
+
+            <div className="song-preview__button-row">
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipStartChange(captureSeconds())}
+                type="button"
+              >
+                현재 위치를 시작점으로
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange(captureSeconds())}
+                type="button"
+              >
+                현재 위치를 끝점으로
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange("")}
+                type="button"
+              >
+                끝까지 재생
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="song-preview__transport">
+            <div className="song-preview__time-row">
+              <strong>{formatSecondsLabel(clipStartSeconds)}</strong>
+              <span>구간 길이 {formatSecondsLabel(previewDurationSeconds || 0)}</span>
+            </div>
+
+            {renderClipTimeline()}
+
+            <p className="song-preview__guide">
+              아래 유튜브 프리뷰를 재생하면서 위 타임라인의 시작점과 끝점을
+              맞춥니다.
+            </p>
+          </div>
+
+          <div className="song-preview__media">
+            {youtubePreviewUrl ? (
+              <iframe
+                className="song-preview__frame"
+                src={youtubePreviewUrl}
+                title={`${formatSongSummary(row)} 미리듣기`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            ) : (
+              <p className="footnote">
+                유튜브 링크를 다시 확인해 주세요. 미리듣기 주소를 만들 수
+                없습니다.
+              </p>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
