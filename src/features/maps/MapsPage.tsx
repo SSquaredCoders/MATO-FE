@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createMap,
@@ -129,6 +129,17 @@ function parseSeconds(value: string, fallback = 0) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function clampSeconds(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function formatSecondsLabel(value: number) {
+  const safeValue = Math.max(0, Math.floor(value));
+  const minutes = Math.floor(safeValue / 60);
+  const seconds = safeValue % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function getClipSliderMax(row: SongDraftRow) {
   const clipStart = parseSeconds(row.clipStartSeconds, 0);
   const clipEnd = row.clipEndSeconds.trim()
@@ -144,25 +155,6 @@ function resolveMediaUrl(sourceValue: string) {
   }
 
   return `${API_BASE_URL}${sourceValue}`;
-}
-
-function getAudioPreviewUrl(
-  sourceValue: string,
-  clipStartSeconds: number,
-  clipEndSeconds: number | null,
-) {
-  const baseUrl = resolveMediaUrl(sourceValue);
-
-  if (clipStartSeconds <= 0 && clipEndSeconds === null) {
-    return baseUrl;
-  }
-
-  const fragment =
-    clipEndSeconds !== null
-      ? `#t=${clipStartSeconds},${clipEndSeconds}`
-      : `#t=${clipStartSeconds}`;
-
-  return `${baseUrl}${fragment}`;
 }
 
 function getYouTubeEmbedUrl(
@@ -211,6 +203,302 @@ function getYouTubeEmbedUrl(
   } catch {
     return null;
   }
+}
+
+interface SongPreviewPlayerProps {
+  row: SongDraftRow;
+  clipStartSeconds: number;
+  clipEndSeconds: number | null;
+  onClipStartChange: (value: string) => void;
+  onClipEndChange: (value: string) => void;
+}
+
+function SongPreviewPlayer({
+  row,
+  clipStartSeconds,
+  clipEndSeconds,
+  onClipStartChange,
+  onClipEndChange,
+}: SongPreviewPlayerProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [durationSeconds, setDurationSeconds] = useState(0);
+  const [currentTimeSeconds, setCurrentTimeSeconds] = useState(clipStartSeconds);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const previewEmbedUrl =
+    row.audioSourceType === "youtube" && row.audioSourceValue
+      ? getYouTubeEmbedUrl(
+          row.audioSourceValue,
+          clipStartSeconds,
+          clipEndSeconds,
+        )
+      : null;
+  const previewDurationSeconds =
+    clipEndSeconds !== null
+      ? Math.max(0, clipEndSeconds - clipStartSeconds)
+      : Math.max(0, durationSeconds - clipStartSeconds);
+  const previewSliderMax = Math.max(1, Math.ceil(previewDurationSeconds));
+  const previewProgressSeconds = clampSeconds(
+    currentTimeSeconds - clipStartSeconds,
+    0,
+    previewDurationSeconds || 0,
+  );
+
+  useEffect(() => {
+    setCurrentTimeSeconds(clipStartSeconds);
+    setIsPlaying(false);
+  }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+
+  useEffect(() => {
+    if (row.audioSourceType !== "file" || !row.audioSourceValue || !audioRef.current) {
+      return;
+    }
+
+    const audio = audioRef.current;
+
+    const syncToClipStart = () => {
+      const clipLimit =
+        clipEndSeconds ??
+        (Number.isFinite(audio.duration) ? audio.duration : clipStartSeconds);
+      const nextTime = clampSeconds(
+        clipStartSeconds,
+        0,
+        Math.max(clipStartSeconds, clipLimit),
+      );
+
+      try {
+        audio.currentTime = nextTime;
+      } catch {
+        // Ignore currentTime sync failures until metadata is ready.
+      }
+
+      setCurrentTimeSeconds(nextTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      setDurationSeconds(Number.isFinite(audio.duration) ? audio.duration : 0);
+      syncToClipStart();
+    };
+
+    const handleTimeUpdate = () => {
+      const clipLimit =
+        clipEndSeconds ??
+        (Number.isFinite(audio.duration) ? audio.duration : audio.currentTime);
+
+      if (audio.currentTime >= clipLimit) {
+        audio.pause();
+        setCurrentTimeSeconds(clipLimit);
+        setIsPlaying(false);
+        return;
+      }
+
+      setCurrentTimeSeconds(audio.currentTime);
+    };
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTimeSeconds(
+        clipEndSeconds ??
+          (Number.isFinite(audio.duration) ? audio.duration : clipStartSeconds),
+      );
+    };
+
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("ended", handleEnded);
+
+    if (audio.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+
+  const handleTogglePlayback = () => {
+    if (row.audioSourceType !== "file" || !audioRef.current) {
+      return;
+    }
+
+    const audio = audioRef.current;
+
+    if (isPlaying) {
+      audio.pause();
+      return;
+    }
+
+    const clipLimit =
+      clipEndSeconds ??
+      (Number.isFinite(audio.duration) ? audio.duration : clipStartSeconds);
+
+    if (audio.currentTime >= clipLimit) {
+      try {
+        audio.currentTime = clipStartSeconds;
+      } catch {
+        // Ignore resets until metadata is ready.
+      }
+
+      setCurrentTimeSeconds(clipStartSeconds);
+    }
+
+    void audio.play().catch(() => {
+      setIsPlaying(false);
+    });
+  };
+
+  const handleSeek = (nextOffsetSeconds: number) => {
+    if (row.audioSourceType !== "file" || !audioRef.current) {
+      return;
+    }
+
+    const clipLimit =
+      clipEndSeconds ??
+      (Number.isFinite(audioRef.current.duration)
+        ? audioRef.current.duration
+        : clipStartSeconds);
+    const nextTime = clampSeconds(
+      clipStartSeconds + nextOffsetSeconds,
+      clipStartSeconds,
+      Math.max(clipStartSeconds, clipLimit),
+    );
+
+    try {
+      audioRef.current.currentTime = nextTime;
+    } catch {
+      // Ignore currentTime sync failures until metadata is ready.
+    }
+
+    setCurrentTimeSeconds(nextTime);
+  };
+
+  const captureSeconds = () => String(Math.max(0, Math.round(currentTimeSeconds)));
+
+  return (
+    <div className="song-preview">
+      <div className="song-preview__meta">
+        <p className="eyebrow">Clip Preview</p>
+        <strong>{row.audioSourceLabel || formatSongSummary(row)}</strong>
+        <p className="footnote">
+          {clipStartSeconds}초부터{" "}
+          {clipEndSeconds !== null ? `${clipEndSeconds}초까지` : "끝까지"} 미리듣기
+        </p>
+      </div>
+
+      {row.audioSourceType === "file" ? (
+        <>
+          <audio
+            ref={audioRef}
+            className="song-preview__audio"
+            preload="metadata"
+            src={resolveMediaUrl(row.audioSourceValue)}
+          />
+
+          <div className="song-preview__transport">
+            <div className="song-preview__time-row">
+              <strong>{formatSecondsLabel(currentTimeSeconds)}</strong>
+              <span>
+                구간 길이 {formatSecondsLabel(previewDurationSeconds || 0)}
+              </span>
+            </div>
+
+            <input
+              className="song-preview__range"
+              type="range"
+              min="0"
+              max={String(previewSliderMax)}
+              step="1"
+              value={String(Math.min(previewSliderMax, Math.round(previewProgressSeconds)))}
+              onChange={(event) => handleSeek(Number(event.target.value))}
+            />
+
+            <div className="song-preview__button-row">
+              <button
+                className="button song-preview__button"
+                onClick={handleTogglePlayback}
+                type="button"
+              >
+                {isPlaying ? "일시정지" : "재생"}
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => handleSeek(0)}
+                type="button"
+              >
+                처음
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => handleSeek(Math.max(0, previewProgressSeconds - 3))}
+                type="button"
+              >
+                -3초
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() =>
+                  handleSeek(Math.min(previewSliderMax, previewProgressSeconds + 3))
+                }
+                type="button"
+              >
+                +3초
+              </button>
+            </div>
+
+            <div className="song-preview__button-row">
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipStartChange(captureSeconds())}
+                type="button"
+              >
+                현재 위치를 시작점으로
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange(captureSeconds())}
+                type="button"
+              >
+                현재 위치를 끝점으로
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange("")}
+                type="button"
+              >
+                끝까지 재생
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="song-preview__media">
+          {previewEmbedUrl ? (
+            <iframe
+              key={previewEmbedUrl}
+              className="song-preview__frame"
+              src={previewEmbedUrl}
+              title={`${formatSongSummary(row)} 미리듣기`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <p className="footnote">
+              유튜브 링크를 다시 확인해 주세요. 미리듣기 주소를 만들 수 없습니다.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function MapsPage() {
@@ -512,22 +800,51 @@ export default function MapsPage() {
       ? parseSeconds(activeSongRow.clipEndSeconds, activeClipStartSeconds)
       : activeClipSliderMax
     : activeClipSliderMax;
-  const activePreviewUrl =
-    activeSongRow?.audioSourceType === "file" && activeSongRow.audioSourceValue
-      ? getAudioPreviewUrl(
-          activeSongRow.audioSourceValue,
-          activeClipStartSeconds,
-          activeClipEndSeconds,
-        )
-      : null;
-  const activePreviewEmbedUrl =
-    activeSongRow?.audioSourceType === "youtube" && activeSongRow.audioSourceValue
-      ? getYouTubeEmbedUrl(
-          activeSongRow.audioSourceValue,
-          activeClipStartSeconds,
-          activeClipEndSeconds,
-        )
-      : null;
+  const applyActiveClipStart = (value: string) => {
+    if (!activeSongRow) {
+      return;
+    }
+
+    updateSongRowState(activeSongRow.id, (currentRow) => {
+      const nextStartSeconds = parseSeconds(value, 0);
+      const currentEndSeconds = currentRow.clipEndSeconds.trim()
+        ? parseSeconds(currentRow.clipEndSeconds, nextStartSeconds)
+        : null;
+
+      return {
+        ...currentRow,
+        clipStartSeconds: value,
+        clipEndSeconds:
+          currentEndSeconds !== null && currentEndSeconds < nextStartSeconds
+            ? value
+            : currentRow.clipEndSeconds,
+      };
+    });
+  };
+  const applyActiveClipEnd = (value: string) => {
+    if (!activeSongRow) {
+      return;
+    }
+
+    updateSongRowState(activeSongRow.id, (currentRow) => {
+      if (!value.trim()) {
+        return {
+          ...currentRow,
+          clipEndSeconds: "",
+        };
+      }
+
+      const nextEndSeconds = Math.max(
+        parseSeconds(currentRow.clipStartSeconds, 0),
+        parseSeconds(value, parseSeconds(currentRow.clipStartSeconds, 0)),
+      );
+
+      return {
+        ...currentRow,
+        clipEndSeconds: String(nextEndSeconds),
+      };
+    });
+  };
   const isSaving = createMapMutation.isPending || updateMapMutation.isPending;
   const submitError =
     (createMapMutation.error as Error | null) ??
@@ -1194,53 +1511,13 @@ export default function MapsPage() {
                 )}
 
                 {activeSongRow.audioSourceValue ? (
-                  <div className="song-preview">
-                    <div className="song-preview__meta">
-                      <p className="eyebrow">Clip Preview</p>
-                      <strong>
-                        {activeSongRow.audioSourceLabel ||
-                          formatSongSummary(activeSongRow)}
-                      </strong>
-                      <p className="footnote">
-                        {activeClipStartSeconds}초부터{" "}
-                        {activeClipEndSeconds !== null
-                          ? `${activeClipEndSeconds}초까지`
-                          : "끝까지"}{" "}
-                        미리듣기
-                      </p>
-                    </div>
-
-                    <div className="song-preview__media">
-                      {activeSongRow.audioSourceType === "youtube" ? (
-                        activePreviewEmbedUrl ? (
-                          <iframe
-                            key={activePreviewEmbedUrl}
-                            className="song-preview__frame"
-                            src={activePreviewEmbedUrl}
-                            title={`${formatSongSummary(activeSongRow)} 미리듣기`}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <p className="footnote">
-                            유튜브 링크를 다시 확인해 주세요. 미리듣기 주소를 만들 수
-                            없습니다.
-                          </p>
-                        )
-                      ) : activePreviewUrl ? (
-                        <audio
-                          key={activePreviewUrl}
-                          controls
-                          preload="metadata"
-                          src={activePreviewUrl}
-                        />
-                      ) : (
-                        <p className="footnote">
-                          업로드가 끝나면 여기서 바로 재생해 볼 수 있습니다.
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <SongPreviewPlayer
+                    row={activeSongRow}
+                    clipStartSeconds={activeClipStartSeconds}
+                    clipEndSeconds={activeClipEndSeconds}
+                    onClipStartChange={applyActiveClipStart}
+                    onClipEndChange={applyActiveClipEnd}
+                  />
                 ) : null}
               </article>
             ) : null}
