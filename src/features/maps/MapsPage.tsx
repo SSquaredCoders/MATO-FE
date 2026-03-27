@@ -11,9 +11,12 @@ import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
   CreateMapRequest,
   MapAnswerMode,
+  MapDetail,
   MapRoundFlowMode,
   MapSongDefinition,
 } from "../../shared/types/contracts";
+
+type MapEditorMode = "overview" | "edit" | "create";
 
 interface SongDraftRow {
   id: string;
@@ -95,14 +98,46 @@ function mapSongToDraft(song: MapSongDefinition): SongDraftRow {
   };
 }
 
+function formatSongSummary(row: SongDraftRow) {
+  if (row.title.trim()) {
+    return row.title.trim();
+  }
+
+  return "제목 없는 곡";
+}
+
+function formatSongSource(
+  song: Pick<
+    MapSongDefinition,
+    "audioSourceType" | "audioSourceLabel" | "audioSourceValue"
+  >,
+) {
+  if (!song.audioSourceType || !song.audioSourceValue) {
+    return "소스 없음";
+  }
+
+  if (song.audioSourceType === "file") {
+    return song.audioSourceLabel || "업로드 파일";
+  }
+
+  return song.audioSourceLabel || song.audioSourceValue;
+}
+
 export default function MapsPage() {
   const queryClient = useQueryClient();
   const currentNickname = useSessionStore((state) => state.currentNickname);
   const setCurrentNickname = useSessionStore(
     (state) => state.setCurrentNickname,
   );
+  const [editorMode, setEditorMode] = useState<MapEditorMode>("overview");
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [editingMapId, setEditingMapId] = useState<number | null>(null);
+  const [pendingEditorMapId, setPendingEditorMapId] = useState<number | null>(
+    null,
+  );
+  const [selectedSongRowId, setSelectedSongRowId] = useState<string | null>(
+    null,
+  );
   const [nickname, setNickname] = useState(currentNickname);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -119,7 +154,9 @@ export default function MapsPage() {
   const [songRows, setSongRows] = useState<SongDraftRow[]>([
     createBlankSongRow(),
   ]);
-  const viewerNickname = nickname.trim() || currentNickname;
+
+  const viewerNickname = currentNickname.trim();
+  const creatorNickname = nickname.trim() || viewerNickname || "host-01";
 
   const mapsQuery = useQuery({
     queryKey: ["maps", viewerNickname],
@@ -145,6 +182,71 @@ export default function MapsPage() {
     enabled: selectedMapId !== null && Boolean(viewerNickname),
   });
 
+  const selectedMap = selectedMapQuery.data;
+  const maps = mapsQuery.data ?? [];
+
+  const resetForm = () => {
+    const blankRow = createBlankSongRow();
+    setEditingMapId(null);
+    setPendingEditorMapId(null);
+    setName("");
+    setDescription("");
+    setDifficulty("normal");
+    setVisibility("public");
+    setShowMediaControls(false);
+    setAnswerMode("single-lock");
+    setRoundFlowMode("advance-on-correct");
+    setRoundTimeLimitSeconds("30");
+    setHintRevealDelaySeconds("8");
+    setSongRows([blankRow]);
+    setSelectedSongRowId(blankRow.id);
+  };
+
+  const applyMapToForm = (map: MapDetail) => {
+    const nextRows = map.songs.length
+      ? map.songs.map(mapSongToDraft)
+      : [createBlankSongRow()];
+
+    setEditingMapId(map.id);
+    setNickname(map.createdBy);
+    setCurrentNickname(map.createdBy);
+    setName(map.name);
+    setDescription(map.description);
+    setDifficulty(map.difficulty);
+    setVisibility(map.visibility);
+    setShowMediaControls(map.showMediaControls);
+    setAnswerMode(map.answerMode);
+    setRoundFlowMode(map.roundFlowMode);
+    setRoundTimeLimitSeconds(String(map.roundTimeLimitSeconds));
+    setHintRevealDelaySeconds(String(map.hintRevealDelaySeconds));
+    setSongRows(nextRows);
+    setSelectedSongRowId(nextRows[0]?.id ?? null);
+  };
+
+  useEffect(() => {
+    if (
+      editorMode !== "edit" ||
+      pendingEditorMapId === null ||
+      !selectedMap ||
+      selectedMap.id !== pendingEditorMapId
+    ) {
+      return;
+    }
+
+    applyMapToForm(selectedMap);
+    setPendingEditorMapId(null);
+  }, [editorMode, pendingEditorMapId, selectedMap]);
+
+  useEffect(() => {
+    if (!songRows.length) {
+      return;
+    }
+
+    if (!selectedSongRowId || !songRows.some((row) => row.id === selectedSongRowId)) {
+      setSelectedSongRowId(songRows[0].id);
+    }
+  }, [selectedSongRowId, songRows]);
+
   const refreshMaps = (mapId: number) => {
     queryClient.invalidateQueries({ queryKey: ["maps", viewerNickname] });
     queryClient.invalidateQueries({ queryKey: ["maps", mapId, viewerNickname] });
@@ -155,6 +257,7 @@ export default function MapsPage() {
     mutationFn: createMap,
     onSuccess: (createdMap) => {
       refreshMaps(createdMap.id);
+      setEditorMode("overview");
       resetForm();
     },
   });
@@ -169,11 +272,11 @@ export default function MapsPage() {
     }) => updateMap(mapId, request),
     onSuccess: (updatedMap) => {
       refreshMaps(updatedMap.id);
-      setEditingMapId(updatedMap.id);
+      setEditorMode("overview");
+      setPendingEditorMapId(null);
     },
   });
 
-  const selectedMap = selectedMapQuery.data;
   const totalAnswerAliases = useMemo(
     () =>
       selectedMap?.songs.reduce(
@@ -182,40 +285,6 @@ export default function MapsPage() {
       ) ?? 0,
     [selectedMap],
   );
-
-  const resetForm = () => {
-    setEditingMapId(null);
-    setName("");
-    setDescription("");
-    setDifficulty("normal");
-    setVisibility("public");
-    setShowMediaControls(false);
-    setAnswerMode("single-lock");
-    setRoundFlowMode("advance-on-correct");
-    setRoundTimeLimitSeconds("30");
-    setHintRevealDelaySeconds("8");
-    setSongRows([createBlankSongRow()]);
-  };
-
-  const fillFormFromSelectedMap = () => {
-    if (!selectedMap) {
-      return;
-    }
-
-    setEditingMapId(selectedMap.id);
-    setNickname(selectedMap.createdBy);
-    setCurrentNickname(selectedMap.createdBy);
-    setName(selectedMap.name);
-    setDescription(selectedMap.description);
-    setDifficulty(selectedMap.difficulty);
-    setVisibility(selectedMap.visibility);
-    setShowMediaControls(selectedMap.showMediaControls);
-    setAnswerMode(selectedMap.answerMode);
-    setRoundFlowMode(selectedMap.roundFlowMode);
-    setRoundTimeLimitSeconds(String(selectedMap.roundTimeLimitSeconds));
-    setHintRevealDelaySeconds(String(selectedMap.hintRevealDelaySeconds));
-    setSongRows(selectedMap.songs.map(mapSongToDraft));
-  };
 
   const updateSongRow = (
     rowId: string,
@@ -243,12 +312,26 @@ export default function MapsPage() {
     );
   };
 
+  const addSongRow = () => {
+    const nextRow = createBlankSongRow();
+    setSongRows((current) => [...current, nextRow]);
+    setSelectedSongRowId(nextRow.id);
+  };
+
   const removeSongRow = (rowId: string) => {
-    setSongRows((current) =>
-      current.length === 1
-        ? current
-        : current.filter((row) => row.id !== rowId),
-    );
+    setSongRows((current) => {
+      if (current.length === 1) {
+        return current;
+      }
+
+      const nextRows = current.filter((row) => row.id !== rowId);
+
+      if (selectedSongRowId === rowId) {
+        setSelectedSongRowId(nextRows[0]?.id ?? null);
+      }
+
+      return nextRows;
+    });
   };
 
   const handleSongFileUpload = async (rowId: string, file?: File) => {
@@ -285,7 +368,7 @@ export default function MapsPage() {
   const buildRequest = (): CreateMapRequest => ({
     name: name.trim(),
     description: description.trim(),
-    createdBy: viewerNickname,
+    createdBy: creatorNickname,
     difficulty,
     visibility,
     showMediaControls,
@@ -313,7 +396,7 @@ export default function MapsPage() {
 
   const handleSubmitMap = () => {
     const request = buildRequest();
-    setCurrentNickname(viewerNickname);
+    setCurrentNickname(creatorNickname);
 
     if (editingMapId) {
       updateMapMutation.mutate({ mapId: editingMapId, request });
@@ -323,549 +406,723 @@ export default function MapsPage() {
     createMapMutation.mutate(request);
   };
 
-  const formatAudioSource = (
-    song: Pick<
-      MapSongDefinition,
-      "audioSourceType" | "audioSourceLabel" | "audioSourceValue"
-    >,
-  ) => {
-    if (!song.audioSourceType || !song.audioSourceValue) {
-      return "소스 없음";
-    }
+  const activeSongRow =
+    songRows.find((row) => row.id === selectedSongRowId) ?? songRows[0];
+  const isSaving = createMapMutation.isPending || updateMapMutation.isPending;
+  const submitError =
+    (createMapMutation.error as Error | null) ??
+    (updateMapMutation.error as Error | null);
 
-    if (song.audioSourceType === "file") {
-      return song.audioSourceLabel || "업로드 파일";
-    }
-
-    return song.audioSourceLabel || song.audioSourceValue;
+  const openOverviewMode = () => {
+    setEditorMode("overview");
+    setPendingEditorMapId(null);
   };
 
-  const maps = mapsQuery.data ?? [];
-  const isSaving =
-    createMapMutation.isPending || updateMapMutation.isPending;
+  const openCreateMode = () => {
+    resetForm();
+    setEditorMode("create");
+  };
+
+  const openEditMode = () => {
+    if (!selectedMapId) {
+      return;
+    }
+
+    setEditorMode("edit");
+    setPendingEditorMapId(selectedMapId);
+  };
 
   return (
-    <div className="map-layout map-layout--builder">
-      <div className="map-stack">
-        <section className="panel stack">
-          <div className="panel__header">
-            <div>
-              <p className="eyebrow">맵 카탈로그</p>
-              <h2>내가 만든 맵만 보고 바로 수정할 수 있습니다.</h2>
-            </div>
-            <span className="chip">{maps.length}개</span>
-          </div>
-
-          <p className="lede">
-            맵은 음원 세트, 라운드 규칙, 힌트 공개 시점, 구간 재생
-            설정까지 같이 묶는 단위입니다.
-          </p>
-
-          {mapsQuery.error ? (
-            <p className="footnote">{(mapsQuery.error as Error).message}</p>
-          ) : null}
-
-          <div className="room-list">
-            {maps.map((map) => (
-              <button
-                className={`room-card${
-                  selectedMapId === map.id ? " room-card--selected" : ""
-                }`}
-                key={map.id}
-                onClick={() => setSelectedMapId(map.id)}
-                type="button"
-              >
-                <div className="room-card__header">
-                  <strong>{map.name}</strong>
-                  <span>
-                    {difficultyLabels[map.difficulty]} ·{" "}
-                    {visibilityLabels[map.visibility]}
-                  </span>
-                </div>
-                <p>{map.songCount}곡</p>
-              </button>
-            ))}
-
-            {maps.length === 0 && !mapsQuery.isLoading ? (
-              <div className="room-card">
-                <strong>맵이 없습니다</strong>
-                <p>아래 빌더에서 첫 맵을 만들어 보세요.</p>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <section className="panel stack">
-          <div className="panel__header">
-            <div>
-              <p className="eyebrow">맵 상세</p>
-              <h3>{selectedMap?.name ?? "맵을 선택하세요"}</h3>
-            </div>
-            {selectedMap ? (
-              <div className="chip-list">
-                <span className="chip">
-                  {answerModeLabels[selectedMap.answerMode]}
-                </span>
-                <span className="chip">
-                  {roundFlowModeLabels[selectedMap.roundFlowMode]}
-                </span>
-                <span className="chip">
-                  {selectedMap.showMediaControls ? "플레이어 표시" : "플레이어 숨김"}
-                </span>
-              </div>
-            ) : null}
-          </div>
-
-          {selectedMap ? (
-            <>
-              <p className="lede">
-                {selectedMap.description || "설명은 아직 없습니다."}
-              </p>
-
-              <div className="stat-list">
-                <div>
-                  <span>제작자</span>
-                  <strong>{selectedMap.createdBy}</strong>
-                </div>
-                <div>
-                  <span>난이도</span>
-                  <strong>{difficultyLabels[selectedMap.difficulty]}</strong>
-                </div>
-                <div>
-                  <span>공개 범위</span>
-                  <strong>{visibilityLabels[selectedMap.visibility]}</strong>
-                </div>
-                <div>
-                  <span>정답 별칭</span>
-                  <strong>{totalAnswerAliases}개</strong>
-                </div>
-                <div>
-                  <span>곡당 시간</span>
-                  <strong>{selectedMap.roundTimeLimitSeconds}초</strong>
-                </div>
-                <div>
-                  <span>힌트 공개</span>
-                  <strong>{selectedMap.hintRevealDelaySeconds}초 뒤</strong>
-                </div>
-              </div>
-
-              <div className="button-row">
-                <button
-                  className="button button--ghost"
-                  onClick={fillFormFromSelectedMap}
-                  type="button"
-                >
-                  선택한 맵 수정
-                </button>
-                <button
-                  className="button button--ghost"
-                  onClick={resetForm}
-                  type="button"
-                >
-                  새 맵 작성
-                </button>
-              </div>
-
-              <div className="map-song-list">
-                {selectedMap.songs.map((song, index) => (
-                  <article
-                    className="map-song-card"
-                    key={`${song.title}-${index}`}
-                  >
-                    <div className="map-song-card__head">
-                      <strong>
-                        {index + 1}. {song.title}
-                      </strong>
-                      <span>{song.artist}</span>
-                    </div>
-                    <p>힌트: {formatHintText(song.clue)}</p>
-                    <p>소스: {formatAudioSource(song)}</p>
-                    <p>
-                      재생 구간: {song.clipStartSeconds}초
-                      {song.clipEndSeconds === null
-                        ? "부터 끝까지"
-                        : `부터 ${song.clipEndSeconds}초까지`}
-                    </p>
-                    <div className="chip-list">
-                      {song.answers.map((answer) => (
-                        <span className="chip" key={`${song.title}-${answer}`}>
-                          {answer}
-                        </span>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="footnote">
-              맵을 고르면 규칙, 곡 목록, 재생 구간이 보입니다.
-            </p>
-          )}
-        </section>
-      </div>
-
-      <section className="panel stack map-builder">
-        <div className="map-builder__header">
+    <div className="map-page stack">
+      <section className="panel stack">
+        <div className="panel__header">
           <div>
-            <p className="eyebrow">
-              {editingMapId ? "맵 수정" : "맵 만들기"}
-            </p>
-            <h2>입력칸을 줄이고 필요한 규칙만 바로 잡는 빌더입니다.</h2>
+            <p className="eyebrow">맵</p>
+            <h2>맵 목록, 수정, 만들기를 한 번에 몰아두지 않고 단계별로 나눴습니다.</h2>
           </div>
           <div className="chip-list">
-            {editingMapId ? <span className="chip">수정 중</span> : null}
-            <span className="chip">{songRows.length}곡 편집</span>
+            <span className="chip">내 맵 {maps.length}개</span>
+            <span className="chip">현재 닉네임 {creatorNickname}</span>
           </div>
         </div>
 
-        <div className="grid grid--two">
-          <label className="field">
-            <span>제작자 닉네임</span>
-            <input
-              value={nickname}
-              onChange={(event) => {
-                const nextNickname = event.target.value;
-                setNickname(nextNickname);
-                setCurrentNickname(nextNickname);
-              }}
-              placeholder="host-01"
-            />
-          </label>
+        <p className="lede">
+          먼저 맵을 고르고 흐름을 결정한 다음, 수정 모드나 만들기 모드로
+          들어가면 됩니다.
+        </p>
 
-          <label className="field">
-            <span>맵 이름</span>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Anime Sprint"
-            />
-          </label>
-        </div>
-
-        <label className="field">
-          <span>설명</span>
-          <input
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="짧게 듣고 바로 맞히는 빠른 노래맞추기"
-          />
-        </label>
-
-        <div className="grid grid--two">
-          <label className="field">
-            <span>난이도</span>
-            <select
-              value={difficulty}
-              onChange={(event) =>
-                setDifficulty(event.target.value as "easy" | "normal" | "hard")
-              }
-            >
-              <option value="easy">쉬움</option>
-              <option value="normal">보통</option>
-              <option value="hard">어려움</option>
-            </select>
-          </label>
-
-          <label className="field">
-            <span>공개 범위</span>
-            <select
-              value={visibility}
-              onChange={(event) =>
-                setVisibility(event.target.value as "public" | "private")
-              }
-            >
-              <option value="public">공개</option>
-              <option value="private">비공개</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="rule-grid">
-          <article className="toggle-card">
-            <div>
-              <strong>플레이어 표시</strong>
-              <p>기본은 숨김입니다. 체크하면 게임 중 재생 UI가 보입니다.</p>
-            </div>
-            <label className="toggle-card__switch">
-              <input
-                checked={showMediaControls}
-                onChange={(event) => setShowMediaControls(event.target.checked)}
-                type="checkbox"
-              />
-              <span>{showMediaControls ? "보임" : "숨김"}</span>
-            </label>
-          </article>
-
-          <article className="toggle-card">
-            <div>
-              <strong>문제 모드</strong>
-              <p>기본은 한 명만 점수를 가져가고, 개인전은 여러 명이 점수를 얻습니다.</p>
-            </div>
-            <select
-              value={answerMode}
-              onChange={(event) => {
-                const nextMode = event.target.value as MapAnswerMode;
-                setAnswerMode(nextMode);
-                if (nextMode === "multi-score") {
-                  setRoundFlowMode("timer-or-skip");
-                }
-              }}
-            >
-              <option value="single-lock">기본</option>
-              <option value="multi-score">개인전</option>
-            </select>
-          </article>
-
-          <article className="toggle-card">
-            <div>
-              <strong>다음 곡 진행</strong>
-              <p>즉시 넘어가거나, 시간을 끝까지 듣고 방장이 스킵할 수 있게 할 수 있습니다.</p>
-            </div>
-            <select
-              value={roundFlowMode}
-              onChange={(event) =>
-                setRoundFlowMode(event.target.value as MapRoundFlowMode)
-              }
-              disabled={answerMode === "multi-score"}
-            >
-              <option value="advance-on-correct">정답 즉시 다음 곡</option>
-              <option value="timer-or-skip">시간 종료 또는 스킵</option>
-            </select>
-          </article>
-        </div>
-
-        <div className="grid grid--two">
-          <label className="field">
-            <span>한 문제 제한 시간(초)</span>
-            <input
-              value={roundTimeLimitSeconds}
-              onChange={(event) => setRoundTimeLimitSeconds(event.target.value)}
-              inputMode="numeric"
-              placeholder="30"
-            />
-          </label>
-
-          <label className="field">
-            <span>힌트 공개 지연(초)</span>
-            <input
-              value={hintRevealDelaySeconds}
-              onChange={(event) =>
-                setHintRevealDelaySeconds(event.target.value)
-              }
-              inputMode="numeric"
-              placeholder="8"
-            />
-          </label>
-        </div>
-
-        <div className="map-song-editor">
-          <div className="panel__header">
-            <div>
-              <p className="eyebrow">곡 편집</p>
-              <h3>문제별로 음원 소스와 재생 구간을 잡습니다.</h3>
-            </div>
-            <button
-              className="button button--ghost"
-              onClick={() =>
-                setSongRows((current) => [...current, createBlankSongRow()])
-              }
-              type="button"
-            >
-              곡 추가
-            </button>
-          </div>
-
-          {songRows.map((row, index) => (
-            <article className="song-builder-card" key={row.id}>
-              <div className="song-builder-card__header">
-                <div>
-                  <strong>{index + 1}번 곡</strong>
-                  <p>정답, 소스, 재생 구간을 한 카드에서 끝냅니다.</p>
-                </div>
-                <button
-                  className="button button--ghost"
-                  onClick={() => removeSongRow(row.id)}
-                  type="button"
-                >
-                  삭제
-                </button>
-              </div>
-
-              <div className="grid grid--two">
-                <label className="field">
-                  <span>곡 제목</span>
-                  <input
-                    value={row.title}
-                    onChange={(event) =>
-                      updateSongRow(row.id, "title", event.target.value)
-                    }
-                    placeholder="A Cruel Angel's Thesis"
-                  />
-                </label>
-
-                <label className="field">
-                  <span>가수</span>
-                  <input
-                    value={row.artist}
-                    onChange={(event) =>
-                      updateSongRow(row.id, "artist", event.target.value)
-                    }
-                    placeholder="Yoko Takahashi"
-                  />
-                </label>
-              </div>
-
-              <label className="field">
-                <span>힌트 문구</span>
-                <input
-                  value={row.clue}
-                  onChange={(event) =>
-                    updateSongRow(row.id, "clue", event.target.value)
-                  }
-                  placeholder="문제: 일본 애니메이션 오프닝입니다."
-                />
-              </label>
-
-              <label className="field">
-                <span>정답 별칭</span>
-                <input
-                  value={row.answersText}
-                  onChange={(event) =>
-                    updateSongRow(row.id, "answersText", event.target.value)
-                  }
-                  placeholder="a cruel angel's thesis, 잔혹한 천사의 테제"
-                />
-              </label>
-
-              <div className="grid grid--three">
-                <label className="field">
-                  <span>소스 종류</span>
-                  <select
-                    value={row.audioSourceType}
-                    onChange={(event) =>
-                      updateSongRowState(row.id, (currentRow) => ({
-                        ...currentRow,
-                        audioSourceType: event.target.value as
-                          | "youtube"
-                          | "file",
-                        audioSourceValue:
-                          event.target.value === "youtube" &&
-                          currentRow.audioSourceType !== "youtube"
-                            ? ""
-                            : currentRow.audioSourceValue,
-                        audioSourceLabel:
-                          event.target.value === "youtube"
-                            ? ""
-                            : currentRow.audioSourceLabel,
-                        uploadError: null,
-                      }))
-                    }
-                  >
-                    <option value="youtube">{audioSourceLabels.youtube}</option>
-                    <option value="file">{audioSourceLabels.file}</option>
-                  </select>
-                </label>
-
-                <label className="field">
-                  <span>시작 시점(초)</span>
-                  <input
-                    value={row.clipStartSeconds}
-                    onChange={(event) =>
-                      updateSongRow(row.id, "clipStartSeconds", event.target.value)
-                    }
-                    inputMode="numeric"
-                    placeholder="0"
-                  />
-                </label>
-
-                <label className="field">
-                  <span>끝 시점(초)</span>
-                  <input
-                    value={row.clipEndSeconds}
-                    onChange={(event) =>
-                      updateSongRow(row.id, "clipEndSeconds", event.target.value)
-                    }
-                    inputMode="numeric"
-                    placeholder="비우면 끝까지"
-                  />
-                </label>
-              </div>
-
-              {row.audioSourceType === "youtube" ? (
-                <label className="field">
-                  <span>유튜브 링크</span>
-                  <input
-                    value={row.audioSourceValue}
-                    onChange={(event) =>
-                      updateSongRowState(row.id, (currentRow) => ({
-                        ...currentRow,
-                        audioSourceValue: event.target.value,
-                        audioSourceLabel: event.target.value,
-                        uploadError: null,
-                      }))
-                    }
-                    placeholder="https://www.youtube.com/watch?v=..."
-                  />
-                </label>
-              ) : (
-                <div className="field">
-                  <span>음원 파일</span>
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    onChange={(event) =>
-                      void handleSongFileUpload(row.id, event.target.files?.[0])
-                    }
-                  />
-                  <p className="footnote">
-                    {row.isUploading
-                      ? "파일 업로드 중..."
-                      : row.audioSourceValue
-                        ? `업로드됨: ${row.audioSourceLabel}`
-                        : "mp3, wav 같은 음원 파일을 올릴 수 있습니다."}
-                  </p>
-                  {row.uploadError ? (
-                    <p className="footnote">{row.uploadError}</p>
-                  ) : null}
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-
-        <div className="button-row">
-          <button className="button" onClick={handleSubmitMap} type="button">
-            {isSaving
-              ? "저장 중..."
-              : editingMapId
-                ? "맵 수정 저장"
-                : "맵 생성"}
-          </button>
+        <div className="map-mode-bar">
           <button
-            className="button button--ghost"
-            onClick={resetForm}
+            className={`button button--ghost map-mode-button${
+              editorMode === "overview" ? " map-mode-button--active" : ""
+            }`}
+            onClick={openOverviewMode}
             type="button"
           >
-            폼 초기화
+            맵 보기
+          </button>
+          <button
+            className={`button button--ghost map-mode-button${
+              editorMode === "edit" ? " map-mode-button--active" : ""
+            }`}
+            onClick={openEditMode}
+            type="button"
+            disabled={!selectedMapId}
+          >
+            맵 수정
+          </button>
+          <button
+            className={`button button--ghost map-mode-button${
+              editorMode === "create" ? " map-mode-button--active" : ""
+            }`}
+            onClick={openCreateMode}
+            type="button"
+          >
+            맵 만들기
           </button>
         </div>
 
-        {createMapMutation.error || updateMapMutation.error ? (
-          <p className="footnote">
-            {(
-              createMapMutation.error ??
-              updateMapMutation.error ??
-              new Error("")
-            ).message}
-          </p>
-        ) : (
-          <p className="footnote">
-            기본 설정은 플레이어 숨김 + 기본 모드 + 정답 즉시 다음 곡입니다.
-            개인전 모드로 바꾸면 자동으로 시간 종료/스킵 방식으로 맞춰집니다.
-          </p>
-        )}
+        {mapsQuery.error ? (
+          <p className="footnote">{(mapsQuery.error as Error).message}</p>
+        ) : null}
       </section>
+
+      {editorMode === "overview" ? (
+        <section className="map-browser">
+          <article className="panel stack map-browser__list">
+            <div className="panel__header">
+              <div>
+                <p className="eyebrow">내 맵 목록</p>
+                <h3>수정하거나 확인할 맵을 먼저 고르세요.</h3>
+              </div>
+              <span className="chip">{maps.length}개</span>
+            </div>
+
+            <div className="room-list">
+              {maps.map((map) => (
+                <button
+                  className={`room-card${
+                    selectedMapId === map.id ? " room-card--selected" : ""
+                  }`}
+                  key={map.id}
+                  onClick={() => setSelectedMapId(map.id)}
+                  type="button"
+                >
+                  <div className="room-card__header">
+                    <strong>{map.name}</strong>
+                    <span>
+                      {difficultyLabels[map.difficulty]} ·{" "}
+                      {visibilityLabels[map.visibility]}
+                    </span>
+                  </div>
+                  <p>{map.songCount}곡</p>
+                </button>
+              ))}
+
+              {maps.length === 0 && !mapsQuery.isLoading ? (
+                <div className="map-empty">
+                  <strong>아직 만든 맵이 없습니다.</strong>
+                  <p>먼저 맵 만들기에서 첫 맵을 만들어 보세요.</p>
+                  <button className="button" onClick={openCreateMode} type="button">
+                    맵 만들기
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </article>
+
+          <article className="panel stack map-browser__detail">
+            <div className="panel__header">
+              <div>
+                <p className="eyebrow">맵 상세</p>
+                <h3>{selectedMap?.name ?? "맵을 선택하세요."}</h3>
+              </div>
+              {selectedMap ? (
+                <div className="chip-list">
+                  <span className="chip">
+                    {answerModeLabels[selectedMap.answerMode]}
+                  </span>
+                  <span className="chip">
+                    {roundFlowModeLabels[selectedMap.roundFlowMode]}
+                  </span>
+                  <span className="chip">
+                    {selectedMap.showMediaControls
+                      ? "플레이어 표시"
+                      : "플레이어 숨김"}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            {selectedMapQuery.isLoading ? (
+              <p className="footnote">맵 정보를 불러오는 중입니다.</p>
+            ) : null}
+
+            {selectedMap ? (
+              <>
+                <p className="lede">
+                  {selectedMap.description || "설명이 아직 없습니다."}
+                </p>
+
+                <div className="stat-list">
+                  <div>
+                    <span>제작자</span>
+                    <strong>{selectedMap.createdBy}</strong>
+                  </div>
+                  <div>
+                    <span>난이도</span>
+                    <strong>{difficultyLabels[selectedMap.difficulty]}</strong>
+                  </div>
+                  <div>
+                    <span>공개 범위</span>
+                    <strong>{visibilityLabels[selectedMap.visibility]}</strong>
+                  </div>
+                  <div>
+                    <span>정답 별칭</span>
+                    <strong>{totalAnswerAliases}개</strong>
+                  </div>
+                  <div>
+                    <span>문제 시간</span>
+                    <strong>{selectedMap.roundTimeLimitSeconds}초</strong>
+                  </div>
+                  <div>
+                    <span>힌트 지연</span>
+                    <strong>{selectedMap.hintRevealDelaySeconds}초</strong>
+                  </div>
+                </div>
+
+                <div className="button-row">
+                  <button className="button" onClick={openEditMode} type="button">
+                    맵 수정
+                  </button>
+                  <button
+                    className="button button--ghost"
+                    onClick={openCreateMode}
+                    type="button"
+                  >
+                    맵 만들기
+                  </button>
+                </div>
+
+                <div className="map-song-list">
+                  {selectedMap.songs.map((song, index) => (
+                    <article
+                      className="map-song-card"
+                      key={`${song.title}-${song.artist}-${index}`}
+                    >
+                      <div className="map-song-card__head">
+                        <strong>
+                          {index + 1}. {song.title || "제목 없음"}
+                        </strong>
+                        <span>{song.artist || "가수 미입력"}</span>
+                      </div>
+                      <p>힌트: {formatHintText(song.clue) || "힌트 없음"}</p>
+                      <p>소스: {formatSongSource(song)}</p>
+                      <p>
+                        재생 구간: {song.clipStartSeconds}초부터{" "}
+                        {song.clipEndSeconds === null
+                          ? "끝까지"
+                          : `${song.clipEndSeconds}초까지`}
+                      </p>
+                      <div className="chip-list">
+                        {song.answers.map((answer) => (
+                          <span className="chip" key={`${song.title}-${answer}`}>
+                            {answer}
+                          </span>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="map-empty">
+                <strong>선택된 맵이 없습니다.</strong>
+                <p>왼쪽 목록에서 맵을 골라 상세와 버튼을 확인하세요.</p>
+              </div>
+            )}
+          </article>
+        </section>
+      ) : null}
+
+      {editorMode === "edit" || editorMode === "create" ? (
+        <section className="map-workspace">
+          <article className="panel stack map-workspace__main">
+            <div className="map-builder__header">
+              <div>
+                <p className="eyebrow">
+                  {editorMode === "edit" ? "맵 수정" : "맵 만들기"}
+                </p>
+                <h2>
+                  {editorMode === "edit"
+                    ? "내가 만든 맵을 불러와 바로 수정합니다."
+                    : "맵 설정을 잡고, 오른쪽 곡 목록을 보면서 한 곡씩 추가합니다."}
+                </h2>
+              </div>
+              <div className="chip-list">
+                {editingMapId ? <span className="chip">수정 중</span> : null}
+                <span className="chip">곡 {songRows.length}개</span>
+              </div>
+            </div>
+
+            <div className="button-row">
+              <button
+                className="button button--ghost"
+                onClick={openOverviewMode}
+                type="button"
+              >
+                맵 보기로 돌아가기
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={openCreateMode}
+                type="button"
+              >
+                새 맵 만들기
+              </button>
+            </div>
+
+            <div className="grid grid--two">
+              <label className="field">
+                <span>제작자 닉네임</span>
+                <input
+                  value={nickname}
+                  onChange={(event) => {
+                    const nextNickname = event.target.value;
+                    setNickname(nextNickname);
+                    setCurrentNickname(nextNickname);
+                  }}
+                  placeholder="host-01"
+                />
+              </label>
+
+              <label className="field">
+                <span>맵 이름</span>
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Anime Sprint"
+                />
+              </label>
+            </div>
+
+            <label className="field">
+              <span>설명</span>
+              <input
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="빠르게 듣고 바로 맞히는 노래맞추기 맵"
+              />
+            </label>
+
+            <div className="grid grid--two">
+              <label className="field">
+                <span>난이도</span>
+                <select
+                  value={difficulty}
+                  onChange={(event) =>
+                    setDifficulty(event.target.value as "easy" | "normal" | "hard")
+                  }
+                >
+                  <option value="easy">쉬움</option>
+                  <option value="normal">보통</option>
+                  <option value="hard">어려움</option>
+                </select>
+              </label>
+
+              <label className="field">
+                <span>공개 범위</span>
+                <select
+                  value={visibility}
+                  onChange={(event) =>
+                    setVisibility(event.target.value as "public" | "private")
+                  }
+                >
+                  <option value="public">공개</option>
+                  <option value="private">비공개</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="rule-grid">
+              <article className="toggle-card">
+                <div>
+                  <strong>플레이어 표시</strong>
+                  <p>
+                    기본은 숨김입니다. 체크하면 게임 화면에 재생 UI가 보입니다.
+                  </p>
+                </div>
+                <label className="toggle-card__switch">
+                  <input
+                    checked={showMediaControls}
+                    onChange={(event) =>
+                      setShowMediaControls(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <span>{showMediaControls ? "보임" : "숨김"}</span>
+                </label>
+              </article>
+
+              <article className="toggle-card">
+                <div>
+                  <strong>문제 모드</strong>
+                  <p>
+                    기본은 한 명만 점수를 가져가고, 개인전은 한 문제에서 여러 명이
+                    점수를 얻을 수 있습니다.
+                  </p>
+                </div>
+                <select
+                  value={answerMode}
+                  onChange={(event) => {
+                    const nextMode = event.target.value as MapAnswerMode;
+                    setAnswerMode(nextMode);
+                    if (nextMode === "multi-score") {
+                      setRoundFlowMode("timer-or-skip");
+                    }
+                  }}
+                >
+                  <option value="single-lock">기본</option>
+                  <option value="multi-score">개인전</option>
+                </select>
+              </article>
+
+              <article className="toggle-card">
+                <div>
+                  <strong>다음 곡 진행</strong>
+                  <p>
+                    즉시 넘어가거나, 시간 종료 또는 스킵까지 들은 뒤 넘기도록
+                    정합니다.
+                  </p>
+                </div>
+                <select
+                  value={roundFlowMode}
+                  onChange={(event) =>
+                    setRoundFlowMode(event.target.value as MapRoundFlowMode)
+                  }
+                  disabled={answerMode === "multi-score"}
+                >
+                  <option value="advance-on-correct">정답 즉시 다음 곡</option>
+                  <option value="timer-or-skip">시간 종료 또는 스킵</option>
+                </select>
+              </article>
+            </div>
+
+            <div className="grid grid--two">
+              <label className="field">
+                <span>문제 시간(초)</span>
+                <input
+                  value={roundTimeLimitSeconds}
+                  onChange={(event) => setRoundTimeLimitSeconds(event.target.value)}
+                  inputMode="numeric"
+                  placeholder="30"
+                />
+              </label>
+
+              <label className="field">
+                <span>힌트 공개 지연(초)</span>
+                <input
+                  value={hintRevealDelaySeconds}
+                  onChange={(event) =>
+                    setHintRevealDelaySeconds(event.target.value)
+                  }
+                  inputMode="numeric"
+                  placeholder="8"
+                />
+              </label>
+            </div>
+
+            {activeSongRow ? (
+              <article className="song-editor">
+                <div className="song-editor__header">
+                  <div>
+                    <p className="eyebrow">곡 편집</p>
+                    <h3>{formatSongSummary(activeSongRow)}</h3>
+                  </div>
+                  <div className="button-row">
+                    <button
+                      className="button button--ghost"
+                      onClick={addSongRow}
+                      type="button"
+                    >
+                      곡 추가
+                    </button>
+                    <button
+                      className="button button--ghost"
+                      onClick={() => removeSongRow(activeSongRow.id)}
+                      type="button"
+                      disabled={songRows.length === 1}
+                    >
+                      현재 곡 삭제
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid--two">
+                  <label className="field">
+                    <span>곡 제목</span>
+                    <input
+                      value={activeSongRow.title}
+                      onChange={(event) =>
+                        updateSongRow(activeSongRow.id, "title", event.target.value)
+                      }
+                      placeholder="A Cruel Angel's Thesis"
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span>가수</span>
+                    <input
+                      value={activeSongRow.artist}
+                      onChange={(event) =>
+                        updateSongRow(activeSongRow.id, "artist", event.target.value)
+                      }
+                      placeholder="Yoko Takahashi"
+                    />
+                  </label>
+                </div>
+
+                <label className="field">
+                  <span>힌트 문구</span>
+                  <input
+                    value={activeSongRow.clue}
+                    onChange={(event) =>
+                      updateSongRow(activeSongRow.id, "clue", event.target.value)
+                    }
+                    placeholder="힌트: 일본 애니메이션 오프닝입니다."
+                  />
+                </label>
+
+                <label className="field">
+                  <span>정답 별칭</span>
+                  <input
+                    value={activeSongRow.answersText}
+                    onChange={(event) =>
+                      updateSongRow(
+                        activeSongRow.id,
+                        "answersText",
+                        event.target.value,
+                      )
+                    }
+                    placeholder="a cruel angel's thesis, 잔혹한 천사의 테제"
+                  />
+                </label>
+
+                <div className="grid grid--three">
+                  <label className="field">
+                    <span>소스 종류</span>
+                    <select
+                      value={activeSongRow.audioSourceType}
+                      onChange={(event) =>
+                        updateSongRowState(activeSongRow.id, (currentRow) => ({
+                          ...currentRow,
+                          audioSourceType: event.target.value as
+                            | "youtube"
+                            | "file",
+                          audioSourceValue:
+                            event.target.value === "youtube" &&
+                            currentRow.audioSourceType !== "youtube"
+                              ? ""
+                              : currentRow.audioSourceValue,
+                          audioSourceLabel:
+                            event.target.value === "youtube"
+                              ? ""
+                              : currentRow.audioSourceLabel,
+                          uploadError: null,
+                        }))
+                      }
+                    >
+                      <option value="youtube">{audioSourceLabels.youtube}</option>
+                      <option value="file">{audioSourceLabels.file}</option>
+                    </select>
+                  </label>
+
+                  <label className="field">
+                    <span>시작 시점(초)</span>
+                    <input
+                      value={activeSongRow.clipStartSeconds}
+                      onChange={(event) =>
+                        updateSongRow(
+                          activeSongRow.id,
+                          "clipStartSeconds",
+                          event.target.value,
+                        )
+                      }
+                      inputMode="numeric"
+                      placeholder="0"
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span>끝 시점(초)</span>
+                    <input
+                      value={activeSongRow.clipEndSeconds}
+                      onChange={(event) =>
+                        updateSongRow(
+                          activeSongRow.id,
+                          "clipEndSeconds",
+                          event.target.value,
+                        )
+                      }
+                      inputMode="numeric"
+                      placeholder="비우면 끝까지"
+                    />
+                  </label>
+                </div>
+
+                {activeSongRow.audioSourceType === "youtube" ? (
+                  <label className="field">
+                    <span>유튜브 링크</span>
+                    <input
+                      value={activeSongRow.audioSourceValue}
+                      onChange={(event) =>
+                        updateSongRowState(activeSongRow.id, (currentRow) => ({
+                          ...currentRow,
+                          audioSourceValue: event.target.value,
+                          audioSourceLabel: event.target.value,
+                          uploadError: null,
+                        }))
+                      }
+                      placeholder="https://www.youtube.com/watch?v=..."
+                    />
+                  </label>
+                ) : (
+                  <div className="field">
+                    <span>음원 파일</span>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(event) =>
+                        void handleSongFileUpload(
+                          activeSongRow.id,
+                          event.target.files?.[0],
+                        )
+                      }
+                    />
+                    <p className="footnote">
+                      {activeSongRow.isUploading
+                        ? "파일 업로드 중입니다."
+                        : activeSongRow.audioSourceValue
+                          ? `업로드됨: ${activeSongRow.audioSourceLabel}`
+                          : "mp3, wav 같은 음원 파일을 업로드할 수 있습니다."}
+                    </p>
+                    {activeSongRow.uploadError ? (
+                      <p className="footnote">{activeSongRow.uploadError}</p>
+                    ) : null}
+                  </div>
+                )}
+              </article>
+            ) : null}
+
+            <div className="button-row">
+              <button className="button" onClick={handleSubmitMap} type="button">
+                {isSaving
+                  ? "저장 중..."
+                  : editingMapId
+                    ? "맵 수정 저장"
+                    : "맵 생성"}
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={resetForm}
+                type="button"
+              >
+                입력 초기화
+              </button>
+            </div>
+
+            {submitError ? (
+              <p className="footnote">{submitError.message}</p>
+            ) : (
+              <p className="footnote">
+                기본값은 플레이어 숨김, 기본 문제 모드, 정답 즉시 다음 곡입니다.
+                개인전으로 바꾸면 자동으로 시간 종료 또는 스킵 규칙과 같이
+                움직입니다.
+              </p>
+            )}
+          </article>
+
+          <article className="panel stack map-workspace__side">
+            <div className="panel__header">
+              <div>
+                <p className="eyebrow">
+                  {editorMode === "edit" ? "내 맵 리스트" : "추가한 곡 목록"}
+                </p>
+                <h3>
+                  {editorMode === "edit"
+                    ? "왼쪽 에디터로 불러올 맵을 고르세요."
+                    : "곡 목록을 보면서 필요한 곡을 추가하고 선택합니다."}
+                </h3>
+              </div>
+              {editorMode === "create" ? (
+                <button
+                  className="button button--ghost"
+                  onClick={addSongRow}
+                  type="button"
+                >
+                  곡 추가
+                </button>
+              ) : null}
+            </div>
+
+            {editorMode === "edit" ? (
+              <div className="room-list">
+                {maps.map((map) => (
+                  <button
+                    className={`room-card${
+                      selectedMapId === map.id ? " room-card--selected" : ""
+                    }`}
+                    key={map.id}
+                    onClick={() => {
+                      setSelectedMapId(map.id);
+                      setPendingEditorMapId(map.id);
+                    }}
+                    type="button"
+                  >
+                    <div className="room-card__header">
+                      <strong>{map.name}</strong>
+                      <span>{map.songCount}곡</span>
+                    </div>
+                    <p>
+                      {difficultyLabels[map.difficulty]} ·{" "}
+                      {visibilityLabels[map.visibility]}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="song-queue">
+                {songRows.map((row, index) => (
+                  <button
+                    className={`song-queue__item${
+                      row.id === activeSongRow?.id
+                        ? " song-queue__item--selected"
+                        : ""
+                    }`}
+                    key={row.id}
+                    onClick={() => setSelectedSongRowId(row.id)}
+                    type="button"
+                  >
+                    <div className="song-queue__title-row">
+                      <strong>
+                        {index + 1}. {formatSongSummary(row)}
+                      </strong>
+                      <span>{row.audioSourceType === "file" ? "파일" : "유튜브"}</span>
+                    </div>
+                    <p>{row.artist.trim() || "가수 미입력"}</p>
+                    <p>
+                      {row.clipStartSeconds || "0"}초부터{" "}
+                      {row.clipEndSeconds.trim()
+                        ? `${row.clipEndSeconds}초까지`
+                        : "끝까지"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </article>
+        </section>
+      ) : null}
     </div>
   );
 }
