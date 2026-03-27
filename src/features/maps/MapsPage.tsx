@@ -209,6 +209,7 @@ interface SongPreviewPlayerProps {
   row: SongDraftRow;
   clipStartSeconds: number;
   clipEndSeconds: number | null;
+  sliderMaxSeconds: number;
   onClipStartChange: (value: string) => void;
   onClipEndChange: (value: string) => void;
 }
@@ -217,13 +218,16 @@ function SongPreviewPlayer({
   row,
   clipStartSeconds,
   clipEndSeconds,
+  sliderMaxSeconds,
   onClipStartChange,
   onClipEndChange,
 }: SongPreviewPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(clipStartSeconds);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [dragHandle, setDragHandle] = useState<"start" | "end" | null>(null);
 
   const previewEmbedUrl =
     row.audioSourceType === "youtube" && row.audioSourceValue
@@ -233,16 +237,23 @@ function SongPreviewPlayer({
           clipEndSeconds,
         )
       : null;
+  const timelineMaxSeconds = Math.max(
+    1,
+    sliderMaxSeconds,
+    Math.ceil(durationSeconds || 0),
+    clipEndSeconds ?? 0,
+    clipStartSeconds + 1,
+  );
+  const effectiveClipEndSeconds = clipEndSeconds ?? timelineMaxSeconds;
   const previewDurationSeconds =
     clipEndSeconds !== null
       ? Math.max(0, clipEndSeconds - clipStartSeconds)
-      : Math.max(0, durationSeconds - clipStartSeconds);
-  const previewSliderMax = Math.max(1, Math.ceil(previewDurationSeconds));
-  const previewProgressSeconds = clampSeconds(
-    currentTimeSeconds - clipStartSeconds,
-    0,
-    previewDurationSeconds || 0,
-  );
+      : Math.max(0, timelineMaxSeconds - clipStartSeconds);
+  const timelineStartPercent = (clipStartSeconds / timelineMaxSeconds) * 100;
+  const timelineEndPercent = (effectiveClipEndSeconds / timelineMaxSeconds) * 100;
+  const timelinePlayheadPercent =
+    (clampSeconds(currentTimeSeconds, 0, timelineMaxSeconds) / timelineMaxSeconds) *
+    100;
 
   useEffect(() => {
     setCurrentTimeSeconds(clipStartSeconds);
@@ -325,6 +336,54 @@ function SongPreviewPlayer({
     };
   }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
 
+  const updateHandleFromClientX = (
+    clientX: number,
+    targetHandle: "start" | "end",
+  ) => {
+    const timelineElement = timelineRef.current;
+    if (!timelineElement) {
+      return;
+    }
+
+    const bounds = timelineElement.getBoundingClientRect();
+    const relativeX = clampSeconds(clientX - bounds.left, 0, bounds.width);
+    const seconds = Math.round((relativeX / bounds.width) * timelineMaxSeconds);
+
+    if (targetHandle === "start") {
+      onClipStartChange(String(Math.min(seconds, effectiveClipEndSeconds)));
+      return;
+    }
+
+    if (seconds >= timelineMaxSeconds) {
+      onClipEndChange("");
+      return;
+    }
+
+    onClipEndChange(String(Math.max(seconds, clipStartSeconds)));
+  };
+
+  useEffect(() => {
+    if (!dragHandle) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      updateHandleFromClientX(event.clientX, dragHandle);
+    };
+
+    const handlePointerUp = () => {
+      setDragHandle(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [clipStartSeconds, dragHandle, effectiveClipEndSeconds, timelineMaxSeconds]);
+
   const handleTogglePlayback = () => {
     if (row.audioSourceType !== "file" || !audioRef.current) {
       return;
@@ -356,7 +415,7 @@ function SongPreviewPlayer({
     });
   };
 
-  const handleSeek = (nextOffsetSeconds: number) => {
+  const seekWithinPreview = (nextOffsetSeconds: number) => {
     if (row.audioSourceType !== "file" || !audioRef.current) {
       return;
     }
@@ -411,15 +470,76 @@ function SongPreviewPlayer({
               </span>
             </div>
 
-            <input
-              className="song-preview__range"
-              type="range"
-              min="0"
-              max={String(previewSliderMax)}
-              step="1"
-              value={String(Math.min(previewSliderMax, Math.round(previewProgressSeconds)))}
-              onChange={(event) => handleSeek(Number(event.target.value))}
-            />
+            <div className="clip-timeline">
+              <div className="clip-timeline__labels">
+                <span>시작 {formatSecondsLabel(clipStartSeconds)}</span>
+                <span>현재 {formatSecondsLabel(currentTimeSeconds)}</span>
+                <span>
+                  끝{" "}
+                  {clipEndSeconds !== null
+                    ? formatSecondsLabel(clipEndSeconds)
+                    : "전체"}
+                </span>
+              </div>
+              <div
+                ref={timelineRef}
+                className="clip-timeline__track"
+                onPointerDown={(event) => {
+                  const timelineElement = timelineRef.current;
+                  if (!timelineElement) {
+                    return;
+                  }
+
+                  const bounds = timelineElement.getBoundingClientRect();
+                  const clickedSeconds = Math.round(
+                    (clampSeconds(event.clientX - bounds.left, 0, bounds.width) /
+                      bounds.width) *
+                      timelineMaxSeconds,
+                  );
+                  const targetHandle =
+                    Math.abs(clickedSeconds - clipStartSeconds) <=
+                    Math.abs(clickedSeconds - effectiveClipEndSeconds)
+                      ? "start"
+                      : "end";
+
+                  updateHandleFromClientX(event.clientX, targetHandle);
+                  setDragHandle(targetHandle);
+                }}
+              >
+                <div className="clip-timeline__base" />
+                <div
+                  className="clip-timeline__selection"
+                  style={{
+                    left: `${timelineStartPercent}%`,
+                    width: `${Math.max(0, timelineEndPercent - timelineStartPercent)}%`,
+                  }}
+                />
+                <div
+                  className="clip-timeline__playhead"
+                  style={{ left: `${timelinePlayheadPercent}%` }}
+                />
+                <button
+                  className="clip-timeline__handle clip-timeline__handle--start"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    setDragHandle("start");
+                  }}
+                  style={{ left: `${timelineStartPercent}%` }}
+                  type="button"
+                  aria-label="시작점 이동"
+                />
+                <button
+                  className="clip-timeline__handle clip-timeline__handle--end"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    setDragHandle("end");
+                  }}
+                  style={{ left: `${timelineEndPercent}%` }}
+                  type="button"
+                  aria-label="끝점 이동"
+                />
+              </div>
+            </div>
 
             <div className="song-preview__button-row">
               <button
@@ -431,14 +551,18 @@ function SongPreviewPlayer({
               </button>
               <button
                 className="button button--ghost song-preview__button"
-                onClick={() => handleSeek(0)}
+                onClick={() => seekWithinPreview(0)}
                 type="button"
               >
                 처음
               </button>
               <button
                 className="button button--ghost song-preview__button"
-                onClick={() => handleSeek(Math.max(0, previewProgressSeconds - 3))}
+                onClick={() =>
+                  seekWithinPreview(
+                    Math.max(0, currentTimeSeconds - clipStartSeconds - 3),
+                  )
+                }
                 type="button"
               >
                 -3초
@@ -446,7 +570,12 @@ function SongPreviewPlayer({
               <button
                 className="button button--ghost song-preview__button"
                 onClick={() =>
-                  handleSeek(Math.min(previewSliderMax, previewProgressSeconds + 3))
+                  seekWithinPreview(
+                    Math.min(
+                      previewDurationSeconds || timelineMaxSeconds,
+                      currentTimeSeconds - clipStartSeconds + 3,
+                    ),
+                  )
                 }
                 type="button"
               >
@@ -795,11 +924,6 @@ export default function MapsPage() {
       ? parseSeconds(activeSongRow.clipEndSeconds, activeClipStartSeconds)
       : null
     : null;
-  const activeClipEndSliderValue = activeSongRow
-    ? activeSongRow.clipEndSeconds.trim()
-      ? parseSeconds(activeSongRow.clipEndSeconds, activeClipStartSeconds)
-      : activeClipSliderMax
-    : activeClipSliderMax;
   const applyActiveClipStart = (value: string) => {
     if (!activeSongRow) {
       return;
@@ -1413,60 +1537,10 @@ export default function MapsPage() {
                   </label>
                 </div>
 
-                <div className="range-stack">
-                  <label className="field">
-                    <span>시작 조절바</span>
-                    <input
-                      className="range-input"
-                      type="range"
-                      min="0"
-                      max={String(activeClipSliderMax)}
-                      value={String(activeClipStartSeconds)}
-                      onChange={(event) =>
-                        updateSongRow(
-                          activeSongRow.id,
-                          "clipStartSeconds",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>끝 조절바</span>
-                    <input
-                      className="range-input"
-                      type="range"
-                      min={String(activeClipStartSeconds)}
-                      max={String(activeClipSliderMax)}
-                      value={String(activeClipEndSliderValue)}
-                      onChange={(event) =>
-                        updateSongRow(
-                          activeSongRow.id,
-                          "clipEndSeconds",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <div className="button-row">
-                    <button
-                      className="button button--ghost"
-                      onClick={() =>
-                        updateSongRow(activeSongRow.id, "clipEndSeconds", "")
-                      }
-                      type="button"
-                    >
-                      끝까지 재생
-                    </button>
-                  </div>
-
-                  <p className="footnote">
-                    기본 문제시간보다 클립이 길면 그 길이만큼 라운드가 늘어나고,
-                    짧으면 시작 지점부터 다시 재생합니다.
-                  </p>
-                </div>
+                <p className="footnote">
+                  기본 문제시간보다 클립이 길면 그 길이만큼 라운드가 늘어나고,
+                  짧으면 시작 지점부터 다시 재생합니다.
+                </p>
 
                 {activeSongRow.audioSourceType === "youtube" ? (
                   <label className="field">
@@ -1515,6 +1589,7 @@ export default function MapsPage() {
                     row={activeSongRow}
                     clipStartSeconds={activeClipStartSeconds}
                     clipEndSeconds={activeClipEndSeconds}
+                    sliderMaxSeconds={activeClipSliderMax}
                     onClipStartChange={applyActiveClipStart}
                     onClipEndChange={applyActiveClipEnd}
                   />
