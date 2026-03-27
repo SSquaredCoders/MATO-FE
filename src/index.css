@@ -849,6 +849,45 @@ button {
   width: 100%;
 }
 
+.song-preview {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(240, 123, 63, 0.24);
+  background: rgba(12, 12, 13, 0.62);
+}
+
+.song-preview__meta {
+  display: grid;
+  gap: 6px;
+}
+
+.song-preview__meta .eyebrow {
+  margin-bottom: 0;
+}
+
+.song-preview__meta strong {
+  font-size: 1.05rem;
+}
+
+.song-preview__media {
+  display: grid;
+  gap: 10px;
+}
+
+.song-preview__media audio {
+  width: 100%;
+}
+
+.song-preview__frame {
+  width: 100%;
+  min-height: 240px;
+  border: 0;
+  border-radius: 18px;
+  background: #111111;
+}
+
 .song-queue {
   display: grid;
   gap: 12px;

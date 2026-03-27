@@ -7,6 +7,7 @@ import {
   updateMap,
   uploadMapAudioFile,
 } from "../../shared/api/maps";
+import { API_BASE_URL } from "../../shared/config/env";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
   CreateMapRequest,
@@ -135,6 +136,81 @@ function getClipSliderMax(row: SongDraftRow) {
     : 0;
 
   return Math.max(30, 240, clipStart + 30, clipEnd);
+}
+
+function resolveMediaUrl(sourceValue: string) {
+  if (/^https?:\/\//i.test(sourceValue)) {
+    return sourceValue;
+  }
+
+  return `${API_BASE_URL}${sourceValue}`;
+}
+
+function getAudioPreviewUrl(
+  sourceValue: string,
+  clipStartSeconds: number,
+  clipEndSeconds: number | null,
+) {
+  const baseUrl = resolveMediaUrl(sourceValue);
+
+  if (clipStartSeconds <= 0 && clipEndSeconds === null) {
+    return baseUrl;
+  }
+
+  const fragment =
+    clipEndSeconds !== null
+      ? `#t=${clipStartSeconds},${clipEndSeconds}`
+      : `#t=${clipStartSeconds}`;
+
+  return `${baseUrl}${fragment}`;
+}
+
+function getYouTubeEmbedUrl(
+  sourceValue: string,
+  clipStartSeconds: number,
+  clipEndSeconds: number | null,
+) {
+  try {
+    const parsed = new URL(sourceValue);
+    let videoId = "";
+
+    if (parsed.hostname.includes("youtu.be")) {
+      videoId = parsed.pathname.replace(/^\/+/, "");
+    } else if (parsed.searchParams.get("v")) {
+      videoId = parsed.searchParams.get("v") ?? "";
+    } else {
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      const embedIndex = segments.indexOf("embed");
+      if (embedIndex >= 0 && segments[embedIndex + 1]) {
+        videoId = segments[embedIndex + 1];
+      }
+    }
+
+    if (!videoId) {
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      autoplay: "0",
+      controls: "1",
+      loop: "1",
+      rel: "0",
+      modestbranding: "1",
+      playlist: videoId,
+    });
+
+    if (clipStartSeconds > 0) {
+      params.set("start", String(clipStartSeconds));
+    }
+
+    if (clipEndSeconds !== null && clipEndSeconds > 0) {
+      params.set("end", String(clipEndSeconds));
+    }
+
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+  } catch {
+    return null;
+  }
 }
 
 export default function MapsPage() {
@@ -426,11 +502,32 @@ export default function MapsPage() {
   const activeClipStartSeconds = activeSongRow
     ? parseSeconds(activeSongRow.clipStartSeconds, 0)
     : 0;
+  const activeClipEndSeconds = activeSongRow
+    ? activeSongRow.clipEndSeconds.trim()
+      ? parseSeconds(activeSongRow.clipEndSeconds, activeClipStartSeconds)
+      : null
+    : null;
   const activeClipEndSliderValue = activeSongRow
     ? activeSongRow.clipEndSeconds.trim()
       ? parseSeconds(activeSongRow.clipEndSeconds, activeClipStartSeconds)
       : activeClipSliderMax
     : activeClipSliderMax;
+  const activePreviewUrl =
+    activeSongRow?.audioSourceType === "file" && activeSongRow.audioSourceValue
+      ? getAudioPreviewUrl(
+          activeSongRow.audioSourceValue,
+          activeClipStartSeconds,
+          activeClipEndSeconds,
+        )
+      : null;
+  const activePreviewEmbedUrl =
+    activeSongRow?.audioSourceType === "youtube" && activeSongRow.audioSourceValue
+      ? getYouTubeEmbedUrl(
+          activeSongRow.audioSourceValue,
+          activeClipStartSeconds,
+          activeClipEndSeconds,
+        )
+      : null;
   const isSaving = createMapMutation.isPending || updateMapMutation.isPending;
   const submitError =
     (createMapMutation.error as Error | null) ??
@@ -1095,6 +1192,56 @@ export default function MapsPage() {
                     ) : null}
                   </div>
                 )}
+
+                {activeSongRow.audioSourceValue ? (
+                  <div className="song-preview">
+                    <div className="song-preview__meta">
+                      <p className="eyebrow">Clip Preview</p>
+                      <strong>
+                        {activeSongRow.audioSourceLabel ||
+                          formatSongSummary(activeSongRow)}
+                      </strong>
+                      <p className="footnote">
+                        {activeClipStartSeconds}초부터{" "}
+                        {activeClipEndSeconds !== null
+                          ? `${activeClipEndSeconds}초까지`
+                          : "끝까지"}{" "}
+                        미리듣기
+                      </p>
+                    </div>
+
+                    <div className="song-preview__media">
+                      {activeSongRow.audioSourceType === "youtube" ? (
+                        activePreviewEmbedUrl ? (
+                          <iframe
+                            key={activePreviewEmbedUrl}
+                            className="song-preview__frame"
+                            src={activePreviewEmbedUrl}
+                            title={`${formatSongSummary(activeSongRow)} 미리듣기`}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <p className="footnote">
+                            유튜브 링크를 다시 확인해 주세요. 미리듣기 주소를 만들 수
+                            없습니다.
+                          </p>
+                        )
+                      ) : activePreviewUrl ? (
+                        <audio
+                          key={activePreviewUrl}
+                          controls
+                          preload="metadata"
+                          src={activePreviewUrl}
+                        />
+                      ) : (
+                        <p className="footnote">
+                          업로드가 끝나면 여기서 바로 재생해 볼 수 있습니다.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
               </article>
             ) : null}
 
