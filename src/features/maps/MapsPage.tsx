@@ -123,6 +123,20 @@ function formatSongSource(
   return song.audioSourceLabel || song.audioSourceValue;
 }
 
+function parseSeconds(value: string, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function getClipSliderMax(row: SongDraftRow) {
+  const clipStart = parseSeconds(row.clipStartSeconds, 0);
+  const clipEnd = row.clipEndSeconds.trim()
+    ? parseSeconds(row.clipEndSeconds, clipStart)
+    : 0;
+
+  return Math.max(30, 240, clipStart + 30, clipEnd);
+}
+
 export default function MapsPage() {
   const queryClient = useQueryClient();
   const currentNickname = useSessionStore((state) => state.currentNickname);
@@ -145,7 +159,7 @@ export default function MapsPage() {
     "normal",
   );
   const [visibility, setVisibility] = useState<"public" | "private">("public");
-  const [showMediaControls, setShowMediaControls] = useState(false);
+  const [showMediaControls, setShowMediaControls] = useState(true);
   const [answerMode, setAnswerMode] = useState<MapAnswerMode>("single-lock");
   const [roundFlowMode, setRoundFlowMode] =
     useState<MapRoundFlowMode>("advance-on-correct");
@@ -193,7 +207,7 @@ export default function MapsPage() {
     setDescription("");
     setDifficulty("normal");
     setVisibility("public");
-    setShowMediaControls(false);
+    setShowMediaControls(true);
     setAnswerMode("single-lock");
     setRoundFlowMode("advance-on-correct");
     setRoundTimeLimitSeconds("30");
@@ -408,6 +422,15 @@ export default function MapsPage() {
 
   const activeSongRow =
     songRows.find((row) => row.id === selectedSongRowId) ?? songRows[0];
+  const activeClipSliderMax = activeSongRow ? getClipSliderMax(activeSongRow) : 240;
+  const activeClipStartSeconds = activeSongRow
+    ? parseSeconds(activeSongRow.clipStartSeconds, 0)
+    : 0;
+  const activeClipEndSliderValue = activeSongRow
+    ? activeSongRow.clipEndSeconds.trim()
+      ? parseSeconds(activeSongRow.clipEndSeconds, activeClipStartSeconds)
+      : activeClipSliderMax
+    : activeClipSliderMax;
   const isSaving = createMapMutation.isPending || updateMapMutation.isPending;
   const submitError =
     (createMapMutation.error as Error | null) ??
@@ -618,11 +641,16 @@ export default function MapsPage() {
                       </div>
                       <p>힌트: {formatHintText(song.clue) || "힌트 없음"}</p>
                       <p>소스: {formatSongSource(song)}</p>
+                      <p>기본 문제 시간: {selectedMap.roundTimeLimitSeconds}초</p>
                       <p>
                         재생 구간: {song.clipStartSeconds}초부터{" "}
                         {song.clipEndSeconds === null
                           ? "끝까지"
                           : `${song.clipEndSeconds}초까지`}
+                      </p>
+                      <p>
+                        클립이 기본 시간보다 길면 자동 연장되고, 짧으면 시작
+                        지점부터 반복 재생됩니다.
                       </p>
                       <div className="chip-list">
                         {song.answers.map((answer) => (
@@ -749,7 +777,8 @@ export default function MapsPage() {
                 <div>
                   <strong>플레이어 표시</strong>
                   <p>
-                    기본은 숨김입니다. 체크하면 게임 화면에 재생 UI가 보입니다.
+                    기본은 표시입니다. 끄면 게임 화면에 재생 UI를 숨기고 소리만
+                    재생합니다.
                   </p>
                 </div>
                 <label className="toggle-card__switch">
@@ -970,6 +999,61 @@ export default function MapsPage() {
                   </label>
                 </div>
 
+                <div className="range-stack">
+                  <label className="field">
+                    <span>시작 조절바</span>
+                    <input
+                      className="range-input"
+                      type="range"
+                      min="0"
+                      max={String(activeClipSliderMax)}
+                      value={String(activeClipStartSeconds)}
+                      onChange={(event) =>
+                        updateSongRow(
+                          activeSongRow.id,
+                          "clipStartSeconds",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span>끝 조절바</span>
+                    <input
+                      className="range-input"
+                      type="range"
+                      min={String(activeClipStartSeconds)}
+                      max={String(activeClipSliderMax)}
+                      value={String(activeClipEndSliderValue)}
+                      onChange={(event) =>
+                        updateSongRow(
+                          activeSongRow.id,
+                          "clipEndSeconds",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+
+                  <div className="button-row">
+                    <button
+                      className="button button--ghost"
+                      onClick={() =>
+                        updateSongRow(activeSongRow.id, "clipEndSeconds", "")
+                      }
+                      type="button"
+                    >
+                      끝까지 재생
+                    </button>
+                  </div>
+
+                  <p className="footnote">
+                    기본 문제시간보다 클립이 길면 그 길이만큼 라운드가 늘어나고,
+                    짧으면 시작 지점부터 다시 재생합니다.
+                  </p>
+                </div>
+
                 {activeSongRow.audioSourceType === "youtube" ? (
                   <label className="field">
                     <span>유튜브 링크</span>
@@ -1110,6 +1194,10 @@ export default function MapsPage() {
                       <span>{row.audioSourceType === "file" ? "파일" : "유튜브"}</span>
                     </div>
                     <p>{row.artist.trim() || "가수 미입력"}</p>
+                    <p>
+                      기본 시간 {roundTimeLimitSeconds || "30"}초 · 길면 자동 연장,
+                      짧으면 반복
+                    </p>
                     <p>
                       {row.clipStartSeconds || "0"}초부터{" "}
                       {row.clipEndSeconds.trim()

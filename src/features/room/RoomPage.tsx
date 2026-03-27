@@ -84,9 +84,11 @@ function getYouTubeEmbedUrl(
     const params = new URLSearchParams({
       autoplay: "1",
       controls: "1",
+      loop: "1",
       rel: "0",
       modestbranding: "1",
     });
+    params.set("playlist", videoId);
 
     if (clipStartSeconds && clipStartSeconds > 0) {
       params.set("start", String(clipStartSeconds));
@@ -263,6 +265,12 @@ export default function RoomPage() {
     const audio = audioRef.current;
     const clipStart = room.currentClipStartSeconds ?? 0;
     const clipEnd = room.currentClipEndSeconds;
+    const roundEndsAtMs = room.roundEndsAt ? Date.parse(room.roundEndsAt) : null;
+    const shouldKeepLooping = () =>
+      room.phase === "PLAYING" &&
+      (roundEndsAtMs === null ||
+        !Number.isFinite(roundEndsAtMs) ||
+        roundEndsAtMs > Date.now());
 
     const syncPlayback = () => {
       if (clipStart > 0) {
@@ -284,14 +292,31 @@ export default function RoomPage() {
 
     const handleTimeUpdate = () => {
       if (clipEnd !== null && audio.currentTime >= clipEnd) {
+        if (shouldKeepLooping()) {
+          audio.currentTime = clipStart;
+          void audio.play().catch(() => {});
+          return;
+        }
+
         audio.pause();
       }
     };
 
+    const handleEnded = () => {
+      if (!shouldKeepLooping()) {
+        return;
+      }
+
+      audio.currentTime = clipStart;
+      void audio.play().catch(() => {});
+    };
+
     audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("ended", handleEnded);
 
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("ended", handleEnded);
     };
   }, [
     mediaKey,
@@ -299,6 +324,7 @@ export default function RoomPage() {
     room?.currentClipEndSeconds,
     room?.currentClipStartSeconds,
     room?.phase,
+    room?.roundEndsAt,
   ]);
 
   const nicknameOptions = useMemo(() => {

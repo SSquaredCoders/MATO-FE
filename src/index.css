@@ -225,6 +225,10 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.grid--four {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .panel {
   border-radius: 28px;
   padding: 24px;
@@ -834,6 +838,15 @@ button {
   justify-content: space-between;
   gap: 16px;
   align-items: start;
+}
+
+.range-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.range-input {
+  width: 100%;
 }
 
 .song-queue {
