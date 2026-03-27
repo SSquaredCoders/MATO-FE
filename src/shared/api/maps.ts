@@ -48,6 +48,13 @@ export function createMap(request: CreateMapRequest) {
   });
 }
 
+export function updateMap(mapId: number, request: CreateMapRequest) {
+  return requestJson<MapDetail>(`/api/v2/maps/${mapId}`, {
+    method: "PUT",
+    body: JSON.stringify(request),
+  });
+}
+
 export async function uploadMapAudioFile(file: File) {
   const formData = new FormData();
   formData.append("file", file);

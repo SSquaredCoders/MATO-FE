@@ -30,6 +30,16 @@ const phaseLabels: Record<GamePhase, string> = {
   FINISHED: "종료",
 };
 
+const answerModeLabels = {
+  "single-lock": "기본",
+  "multi-score": "개인전",
+} as const;
+
+const roundFlowModeLabels = {
+  "advance-on-correct": "정답 즉시 다음 곡",
+  "timer-or-skip": "시간 종료 또는 스킵",
+} as const;
+
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
 }
@@ -42,7 +52,11 @@ function resolveMediaUrl(sourceValue: string) {
   return `${API_BASE_URL}${sourceValue}`;
 }
 
-function getYouTubeEmbedUrl(sourceValue: string | null) {
+function getYouTubeEmbedUrl(
+  sourceValue: string | null,
+  clipStartSeconds: number | null,
+  clipEndSeconds: number | null,
+) {
   if (!sourceValue) {
     return null;
   }
@@ -67,7 +81,22 @@ function getYouTubeEmbedUrl(sourceValue: string | null) {
       return null;
     }
 
-    return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&modestbranding=1`;
+    const params = new URLSearchParams({
+      autoplay: "1",
+      controls: "1",
+      rel: "0",
+      modestbranding: "1",
+    });
+
+    if (clipStartSeconds && clipStartSeconds > 0) {
+      params.set("start", String(clipStartSeconds));
+    }
+
+    if (clipEndSeconds && clipEndSeconds > 0) {
+      params.set("end", String(clipEndSeconds));
+    }
+
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   } catch {
     return null;
   }
@@ -85,11 +114,12 @@ export default function RoomPage() {
   const [feedback, setFeedback] = useState(
     "방에 연결되면 채팅과 정답 입력을 바로 사용할 수 있습니다.",
   );
-  const [hintClock, setHintClock] = useState(() => Date.now());
+  const [clock, setClock] = useState(() => Date.now());
   const [connection, setConnection] = useState<ConnectionState>("idle");
   const [transientMessages, setTransientMessages] = useState<RoomChatMessage[]>(
     [],
   );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const joinedNicknameRef = useRef<string | null>(null);
   const transientTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
@@ -172,26 +202,20 @@ export default function RoomPage() {
   const room = roomQuery.data;
 
   useEffect(() => {
-    setHintClock(Date.now());
+    setClock(Date.now());
 
-    if (!room?.hintRevealAt) {
-      return;
-    }
-
-    const revealAt = Date.parse(room.hintRevealAt);
-    if (!Number.isFinite(revealAt) || revealAt <= Date.now()) {
+    const hasHintTimer = Boolean(room?.hintRevealAt);
+    const hasRoundTimer = Boolean(room?.roundEndsAt);
+    if (!hasHintTimer && !hasRoundTimer) {
       return;
     }
 
     const timer = setInterval(() => {
-      setHintClock(Date.now());
-      if (Date.now() >= revealAt) {
-        clearInterval(timer);
-      }
+      setClock(Date.now());
     }, 250);
 
     return () => clearInterval(timer);
-  }, [room?.hintRevealAt, room?.currentHint, room?.phase]);
+  }, [room?.hintRevealAt, room?.roundEndsAt, room?.phase]);
 
   useEffect(() => {
     if (connection !== "connected") {
@@ -207,6 +231,75 @@ export default function RoomPage() {
     publishEvent("presence.ping", { nickname: currentNickname });
     joinedNicknameRef.current = joinKey;
   }, [connection, currentNickname, publishEvent, roomName]);
+
+  const currentAudioSourceUrl = room?.currentAudioSourceValue
+    ? resolveMediaUrl(room.currentAudioSourceValue)
+    : null;
+  const currentYouTubeEmbedUrl = room
+    ? getYouTubeEmbedUrl(
+        room.currentAudioSourceValue,
+        room.currentClipStartSeconds,
+        room.currentClipEndSeconds,
+      )
+    : null;
+  const mediaKey = room
+    ? `${room.round}-${room.currentAudioSourceType ?? "none"}-${
+        room.currentAudioSourceValue ?? "none"
+      }-${room.currentClipStartSeconds ?? 0}-${
+        room.currentClipEndSeconds ?? "full"
+      }`
+    : "idle";
+
+  useEffect(() => {
+    if (
+      !room ||
+      room.phase !== "PLAYING" ||
+      room.currentAudioSourceType !== "file" ||
+      !audioRef.current
+    ) {
+      return;
+    }
+
+    const audio = audioRef.current;
+    const clipStart = room.currentClipStartSeconds ?? 0;
+    const clipEnd = room.currentClipEndSeconds;
+
+    const syncPlayback = () => {
+      if (clipStart > 0) {
+        try {
+          audio.currentTime = clipStart;
+        } catch {
+          // Ignore currentTime sync failures until metadata is ready.
+        }
+      }
+
+      void audio.play().catch(() => {});
+    };
+
+    if (audio.readyState >= 1) {
+      syncPlayback();
+    } else {
+      audio.addEventListener("loadedmetadata", syncPlayback, { once: true });
+    }
+
+    const handleTimeUpdate = () => {
+      if (clipEnd !== null && audio.currentTime >= clipEnd) {
+        audio.pause();
+      }
+    };
+
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+
+    return () => {
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+    };
+  }, [
+    mediaKey,
+    room?.currentAudioSourceType,
+    room?.currentClipEndSeconds,
+    room?.currentClipStartSeconds,
+    room?.phase,
+  ]);
 
   const nicknameOptions = useMemo(() => {
     const options =
@@ -254,41 +347,44 @@ export default function RoomPage() {
   const currentPlayer = room.participants.find(
     (participant) => participant.nickname === currentNickname,
   );
-  const participantValue = nicknameOptions.includes(currentNickname)
-    ? currentNickname
-    : currentPlayer?.nickname ?? currentNickname;
   const isHost = currentNickname === room.hostNickname;
   const isReady = Boolean(currentPlayer?.ready);
   const canSubmitAnswer = Boolean(currentPlayer?.connected);
   const readyLabel = isReady ? "준비 해제" : "준비 완료";
   const helperText = isHost
-    ? "방장입니다. 다른 참가자들이 준비되면 게임을 시작할 수 있습니다."
-    : "준비를 마치면 방장이 게임을 시작할 수 있습니다.";
+    ? "방장이면 준비가 끝난 뒤 게임 시작 또는 스킵을 직접 누를 수 있습니다."
+    : "준비를 마치고 채팅 입력창으로 정답을 제출하면 됩니다.";
   const hintRevealAtMs = room.hintRevealAt ? Date.parse(room.hintRevealAt) : null;
   const isHintVisible = Boolean(room.currentHint) && (
     room.phase !== "PLAYING" ||
     hintRevealAtMs === null ||
     !Number.isFinite(hintRevealAtMs) ||
-    hintRevealAtMs <= hintClock
+    hintRevealAtMs <= clock
   );
   const hintCountdown =
     room.phase === "PLAYING" &&
     room.currentHint &&
     hintRevealAtMs !== null &&
     Number.isFinite(hintRevealAtMs) &&
-    hintRevealAtMs > hintClock
-      ? Math.max(1, Math.ceil((hintRevealAtMs - hintClock) / 1000))
+    hintRevealAtMs > clock
+      ? Math.max(1, Math.ceil((hintRevealAtMs - clock) / 1000))
       : 0;
-  const currentAudioSourceUrl = room.currentAudioSourceValue
-    ? resolveMediaUrl(room.currentAudioSourceValue)
-    : null;
-  const currentYouTubeEmbedUrl =
-    room.currentAudioSourceType === "youtube"
-      ? getYouTubeEmbedUrl(room.currentAudioSourceValue)
-      : null;
-  const mediaKey = `${room.round}-${room.currentAudioSourceType ?? "none"}-${
-    room.currentAudioSourceValue ?? "none"
-  }`;
+  const roundEndsAtMs = room.roundEndsAt ? Date.parse(room.roundEndsAt) : null;
+  const roundCountdown =
+    room.phase === "PLAYING" &&
+    roundEndsAtMs !== null &&
+    Number.isFinite(roundEndsAtMs) &&
+    roundEndsAtMs > clock
+      ? Math.max(0, Math.ceil((roundEndsAtMs - clock) / 1000))
+      : 0;
+  const showVisibleMedia =
+    room.phase === "PLAYING" &&
+    room.showMediaControls &&
+    Boolean(room.currentAudioSourceValue);
+  const renderHiddenMedia =
+    room.phase === "PLAYING" &&
+    !room.showMediaControls &&
+    Boolean(room.currentAudioSourceValue);
 
   const handleAnswerSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -310,7 +406,31 @@ export default function RoomPage() {
   };
 
   return (
-    <div className="room-view">
+    <div className="room-view room-view--refined">
+      {renderHiddenMedia && room.currentAudioSourceType === "file" && currentAudioSourceUrl ? (
+        <audio
+          key={mediaKey}
+          ref={audioRef}
+          className="room-stage__audio-player room-stage__audio-player--hidden"
+          autoPlay
+          preload="auto"
+          src={currentAudioSourceUrl}
+        />
+      ) : null}
+
+      {renderHiddenMedia &&
+      room.currentAudioSourceType === "youtube" &&
+      currentYouTubeEmbedUrl ? (
+        <iframe
+          key={mediaKey}
+          className="room-stage__video-frame room-stage__video-frame--hidden"
+          src={currentYouTubeEmbedUrl}
+          title={room.currentAudioSourceLabel ?? "숨김 유튜브 음원"}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+        />
+      ) : null}
+
       <section className="panel room-stage">
         <div className="room-stage__header">
           <div>
@@ -343,7 +463,11 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <div className="room-stage__board">
+        <div
+          className={`room-stage__board${
+            showVisibleMedia ? "" : " room-stage__board--clean"
+          }`}
+        >
           <div className="room-stage__overlay">
             {transientMessages.map((message) => (
               <article
@@ -356,21 +480,22 @@ export default function RoomPage() {
             ))}
           </div>
 
-          {room.phase === "PLAYING" && room.currentAudioSourceValue ? (
+          {showVisibleMedia ? (
             <div className="room-stage__media">
               <div className="room-stage__media-meta">
-                <span className="room-stage__media-eyebrow">Audio Source</span>
+                <span className="room-stage__media-eyebrow">재생 소스</span>
                 <strong>
                   {room.currentAudioSourceLabel ??
                     (room.currentAudioSourceType === "youtube"
-                      ? "YouTube source"
-                      : "Uploaded audio")}
+                      ? "유튜브 음원"
+                      : "업로드 음원")}
                 </strong>
               </div>
 
               {room.currentAudioSourceType === "file" && currentAudioSourceUrl ? (
                 <audio
                   key={mediaKey}
+                  ref={audioRef}
                   className="room-stage__audio-player"
                   controls
                   autoPlay
@@ -385,7 +510,7 @@ export default function RoomPage() {
                     key={mediaKey}
                     className="room-stage__video-frame"
                     src={currentYouTubeEmbedUrl}
-                    title={room.currentAudioSourceLabel ?? "YouTube audio source"}
+                    title={room.currentAudioSourceLabel ?? "유튜브 음원"}
                     allow="autoplay; encrypted-media; picture-in-picture"
                     allowFullScreen
                   />
@@ -396,7 +521,7 @@ export default function RoomPage() {
                     rel="noreferrer"
                     target="_blank"
                   >
-                    유효한 YouTube 링크가 아니라 새 탭으로 엽니다.
+                    유효한 유튜브 링크가 아니라 새 탭으로 엽니다.
                   </a>
                 ) : null
               ) : null}
@@ -406,18 +531,35 @@ export default function RoomPage() {
           <div className="room-stage__board-copy">
             <p className="eyebrow">Now Playing</p>
             <h3>{room.currentPrompt}</h3>
+
+            <div className="chip-list room-stage__rule-strip">
+              <span className="chip">{answerModeLabels[room.answerMode]}</span>
+              <span className="chip">
+                {roundFlowModeLabels[room.roundFlowMode]}
+              </span>
+              <span className="chip">
+                {room.showMediaControls ? "플레이어 표시" : "플레이어 숨김"}
+              </span>
+              {roundCountdown > 0 ? (
+                <span className="chip">{roundCountdown}초 남음</span>
+              ) : null}
+            </div>
+
             {isHintVisible && room.currentHint ? (
               <p className="room-stage__hint">
                 <span>힌트</span>
                 <strong>{formatHintText(room.currentHint)}</strong>
               </p>
             ) : null}
+
             {!isHintVisible && hintCountdown > 0 ? (
               <p className="room-stage__hint room-stage__hint--pending">
                 힌트 공개까지 {hintCountdown}초
               </p>
             ) : null}
+
             <p className="footnote room-stage__feedback">{feedback}</p>
+
             {room.currentReveal ? (
               <p className="reveal">직전 공개: {room.currentReveal}</p>
             ) : null}
@@ -444,30 +586,23 @@ export default function RoomPage() {
         </form>
       </section>
 
-      <section className="panel room-sidebar">
+      <section className="panel room-sidebar room-sidebar--refined">
         <div className="room-sidebar__section">
           <div className="panel__header">
             <div>
-              <p className="eyebrow">플레이어</p>
-              <h3>현재 조작 대상</h3>
+              <p className="eyebrow">현재 플레이어</p>
+              <h3>{currentNickname}</h3>
             </div>
+            <span className="chip">
+              {currentPlayer?.connected ? "접속됨" : "대기 중"}
+            </span>
           </div>
 
-          <label className="field">
-            <span>닉네임</span>
-            <select
-              value={participantValue}
-              onChange={(event) => setCurrentNickname(event.target.value)}
-            >
-              {nicknameOptions.map((nicknameOption) => (
-                <option key={nicknameOption} value={nicknameOption}>
-                  {nicknameOption}
-                </option>
-              ))}
-            </select>
-          </label>
+          <p className="footnote room-sidebar__current-player">
+            {helperText}
+          </p>
 
-          <div className="action-stack">
+          <div className="action-stack action-stack--compact">
             <button
               className={`button action-stack__button${
                 isReady ? " button--active" : ""
@@ -478,13 +613,13 @@ export default function RoomPage() {
                   ready: !currentPlayer?.ready,
                 })
               }
-              disabled={!currentPlayer}
+              disabled={!currentPlayer || room.phase !== "LOBBY"}
               type="button"
             >
               {readyLabel}
             </button>
 
-            {isHost ? (
+            {isHost && room.phase === "LOBBY" ? (
               <button
                 className="button action-stack__button"
                 onClick={() =>
@@ -493,6 +628,20 @@ export default function RoomPage() {
                 type="button"
               >
                 게임 시작
+              </button>
+            ) : null}
+
+            {isHost &&
+            room.phase === "PLAYING" &&
+            room.roundFlowMode === "timer-or-skip" ? (
+              <button
+                className="button action-stack__button"
+                onClick={() =>
+                  publishEvent("game.next.request", { nickname: currentNickname })
+                }
+                type="button"
+              >
+                현재 곡 스킵
               </button>
             ) : null}
 
@@ -507,8 +656,6 @@ export default function RoomPage() {
               방 나가기
             </button>
           </div>
-
-          <p className="footnote">{helperText}</p>
         </div>
 
         <div className="room-sidebar__section room-sidebar__section--fill">
@@ -519,9 +666,9 @@ export default function RoomPage() {
             </div>
           </div>
 
-          <div className="participant-list participant-list--room">
+          <div className="participant-list participant-list--room participant-list--compact">
             {sortedParticipants.map((participant: RoomParticipant) => (
-              <article className="participant-card" key={participant.id}>
+              <article className="participant-card participant-card--compact" key={participant.id}>
                 <div>
                   <p className="participant-card__name">{participant.nickname}</p>
                   <p className="participant-card__meta">
@@ -538,6 +685,23 @@ export default function RoomPage() {
         <details className="dev-tools">
           <summary>테스트 도구</summary>
           <div className="dev-tools__actions">
+            <label className="field">
+              <span>조작 닉네임</span>
+              <select
+                value={
+                  nicknameOptions.includes(currentNickname)
+                    ? currentNickname
+                    : nicknameOptions[0] ?? currentNickname
+                }
+                onChange={(event) => setCurrentNickname(event.target.value)}
+              >
+                {nicknameOptions.map((nicknameOption) => (
+                  <option key={nicknameOption} value={nicknameOption}>
+                    {nicknameOption}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               className="button button--ghost"
               onClick={() =>
@@ -553,15 +717,6 @@ export default function RoomPage() {
               type="button"
             >
               관전자 추가
-            </button>
-            <button
-              className="button button--ghost"
-              onClick={() =>
-                publishEvent("game.next.request", { nickname: currentNickname })
-              }
-              type="button"
-            >
-              다음 라운드
             </button>
           </div>
         </details>

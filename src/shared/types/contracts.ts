@@ -12,6 +12,9 @@ export type GamePhase =
   | "SCORING"
   | "FINISHED";
 
+export type MapAnswerMode = "single-lock" | "multi-score";
+export type MapRoundFlowMode = "advance-on-correct" | "timer-or-skip";
+
 export interface MapSummary {
   id: number;
   name: string;
@@ -28,6 +31,8 @@ export interface MapSongDefinition {
   audioSourceType: "youtube" | "file" | null;
   audioSourceValue: string | null;
   audioSourceLabel: string | null;
+  clipStartSeconds: number;
+  clipEndSeconds: number | null;
 }
 
 export interface MapDetail {
@@ -37,6 +42,9 @@ export interface MapDetail {
   createdBy: string;
   difficulty: "easy" | "normal" | "hard";
   visibility: "public" | "private";
+  showMediaControls: boolean;
+  answerMode: MapAnswerMode;
+  roundFlowMode: MapRoundFlowMode;
   roundTimeLimitSeconds: number;
   hintRevealDelaySeconds: number;
   songs: MapSongDefinition[];
@@ -48,6 +56,9 @@ export interface CreateMapRequest {
   createdBy: string;
   difficulty: "easy" | "normal" | "hard";
   visibility: "public" | "private";
+  showMediaControls: boolean;
+  answerMode: MapAnswerMode;
+  roundFlowMode: MapRoundFlowMode;
   roundTimeLimitSeconds: number;
   hintRevealDelaySeconds: number;
   songs: MapSongDefinition[];
@@ -94,14 +105,20 @@ export interface RoomSnapshot {
   maxParticipants: number;
   round: number;
   totalRounds: number;
+  answerMode: MapAnswerMode;
+  roundFlowMode: MapRoundFlowMode;
   currentPrompt: string;
   currentHint: string | null;
   hintRevealAt: string | null;
+  roundEndsAt: string | null;
   lastEvent: string;
   currentReveal: string | null;
+  showMediaControls: boolean;
   currentAudioSourceType: "youtube" | "file" | null;
   currentAudioSourceValue: string | null;
   currentAudioSourceLabel: string | null;
+  currentClipStartSeconds: number | null;
+  currentClipEndSeconds: number | null;
   participants: RoomParticipant[];
 }
 
