@@ -1,7 +1,8 @@
+import { Client } from "@stomp/stompjs";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL } from "../../shared/config/env";
+import { API_BASE_URL, WS_BASE_URL } from "../../shared/config/env";
 import { fetchRoomSnapshot } from "../../shared/api/rooms";
 import { useRoomRealtime } from "../../shared/realtime/useRoomRealtime";
 import { useSessionStore } from "../../shared/store/useSessionStore";
@@ -118,10 +119,12 @@ export default function RoomPage() {
   );
   const [clock, setClock] = useState(() => Date.now());
   const [connection, setConnection] = useState<ConnectionState>("idle");
+  const [isWatcherJoining, setIsWatcherJoining] = useState(false);
   const [transientMessages, setTransientMessages] = useState<RoomChatMessage[]>(
     [],
   );
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const debugWatcherClientsRef = useRef<Map<string, Client>>(new Map());
   const joinedNicknameRef = useRef<string | null>(null);
   const transientTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
@@ -165,6 +168,15 @@ export default function RoomPage() {
       transientTimersRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      debugWatcherClientsRef.current.forEach((client) => {
+        void client.deactivate();
+      });
+      debugWatcherClientsRef.current.clear();
+    };
+  }, [roomName]);
 
   const { publishEvent } = useRoomRealtime({
     roomName,
@@ -426,9 +438,67 @@ export default function RoomPage() {
   };
 
   const handleJoinAsWatcher = () => {
-    const watcherName = `watcher-${room.participants.length + 1}`;
-    publishEvent("room.join", { nickname: watcherName });
-    setCurrentNickname(watcherName);
+    if (isWatcherJoining || room.participants.length >= room.maxParticipants) {
+      return;
+    }
+
+    const occupiedNicknames = new Set([
+      ...room.participants.map((participant) => participant.nickname),
+      ...debugWatcherClientsRef.current.keys(),
+    ]);
+    let nextWatcherIndex = room.participants.length + 1;
+    let watcherName = `watcher-${nextWatcherIndex}`;
+
+    while (occupiedNicknames.has(watcherName)) {
+      nextWatcherIndex += 1;
+      watcherName = `watcher-${nextWatcherIndex}`;
+    }
+
+    const debugClient = new Client({
+      brokerURL: WS_BASE_URL,
+      reconnectDelay: 0,
+      debug: () => {},
+    });
+
+    const publishDebugEvent = (
+      type: string,
+      payload: Record<string, unknown>,
+    ) => {
+      debugClient.publish({
+        destination: "/app/v2/game.send",
+        body: JSON.stringify({
+          type,
+          roomName,
+          payload,
+          clientTimestamp: new Date().toISOString(),
+        }),
+      });
+    };
+
+    setIsWatcherJoining(true);
+
+    debugClient.onConnect = () => {
+      debugWatcherClientsRef.current.set(watcherName, debugClient);
+      debugClient.subscribe(`/topic/v2/rooms/${roomName}`, () => {});
+      publishDebugEvent("room.join", { nickname: watcherName });
+      publishDebugEvent("presence.ping", { nickname: watcherName });
+      setFeedback(`${watcherName} 테스트 세션을 추가했습니다.`);
+      setIsWatcherJoining(false);
+    };
+
+    debugClient.onStompError = () => {
+      debugWatcherClientsRef.current.delete(watcherName);
+      void debugClient.deactivate();
+      setFeedback(`${watcherName} 테스트 세션 연결에 실패했습니다.`);
+      setIsWatcherJoining(false);
+    };
+
+    debugClient.onWebSocketClose = () => {
+      debugWatcherClientsRef.current.delete(watcherName);
+      setIsWatcherJoining(false);
+    };
+
+    debugClient.activate();
   };
 
   return (
@@ -740,9 +810,12 @@ export default function RoomPage() {
             <button
               className="button button--ghost"
               onClick={handleJoinAsWatcher}
+              disabled={
+                isWatcherJoining || room.participants.length >= room.maxParticipants
+              }
               type="button"
             >
-              관전자 추가
+              {isWatcherJoining ? "참가자 연결 중..." : "관전자 추가"}
             </button>
           </div>
         </details>
