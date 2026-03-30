@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:room-clip-range": "node scripts/verify-room-clip-range.mjs"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
