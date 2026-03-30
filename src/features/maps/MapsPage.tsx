@@ -34,6 +34,41 @@ interface SongDraftRow {
   uploadError: string | null;
 }
 
+declare global {
+  interface Window {
+    YT?: {
+      Player: new (
+        element: HTMLElement | string,
+        options: {
+          videoId: string;
+          width?: string | number;
+          height?: string | number;
+          playerVars?: Record<string, string | number | undefined>;
+          events?: {
+            onReady?: (event: { target: YouTubePlayer }) => void;
+            onStateChange?: (event: { data: number; target: YouTubePlayer }) => void;
+          };
+        },
+      ) => YouTubePlayer;
+      PlayerState?: {
+        PLAYING?: number;
+        PAUSED?: number;
+      };
+    };
+    onYouTubeIframeAPIReady?: () => void;
+    __matoYouTubeApiPromise?: Promise<NonNullable<Window["YT"]>>;
+  }
+}
+
+interface YouTubePlayer {
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  destroy: () => void;
+}
+
 const difficultyLabels = {
   easy: "쉬움",
   normal: "보통",
@@ -239,8 +274,14 @@ function getYouTubeEmbedUrl(
       loop: "1",
       rel: "0",
       modestbranding: "1",
+      playsinline: "1",
+      enablejsapi: "1",
       playlist: videoId,
     });
+
+    if (typeof window !== "undefined") {
+      params.set("origin", window.location.origin);
+    }
 
     if (clipStartSeconds > 0) {
       params.set("start", String(clipStartSeconds));
@@ -274,6 +315,7 @@ function LegacySongPreviewPlayer({
   onClipEndChange,
 }: SongPreviewPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const youtubeIframeRef = useRef<HTMLIFrameElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const youtubeContainerRef = useRef<HTMLDivElement | null>(null);
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
@@ -311,7 +353,7 @@ function LegacySongPreviewPlayer({
     setDurationSeconds(0);
     setCurrentTimeSeconds(clipStartSeconds);
     setIsPlaying(false);
-  }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+  }, [row.audioSourceType, row.audioSourceValue]);
 
   useEffect(() => {
     if (row.audioSourceType !== "file" || !row.audioSourceValue || !audioRef.current) {
@@ -388,6 +430,182 @@ function LegacySongPreviewPlayer({
       audio.removeEventListener("ended", handleEnded);
     };
   }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+
+  useEffect(() => {
+    if (!isYouTubeSource || !youtubeVideoId || !youtubeContainerRef.current) {
+      return;
+    }
+
+    let disposed = false;
+
+    const syncPlayerState = () => {
+      const player = youtubePlayerRef.current;
+      if (!player) {
+        return;
+      }
+
+      const duration = Number(player.getDuration()) || 0;
+      if (duration > 0) {
+        setDurationSeconds(duration);
+      }
+
+      const clipEnd = previousClipRef.current.end;
+      const clipStart = previousClipRef.current.start;
+      const current = Number(player.getCurrentTime()) || clipStart;
+      const clipLimit = clipEnd ?? (duration || clipStart);
+
+      if (current >= clipLimit) {
+        player.pauseVideo();
+        setCurrentTimeSeconds(clipLimit);
+        setIsPlaying(false);
+        return;
+      }
+
+      setCurrentTimeSeconds(current);
+    };
+
+    const startSyncTimer = () => {
+      if (youtubeSyncTimerRef.current !== null) {
+        window.clearInterval(youtubeSyncTimerRef.current);
+      }
+
+      youtubeSyncTimerRef.current = window.setInterval(syncPlayerState, 250);
+    };
+
+    void ensureYouTubeApi()
+      .then((YT) => {
+        if (disposed || !youtubeContainerRef.current) {
+          return;
+        }
+
+        youtubeContainerRef.current.innerHTML = "";
+        const player = new YT.Player(youtubeContainerId, {
+          width: "100%",
+          height: "100%",
+          videoId: youtubeVideoId,
+          playerVars: {
+            autoplay: 0,
+            controls: 1,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            enablejsapi: 1,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: ({ target }) => {
+              if (disposed) {
+                return;
+              }
+
+              youtubePlayerRef.current = target;
+              const duration = Number(target.getDuration()) || 0;
+              if (duration > 0) {
+                setDurationSeconds(duration);
+              }
+              setCurrentTimeSeconds(clipStartSeconds);
+              target.seekTo(clipStartSeconds, true);
+              startSyncTimer();
+            },
+            onStateChange: ({ data }) => {
+              const playingState = YT.PlayerState?.PLAYING ?? 1;
+              setIsPlaying(data === playingState);
+            },
+          },
+        });
+
+        youtubePlayerRef.current = player;
+      })
+      .catch(() => {
+        setIsPlaying(false);
+      });
+
+    return () => {
+      disposed = true;
+
+      if (youtubeSyncTimerRef.current !== null) {
+        window.clearInterval(youtubeSyncTimerRef.current);
+        youtubeSyncTimerRef.current = null;
+      }
+
+      youtubePlayerRef.current?.destroy();
+      youtubePlayerRef.current = null;
+    };
+  }, [isYouTubeSource, youtubeContainerId, youtubeVideoId]);
+
+  useEffect(() => {
+    if (!isYouTubeSource || !youtubePlayerRef.current) {
+      previousClipRef.current = { start: clipStartSeconds, end: clipEndSeconds };
+      return;
+    }
+
+    const player = youtubePlayerRef.current;
+    const previousClip = previousClipRef.current;
+
+    if (previousClip.start !== clipStartSeconds) {
+      player.seekTo(clipStartSeconds, true);
+      setCurrentTimeSeconds(clipStartSeconds);
+      if (isPlaying) {
+        player.playVideo();
+      }
+    }
+
+    if (previousClip.end !== clipEndSeconds) {
+      const current = Number(player.getCurrentTime()) || clipStartSeconds;
+      if (clipEndSeconds !== null && current > clipEndSeconds) {
+        player.seekTo(clipEndSeconds, true);
+        setCurrentTimeSeconds(clipEndSeconds);
+        player.pauseVideo();
+        setIsPlaying(false);
+      }
+    }
+
+    previousClipRef.current = { start: clipStartSeconds, end: clipEndSeconds };
+  }, [clipEndSeconds, clipStartSeconds, isPlaying, isYouTubeSource]);
+
+  const postYouTubeCommand = (
+    command: "seekTo" | "playVideo" | "pauseVideo",
+    args: Array<number | boolean> = [],
+  ) => {
+    const frameWindow = youtubeIframeRef.current?.contentWindow;
+    if (!frameWindow) {
+      return;
+    }
+
+    frameWindow.postMessage(
+      JSON.stringify({
+        event: "command",
+        func: command,
+        args,
+      }),
+      "*",
+    );
+  };
+
+  useEffect(() => {
+    if (!isYouTubeSource || !youtubeEmbedUrl) {
+      return;
+    }
+
+    const frame = youtubeIframeRef.current;
+    if (!frame) {
+      return;
+    }
+
+    const syncToClipStart = () => {
+      window.setTimeout(() => {
+        postYouTubeCommand("seekTo", [clipStartSeconds, true]);
+        setCurrentTimeSeconds(clipStartSeconds);
+      }, 250);
+    };
+
+    frame.addEventListener("load", syncToClipStart);
+    syncToClipStart();
+
+    return () => {
+      frame.removeEventListener("load", syncToClipStart);
+    };
+  }, [clipStartSeconds, isYouTubeSource, youtubeEmbedUrl]);
 
   useEffect(() => {
     if (!isYouTubeSource || !row.audioSourceValue || !youtubeContainerRef.current) {
@@ -962,11 +1180,11 @@ function LegacySongPreviewPlayer({
           </div>
 
           <div className="song-preview__media">
-            {youtubeVideoId ? (
-              <div
-                ref={youtubeContainerRef}
-                id={youtubeContainerId}
+            {youtubeEmbedUrl ? (
+              <iframe
+                ref={youtubeIframeRef}
                 className="song-preview__frame"
+                src={youtubeEmbedUrl}
                 aria-label="유튜브 미리듣기"
                 title={`${formatSongSummary(row)} 미리듣기`}
               />
@@ -991,29 +1209,36 @@ function SongPreviewPlayer({
   onClipEndChange,
 }: SongPreviewPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const youtubeIframeRef = useRef<HTMLIFrameElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const youtubeContainerRef = useRef<HTMLDivElement | null>(null);
+  const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
+  const youtubeSyncTimerRef = useRef<number | null>(null);
+  const previousClipRef = useRef({
+    start: clipStartSeconds,
+    end: clipEndSeconds,
+  });
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(clipStartSeconds);
   const [isPlaying, setIsPlaying] = useState(false);
   const [dragHandle, setDragHandle] = useState<"start" | "end" | null>(null);
   const isFileSource = row.audioSourceType === "file";
   const isYouTubeSource = row.audioSourceType === "youtube";
-  const youtubePreviewUrl = useMemo(() => {
+  const youtubeVideoId = useMemo(() => {
     if (!isYouTubeSource || !row.audioSourceValue) {
       return null;
     }
 
-    return getYouTubeEmbedUrl(
-      row.audioSourceValue,
-      clipStartSeconds,
-      clipEndSeconds,
-    );
-  }, [
-    clipEndSeconds,
-    clipStartSeconds,
-    isYouTubeSource,
-    row.audioSourceValue,
-  ]);
+    return getYouTubeVideoId(row.audioSourceValue);
+  }, [isYouTubeSource, row.audioSourceValue]);
+  const youtubeEmbedUrl = useMemo(() => {
+    if (!youtubeVideoId || !row.audioSourceValue) {
+      return null;
+    }
+
+    return getYouTubeEmbedUrl(row.audioSourceValue, 0, null);
+  }, [row.audioSourceValue, youtubeVideoId]);
+  const youtubeContainerId = `youtube-preview-live-${row.id}`;
   const timelineMaxSeconds = Math.max(
     1,
     sliderMaxSeconds,
@@ -1036,7 +1261,7 @@ function SongPreviewPlayer({
     setDurationSeconds(0);
     setCurrentTimeSeconds(clipStartSeconds);
     setIsPlaying(false);
-  }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+  }, [row.audioSourceType, row.audioSourceValue]);
 
   useEffect(() => {
     if (row.audioSourceType !== "file" || !row.audioSourceValue || !audioRef.current) {
@@ -1113,6 +1338,50 @@ function SongPreviewPlayer({
       audio.removeEventListener("ended", handleEnded);
     };
   }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
+
+  const postYouTubeCommand = (
+    command: "seekTo" | "playVideo" | "pauseVideo",
+    args: Array<number | boolean> = [],
+  ) => {
+    const frameWindow = youtubeIframeRef.current?.contentWindow;
+    if (!frameWindow) {
+      return;
+    }
+
+    frameWindow.postMessage(
+      JSON.stringify({
+        event: "command",
+        func: command,
+        args,
+      }),
+      "*",
+    );
+  };
+
+  useEffect(() => {
+    if (!isYouTubeSource || !youtubeEmbedUrl) {
+      return;
+    }
+
+    const frame = youtubeIframeRef.current;
+    if (!frame) {
+      return;
+    }
+
+    const syncToClipStart = () => {
+      window.setTimeout(() => {
+        postYouTubeCommand("seekTo", [clipStartSeconds, true]);
+        setCurrentTimeSeconds(clipStartSeconds);
+      }, 250);
+    };
+
+    frame.addEventListener("load", syncToClipStart);
+    syncToClipStart();
+
+    return () => {
+      frame.removeEventListener("load", syncToClipStart);
+    };
+  }, [clipStartSeconds, isYouTubeSource, youtubeEmbedUrl]);
 
   const updateHandleFromClientX = (
     clientX: number,
@@ -1406,10 +1675,11 @@ function SongPreviewPlayer({
           </div>
 
           <div className="song-preview__media">
-            {youtubePreviewUrl ? (
+            {youtubeEmbedUrl ? (
               <iframe
+                ref={youtubeIframeRef}
                 className="song-preview__frame"
-                src={youtubePreviewUrl}
+                src={youtubeEmbedUrl}
                 title={`${formatSongSummary(row)} 미리듣기`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
