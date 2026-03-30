@@ -509,7 +509,16 @@ function LegacySongPreviewPlayer({
             },
             onStateChange: ({ data }) => {
               const playingState = YT.PlayerState?.PLAYING ?? 1;
-              setIsPlaying(data === playingState);
+              const pausedState = YT.PlayerState?.PAUSED ?? 2;
+
+              if (data === playingState) {
+                setIsPlaying(true);
+                return;
+              }
+
+              if (data === pausedState || data === 0) {
+                setIsPlaying(false);
+              }
             },
           },
         });
@@ -543,19 +552,19 @@ function LegacySongPreviewPlayer({
     const previousClip = previousClipRef.current;
 
     if (previousClip.start !== clipStartSeconds) {
-      player.seekTo(clipStartSeconds, true);
-      setCurrentTimeSeconds(clipStartSeconds);
+      seekYouTubePreview(clipStartSeconds);
       if (isPlaying) {
         player.playVideo();
+        postYouTubeCommand("playVideo");
       }
     }
 
     if (previousClip.end !== clipEndSeconds) {
       const current = Number(player.getCurrentTime()) || clipStartSeconds;
       if (clipEndSeconds !== null && current > clipEndSeconds) {
-        player.seekTo(clipEndSeconds, true);
-        setCurrentTimeSeconds(clipEndSeconds);
+        seekYouTubePreview(clipEndSeconds);
         player.pauseVideo();
+        postYouTubeCommand("pauseVideo");
         setIsPlaying(false);
       }
     }
@@ -582,30 +591,51 @@ function LegacySongPreviewPlayer({
     );
   };
 
+  const seekYouTubePreview = (seconds: number) => {
+    youtubePlayerRef.current?.seekTo(seconds, true);
+    postYouTubeCommand("seekTo", [seconds, true]);
+    setCurrentTimeSeconds(seconds);
+  };
+
   useEffect(() => {
-    if (!isYouTubeSource || !youtubeEmbedUrl) {
+    if (!isYouTubeSource || !isPlaying) {
       return;
     }
 
-    const frame = youtubeIframeRef.current;
-    if (!frame) {
-      return;
-    }
+    let lastTick = performance.now();
+    const timer = window.setInterval(() => {
+      const now = performance.now();
+      const deltaSeconds = (now - lastTick) / 1000;
+      lastTick = now;
+      const clipLimit =
+        clipEndSeconds ??
+        (durationSeconds > 0 ? durationSeconds : timelineMaxSeconds);
 
-    const syncToClipStart = () => {
-      window.setTimeout(() => {
-        postYouTubeCommand("seekTo", [clipStartSeconds, true]);
-        setCurrentTimeSeconds(clipStartSeconds);
-      }, 250);
-    };
+      setCurrentTimeSeconds((previousSeconds) => {
+        const nextSeconds = Math.min(clipLimit, previousSeconds + deltaSeconds);
 
-    frame.addEventListener("load", syncToClipStart);
-    syncToClipStart();
+        if (nextSeconds >= clipLimit) {
+          window.setTimeout(() => {
+            youtubePlayerRef.current?.pauseVideo();
+            postYouTubeCommand("pauseVideo");
+            setIsPlaying(false);
+          }, 0);
+        }
+
+        return nextSeconds;
+      });
+    }, 200);
 
     return () => {
-      frame.removeEventListener("load", syncToClipStart);
+      window.clearInterval(timer);
     };
-  }, [clipStartSeconds, isYouTubeSource, youtubeEmbedUrl]);
+  }, [
+    clipEndSeconds,
+    durationSeconds,
+    isPlaying,
+    isYouTubeSource,
+    timelineMaxSeconds,
+  ]);
 
   useEffect(() => {
     if (!isYouTubeSource || !row.audioSourceValue || !youtubeContainerRef.current) {
@@ -776,9 +806,11 @@ function LegacySongPreviewPlayer({
   }, [clipStartSeconds, dragHandle, effectiveClipEndSeconds, timelineMaxSeconds]);
 
   const handleTogglePlayback = () => {
-    if (isYouTubeSource && youtubePlayerRef.current) {
+    if (isYouTubeSource) {
       if (isPlaying) {
-        youtubePlayerRef.current.pauseVideo();
+        youtubePlayerRef.current?.pauseVideo();
+        postYouTubeCommand("pauseVideo");
+        setIsPlaying(false);
         return;
       }
 
@@ -787,11 +819,12 @@ function LegacySongPreviewPlayer({
         (durationSeconds > 0 ? durationSeconds : clipStartSeconds);
 
       if (currentTimeSeconds >= clipLimit) {
-        youtubePlayerRef.current.seekTo(clipStartSeconds, true);
-        setCurrentTimeSeconds(clipStartSeconds);
+        seekYouTubePreview(clipStartSeconds);
       }
 
-      youtubePlayerRef.current.playVideo();
+      youtubePlayerRef.current?.playVideo();
+      postYouTubeCommand("playVideo");
+      setIsPlaying(true);
       return;
     }
 
@@ -826,7 +859,7 @@ function LegacySongPreviewPlayer({
   };
 
   const seekWithinPreview = (nextOffsetSeconds: number) => {
-    if (isYouTubeSource && youtubePlayerRef.current) {
+    if (isYouTubeSource) {
       const clipLimit =
         clipEndSeconds ??
         (durationSeconds > 0 ? durationSeconds : clipStartSeconds);
@@ -836,8 +869,7 @@ function LegacySongPreviewPlayer({
         Math.max(clipStartSeconds, clipLimit),
       );
 
-      youtubePlayerRef.current.seekTo(nextTime, true);
-      setCurrentTimeSeconds(nextTime);
+      seekYouTubePreview(nextTime);
       return;
     }
 
@@ -1767,11 +1799,77 @@ function SongPreviewPlayer({
         <>
           <div className="song-preview__transport">
             <div className="song-preview__time-row">
-              <strong>{formatSecondsLabel(clipStartSeconds)}</strong>
+              <strong>{formatSecondsLabel(currentTimeSeconds)}</strong>
               <span>구간 길이 {formatSecondsLabel(previewDurationSeconds || 0)}</span>
             </div>
 
             {renderClipTimeline()}
+
+            <div className="song-preview__button-row">
+              <button
+                className="button song-preview__button"
+                onClick={handleTogglePlayback}
+                type="button"
+              >
+                {isPlaying ? "?쇱떆?뺤?" : "?ъ깮"}
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => seekWithinPreview(0)}
+                type="button"
+              >
+                泥섏쓬
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() =>
+                  seekWithinPreview(
+                    Math.max(0, currentTimeSeconds - clipStartSeconds - 3),
+                  )
+                }
+                type="button"
+              >
+                -3珥?
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() =>
+                  seekWithinPreview(
+                    Math.min(
+                      previewDurationSeconds || timelineMaxSeconds,
+                      currentTimeSeconds - clipStartSeconds + 3,
+                    ),
+                  )
+                }
+                type="button"
+              >
+                +3珥?
+              </button>
+            </div>
+
+            <div className="song-preview__button-row">
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipStartChange(captureSeconds())}
+                type="button"
+              >
+                ?꾩옱 ?꾩튂瑜??쒖옉?먯쑝濡?
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange(captureSeconds())}
+                type="button"
+              >
+                ?꾩옱 ?꾩튂瑜??앹젏?쇰줈
+              </button>
+              <button
+                className="button button--ghost song-preview__button"
+                onClick={() => onClipEndChange("")}
+                type="button"
+              >
+                ?앷퉴吏 ?ъ깮
+              </button>
+            </div>
 
             <p className="song-preview__guide">
               아래 유튜브 프리뷰를 재생하면서 위 타임라인의 시작점과 끝점을
@@ -1783,6 +1881,7 @@ function SongPreviewPlayer({
             {youtubeEmbedUrl ? (
               <iframe
                 ref={youtubeIframeRef}
+                id={youtubeContainerId}
                 className="song-preview__frame"
                 src={youtubeEmbedUrl}
                 title={`${formatSongSummary(row)} 미리듣기`}
