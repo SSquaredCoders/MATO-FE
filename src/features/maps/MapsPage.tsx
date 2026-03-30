@@ -141,6 +141,15 @@ function mapSongToDraft(song: MapSongDefinition): SongDraftRow {
   };
 }
 
+function cloneSongRow(row: SongDraftRow): SongDraftRow {
+  return {
+    ...row,
+    id: `song-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    isUploading: false,
+    uploadError: null,
+  };
+}
+
 function formatSongSummary(row: SongDraftRow) {
   if (row.title.trim()) {
     return row.title.trim();
@@ -2126,6 +2135,19 @@ export default function MapsPage() {
     setSelectedSongRowId(nextRow.id);
   };
 
+  const duplicateSongRow = (rowId: string) => {
+    const currentIndex = songRows.findIndex((row) => row.id === rowId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    const nextRow = cloneSongRow(songRows[currentIndex]);
+    const nextRows = [...songRows];
+    nextRows.splice(currentIndex + 1, 0, nextRow);
+    setSongRows(nextRows);
+    setSelectedSongRowId(nextRow.id);
+  };
+
   const moveSongRow = (rowId: string, direction: -1 | 1) => {
     setSongRows((current) => {
       const currentIndex = current.findIndex((row) => row.id === rowId);
@@ -2837,6 +2859,13 @@ export default function MapsPage() {
                       type="button"
                     >
                       곡 추가
+                    </button>
+                    <button
+                      className="button button--ghost"
+                      onClick={() => duplicateSongRow(activeSongRow.id)}
+                      type="button"
+                    >
+                      복제
                     </button>
                     <button
                       className="button button--ghost"
