@@ -209,6 +209,17 @@ export default function LobbyPage() {
             <h3>지금 들어갈 수 있는 방 목록입니다.</h3>
           </div>
 
+          <div className="button-row">
+            <button
+              className="button button--ghost"
+              onClick={() => void roomsQuery.refetch()}
+              disabled={roomsQuery.isFetching}
+              type="button"
+            >
+              {roomsQuery.isFetching ? "새로고침 중..." : "대기방 새로고침"}
+            </button>
+          </div>
+
           {roomsQuery.error ? (
             <p className="footnote">{(roomsQuery.error as Error).message}</p>
           ) : null}
