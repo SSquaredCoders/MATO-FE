@@ -1942,6 +1942,7 @@ export default function MapsPage() {
   const [songRows, setSongRows] = useState<SongDraftRow[]>([
     createBlankSongRow(),
   ]);
+  const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
 
   const viewerNickname = currentNickname.trim();
   const creatorNickname = nickname.trim() || viewerNickname || "host-01";
@@ -1977,6 +1978,7 @@ export default function MapsPage() {
     const blankRow = createBlankSongRow();
     setEditingMapId(null);
     setPendingEditorMapId(null);
+    setFormErrorMessage(null);
     setName("");
     setDescription("");
     setDifficulty("normal");
@@ -2223,6 +2225,38 @@ export default function MapsPage() {
 
   const handleSubmitMap = () => {
     const request = buildRequest();
+    const invalidSongIndex = request.songs.findIndex((song) => !song.audioSourceValue);
+    const invalidYouTubeSongIndex = request.songs.findIndex(
+      (song) =>
+        song.audioSourceType === "youtube" &&
+        song.audioSourceValue !== null &&
+        !getYouTubeVideoId(song.audioSourceValue),
+    );
+    const answerlessSongIndex = request.songs.findIndex(
+      (song) => song.answers.length === 0,
+    );
+
+    setFormErrorMessage(null);
+
+    if (invalidSongIndex >= 0) {
+      setFormErrorMessage(`${invalidSongIndex + 1}번 곡의 소스를 먼저 입력해주세요.`);
+      return;
+    }
+
+    if (invalidYouTubeSongIndex >= 0) {
+      setFormErrorMessage(
+        `${invalidYouTubeSongIndex + 1}번 곡의 유튜브 링크를 다시 확인해주세요.`,
+      );
+      return;
+    }
+
+    if (answerlessSongIndex >= 0) {
+      setFormErrorMessage(
+        `${answerlessSongIndex + 1}번 곡에 정답 별칭을 하나 이상 넣어주세요.`,
+      );
+      return;
+    }
+
     setCurrentNickname(creatorNickname);
 
     if (editingMapId) {
@@ -2301,6 +2335,7 @@ export default function MapsPage() {
   const openOverviewMode = () => {
     setEditorMode("overview");
     setPendingEditorMapId(null);
+    setFormErrorMessage(null);
   };
 
   const openCreateMode = () => {
@@ -2313,6 +2348,7 @@ export default function MapsPage() {
       return;
     }
 
+    setFormErrorMessage(null);
     setEditorMode("edit");
     setPendingEditorMapId(selectedMapId);
   };
@@ -3018,7 +3054,9 @@ export default function MapsPage() {
               </button>
             </div>
 
-            {submitError ? (
+            {formErrorMessage ? (
+              <p className="footnote">{formErrorMessage}</p>
+            ) : submitError ? (
               <p className="footnote">{submitError.message}</p>
             ) : deleteError ? (
               <p className="footnote">{deleteError.message}</p>
