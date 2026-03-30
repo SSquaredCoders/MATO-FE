@@ -902,7 +902,7 @@ function LegacySongPreviewPlayer({
   return (
     <div className="song-preview">
       <div className="song-preview__meta">
-        <p className="eyebrow">Clip Preview</p>
+        <p className="eyebrow">미리듣기</p>
         <strong>{row.audioSourceLabel || formatSongSummary(row)}</strong>
         <p className="footnote">
           {clipStartSeconds}초부터{" "}
@@ -1650,13 +1650,13 @@ function SongPreviewPlayer({
   const renderClipTimeline = () => (
     <div className="clip-timeline">
       <div className="clip-timeline__labels">
-        <span>시작 {formatSecondsLabel(clipStartSeconds)}</span>
-        <span>현재 {formatSecondsLabel(currentTimeSeconds)}</span>
+        <span>{"\uc2dc\uc791"} {formatSecondsLabel(clipStartSeconds)}</span>
+        <span>{"\ud604\uc7ac"} {formatSecondsLabel(currentTimeSeconds)}</span>
         <span>
-          끝{" "}
+          {"\ub05d"}{" "}
           {clipEndSeconds !== null
             ? formatSecondsLabel(clipEndSeconds)
-            : "전체"}
+            : "\uc804\uccb4"}
         </span>
       </div>
       <div
@@ -1684,7 +1684,7 @@ function SongPreviewPlayer({
           }}
           style={{ left: `${timelineStartPercent}%` }}
           type="button"
-          aria-label="시작점 이동"
+          aria-label={"\uc2dc\uc791\uc810 \uc774\ub3d9"}
         />
         <button
           className="clip-timeline__handle clip-timeline__handle--end"
@@ -1694,7 +1694,7 @@ function SongPreviewPlayer({
           }}
           style={{ left: `${timelineEndPercent}%` }}
           type="button"
-          aria-label="끝점 이동"
+          aria-label={"\ub05d\uc810 \uc774\ub3d9"}
         />
       </div>
     </div>
@@ -1703,11 +1703,11 @@ function SongPreviewPlayer({
   return (
     <div className="song-preview">
       <div className="song-preview__meta">
-        <p className="eyebrow">Clip Preview</p>
+        <p className="eyebrow">{"\ubbf8\ub9ac\ub4e3\uae30"}</p>
         <strong>{row.audioSourceLabel || formatSongSummary(row)}</strong>
         <p className="footnote">
-          {clipStartSeconds}초부터{" "}
-          {clipEndSeconds !== null ? `${clipEndSeconds}초까지` : "끝까지"} 미리듣기
+          {clipStartSeconds}{"\ucd08\ubd80\ud130"}{" "}
+          {clipEndSeconds !== null ? `${clipEndSeconds}\ucd08\uae4c\uc9c0` : "\ub05d\uae4c\uc9c0"} {"\ubbf8\ub9ac\ub4e3\uae30"}
         </p>
       </div>
 
@@ -1723,7 +1723,7 @@ function SongPreviewPlayer({
           <div className="song-preview__transport">
             <div className="song-preview__time-row">
               <strong>{formatSecondsLabel(currentTimeSeconds)}</strong>
-              <span>구간 길이 {formatSecondsLabel(previewDurationSeconds || 0)}</span>
+              <span>{"\uad6c\uac04 \uae38\uc774"} {formatSecondsLabel(previewDurationSeconds || 0)}</span>
             </div>
 
             {renderClipTimeline()}
@@ -1734,14 +1734,14 @@ function SongPreviewPlayer({
                 onClick={handleTogglePlayback}
                 type="button"
               >
-                {isPlaying ? "일시정지" : "재생"}
+                {isPlaying ? "\uc77c\uc2dc\uc815\uc9c0" : "\uc7ac\uc0dd"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
                 onClick={() => seekWithinPreview(0)}
                 type="button"
               >
-                처음
+                {"\ucc98\uc74c"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
@@ -1752,7 +1752,7 @@ function SongPreviewPlayer({
                 }
                 type="button"
               >
-                -3초
+                {"-3\ucd08"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
@@ -1766,7 +1766,7 @@ function SongPreviewPlayer({
                 }
                 type="button"
               >
-                +3초
+                {"+3\ucd08"}
               </button>
             </div>
 
@@ -1776,21 +1776,21 @@ function SongPreviewPlayer({
                 onClick={() => onClipStartChange(captureSeconds())}
                 type="button"
               >
-                현재 위치를 시작점으로
+                {"\ud604\uc7ac \uc704\uce58\ub97c \uc2dc\uc791\uc810\uc73c\ub85c"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange(captureSeconds())}
                 type="button"
               >
-                현재 위치를 끝점으로
+                {"\ud604\uc7ac \uc704\uce58\ub97c \ub05d\uc810\uc73c\ub85c"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange("")}
                 type="button"
               >
-                끝까지 재생
+                {"\ub05d\uae4c\uc9c0 \uc7ac\uc0dd"}
               </button>
             </div>
           </div>
@@ -1800,7 +1800,7 @@ function SongPreviewPlayer({
           <div className="song-preview__transport">
             <div className="song-preview__time-row">
               <strong>{formatSecondsLabel(currentTimeSeconds)}</strong>
-              <span>구간 길이 {formatSecondsLabel(previewDurationSeconds || 0)}</span>
+              <span>{"\uad6c\uac04 \uae38\uc774"} {formatSecondsLabel(previewDurationSeconds || 0)}</span>
             </div>
 
             {renderClipTimeline()}
@@ -1811,14 +1811,14 @@ function SongPreviewPlayer({
                 onClick={handleTogglePlayback}
                 type="button"
               >
-                {isPlaying ? "?쇱떆?뺤?" : "?ъ깮"}
+                {isPlaying ? "\uc77c\uc2dc\uc815\uc9c0" : "\uc7ac\uc0dd"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
                 onClick={() => seekWithinPreview(0)}
                 type="button"
               >
-                泥섏쓬
+                {"\ucc98\uc74c"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
@@ -1829,7 +1829,7 @@ function SongPreviewPlayer({
                 }
                 type="button"
               >
-                -3珥?
+                {"-3\ucd08"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
@@ -1843,7 +1843,7 @@ function SongPreviewPlayer({
                 }
                 type="button"
               >
-                +3珥?
+                {"+3\ucd08"}
               </button>
             </div>
 
@@ -1853,27 +1853,27 @@ function SongPreviewPlayer({
                 onClick={() => onClipStartChange(captureSeconds())}
                 type="button"
               >
-                ?꾩옱 ?꾩튂瑜??쒖옉?먯쑝濡?
+                {"\ud604\uc7ac \uc704\uce58\ub97c \uc2dc\uc791\uc810\uc73c\ub85c"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange(captureSeconds())}
                 type="button"
               >
-                ?꾩옱 ?꾩튂瑜??앹젏?쇰줈
+                {"\ud604\uc7ac \uc704\uce58\ub97c \ub05d\uc810\uc73c\ub85c"}
               </button>
               <button
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange("")}
                 type="button"
               >
-                ?앷퉴吏 ?ъ깮
+                {"\ub05d\uae4c\uc9c0 \uc7ac\uc0dd"}
               </button>
             </div>
 
             <p className="song-preview__guide">
-              아래 유튜브 프리뷰를 재생하면서 위 타임라인의 시작점과 끝점을
-              맞춥니다.
+              {"\uc544\ub798 \uc720\ud29c\ube0c \ud504\ub9ac\ubdf0\ub97c \uc7ac\uc0dd\ud558\uba74\uc11c \uc704 \ud0c0\uc784\ub77c\uc778\uc758 \uc2dc\uc791\uc810\uacfc \ub05d\uc810\uc744"}
+              {"\ub9de\ucda5\ub2c8\ub2e4."}
             </p>
           </div>
 
@@ -1884,15 +1884,15 @@ function SongPreviewPlayer({
                 id={youtubeContainerId}
                 className="song-preview__frame"
                 src={youtubeEmbedUrl}
-                title={`${formatSongSummary(row)} 미리듣기`}
+                title={`${formatSongSummary(row)} \ubbf8\ub9ac\ub4e3\uae30`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen
               />
             ) : (
               <p className="footnote">
-                유튜브 링크를 다시 확인해 주세요. 미리듣기 주소를 만들 수
-                없습니다.
+                {"\uc720\ud29c\ube0c \ub9c1\ud06c\ub97c \ub2e4\uc2dc \ud655\uc778\ud574 \uc8fc\uc138\uc694. \ubbf8\ub9ac\ub4e3\uae30 \uc8fc\uc18c\ub97c \ub9cc\ub4e4 \uc218"}
+                {"\uc5c6\uc2b5\ub2c8\ub2e4."}
               </p>
             )}
           </div>
@@ -2890,7 +2890,7 @@ export default function MapsPage() {
               <p className="footnote">{submitError.message}</p>
             ) : (
               <p className="footnote">
-                기본값은 플레이어 숨김, 기본 문제 모드, 정답 즉시 다음 곡입니다.
+                기본값은 플레이어 표시, 기본 문제 모드, 정답 즉시 다음 곡입니다.
                 개인전으로 바꾸면 자동으로 시간 종료 또는 스킵 규칙과 같이
                 움직입니다.
               </p>
