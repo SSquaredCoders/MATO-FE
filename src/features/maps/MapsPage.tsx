@@ -1183,6 +1183,7 @@ function LegacySongPreviewPlayer({
             {youtubeEmbedUrl ? (
               <iframe
                 ref={youtubeIframeRef}
+                id={youtubeContainerId}
                 className="song-preview__frame"
                 src={youtubeEmbedUrl}
                 aria-label="유튜브 미리듣기"
@@ -1339,49 +1340,119 @@ function SongPreviewPlayer({
     };
   }, [row.audioSourceType, row.audioSourceValue, clipStartSeconds, clipEndSeconds]);
 
-  const postYouTubeCommand = (
-    command: "seekTo" | "playVideo" | "pauseVideo",
-    args: Array<number | boolean> = [],
-  ) => {
-    const frameWindow = youtubeIframeRef.current?.contentWindow;
-    if (!frameWindow) {
-      return;
-    }
-
-    frameWindow.postMessage(
-      JSON.stringify({
-        event: "command",
-        func: command,
-        args,
-      }),
-      "*",
-    );
-  };
-
   useEffect(() => {
-    if (!isYouTubeSource || !youtubeEmbedUrl) {
+    if (!isYouTubeSource || !youtubeVideoId || !youtubeIframeRef.current) {
       return;
     }
 
-    const frame = youtubeIframeRef.current;
-    if (!frame) {
-      return;
-    }
+    let disposed = false;
 
-    const syncToClipStart = () => {
-      window.setTimeout(() => {
-        postYouTubeCommand("seekTo", [clipStartSeconds, true]);
-        setCurrentTimeSeconds(clipStartSeconds);
-      }, 250);
+    const syncPlayerState = () => {
+      const player = youtubePlayerRef.current;
+      if (!player) {
+        return;
+      }
+
+      const duration = Number(player.getDuration()) || 0;
+      if (duration > 0) {
+        setDurationSeconds(duration);
+      }
+
+      const current = Number(player.getCurrentTime()) || clipStartSeconds;
+      const clipLimit = clipEndSeconds ?? (duration || clipStartSeconds);
+
+      if (current >= clipLimit) {
+        player.pauseVideo();
+        setCurrentTimeSeconds(clipLimit);
+        setIsPlaying(false);
+        return;
+      }
+
+      setCurrentTimeSeconds(current);
     };
 
-    frame.addEventListener("load", syncToClipStart);
-    syncToClipStart();
+    void ensureYouTubeApi()
+      .then((YT) => {
+        if (disposed || !youtubeIframeRef.current) {
+          return;
+        }
+
+        const player = new YT.Player(youtubeContainerId, {
+          events: {
+            onReady: ({ target }) => {
+              if (disposed) {
+                return;
+              }
+
+              youtubePlayerRef.current = target;
+              const duration = Number(target.getDuration()) || 0;
+              if (duration > 0) {
+                setDurationSeconds(duration);
+              }
+              setCurrentTimeSeconds(clipStartSeconds);
+              target.seekTo(clipStartSeconds, true);
+
+              if (youtubeSyncTimerRef.current !== null) {
+                window.clearInterval(youtubeSyncTimerRef.current);
+              }
+
+              youtubeSyncTimerRef.current = window.setInterval(syncPlayerState, 250);
+            },
+            onStateChange: ({ data }) => {
+              const playingState = YT.PlayerState?.PLAYING ?? 1;
+              setIsPlaying(data === playingState);
+            },
+          },
+        });
+
+        youtubePlayerRef.current = player;
+      })
+      .catch(() => {
+        setIsPlaying(false);
+      });
 
     return () => {
-      frame.removeEventListener("load", syncToClipStart);
+      disposed = true;
+
+      if (youtubeSyncTimerRef.current !== null) {
+        window.clearInterval(youtubeSyncTimerRef.current);
+        youtubeSyncTimerRef.current = null;
+      }
+
+      youtubePlayerRef.current?.destroy();
+      youtubePlayerRef.current = null;
     };
-  }, [clipStartSeconds, isYouTubeSource, youtubeEmbedUrl]);
+  }, [isYouTubeSource, youtubeContainerId, youtubeVideoId]);
+
+  useEffect(() => {
+    if (!isYouTubeSource || !youtubePlayerRef.current) {
+      previousClipRef.current = { start: clipStartSeconds, end: clipEndSeconds };
+      return;
+    }
+
+    const player = youtubePlayerRef.current;
+    const previousClip = previousClipRef.current;
+
+    if (previousClip.start !== clipStartSeconds) {
+      player.seekTo(clipStartSeconds, true);
+      setCurrentTimeSeconds(clipStartSeconds);
+      if (isPlaying) {
+        player.playVideo();
+      }
+    }
+
+    if (previousClip.end !== clipEndSeconds) {
+      const current = Number(player.getCurrentTime()) || clipStartSeconds;
+      if (clipEndSeconds !== null && current > clipEndSeconds) {
+        player.seekTo(clipEndSeconds, true);
+        setCurrentTimeSeconds(clipEndSeconds);
+        player.pauseVideo();
+        setIsPlaying(false);
+      }
+    }
+
+    previousClipRef.current = { start: clipStartSeconds, end: clipEndSeconds };
+  }, [clipEndSeconds, clipStartSeconds, isPlaying, isYouTubeSource]);
 
   const updateHandleFromClientX = (
     clientX: number,
@@ -1453,6 +1524,25 @@ function SongPreviewPlayer({
   };
 
   const handleTogglePlayback = () => {
+    if (isYouTubeSource && youtubePlayerRef.current) {
+      if (isPlaying) {
+        youtubePlayerRef.current.pauseVideo();
+        return;
+      }
+
+      const clipLimit =
+        clipEndSeconds ??
+        (durationSeconds > 0 ? durationSeconds : clipStartSeconds);
+
+      if (currentTimeSeconds >= clipLimit) {
+        youtubePlayerRef.current.seekTo(clipStartSeconds, true);
+        setCurrentTimeSeconds(clipStartSeconds);
+      }
+
+      youtubePlayerRef.current.playVideo();
+      return;
+    }
+
     if (!isFileSource || !audioRef.current) {
       return;
     }
@@ -1484,6 +1574,21 @@ function SongPreviewPlayer({
   };
 
   const seekWithinPreview = (nextOffsetSeconds: number) => {
+    if (isYouTubeSource && youtubePlayerRef.current) {
+      const clipLimit =
+        clipEndSeconds ??
+        (durationSeconds > 0 ? durationSeconds : clipStartSeconds);
+      const nextTime = clampSeconds(
+        clipStartSeconds + nextOffsetSeconds,
+        clipStartSeconds,
+        Math.max(clipStartSeconds, clipLimit),
+      );
+
+      youtubePlayerRef.current.seekTo(nextTime, true);
+      setCurrentTimeSeconds(nextTime);
+      return;
+    }
+
     if (!isFileSource || !audioRef.current) {
       return;
     }
