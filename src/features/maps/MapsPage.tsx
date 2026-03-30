@@ -14,6 +14,7 @@ import type {
   MapAnswerMode,
   MapDetail,
   MapRoundFlowMode,
+  MapSongOrderMode,
   MapSongDefinition,
 } from "../../shared/types/contracts";
 
@@ -93,6 +94,11 @@ const answerModeLabels: Record<MapAnswerMode, string> = {
 const roundFlowModeLabels: Record<MapRoundFlowMode, string> = {
   "advance-on-correct": "정답 즉시 다음 곡",
   "timer-or-skip": "시간 종료 또는 스킵",
+};
+
+const songOrderModeLabels: Record<MapSongOrderMode, string> = {
+  "author-order": "제작자 순서",
+  random: "랜덤",
 };
 
 function formatHintText(clue: string) {
@@ -1925,6 +1931,8 @@ export default function MapsPage() {
   );
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [showMediaControls, setShowMediaControls] = useState(true);
+  const [songOrderMode, setSongOrderMode] =
+    useState<MapSongOrderMode>("author-order");
   const [answerMode, setAnswerMode] = useState<MapAnswerMode>("single-lock");
   const [roundFlowMode, setRoundFlowMode] =
     useState<MapRoundFlowMode>("advance-on-correct");
@@ -1973,6 +1981,7 @@ export default function MapsPage() {
     setDifficulty("normal");
     setVisibility("public");
     setShowMediaControls(true);
+    setSongOrderMode("author-order");
     setAnswerMode("single-lock");
     setRoundFlowMode("advance-on-correct");
     setRoundTimeLimitSeconds("30");
@@ -1994,6 +2003,7 @@ export default function MapsPage() {
     setDifficulty(map.difficulty);
     setVisibility(map.visibility);
     setShowMediaControls(map.showMediaControls);
+    setSongOrderMode(map.songOrderMode);
     setAnswerMode(map.answerMode);
     setRoundFlowMode(map.roundFlowMode);
     setRoundTimeLimitSeconds(String(map.roundTimeLimitSeconds));
@@ -2097,6 +2107,26 @@ export default function MapsPage() {
     setSelectedSongRowId(nextRow.id);
   };
 
+  const moveSongRow = (rowId: string, direction: -1 | 1) => {
+    setSongRows((current) => {
+      const currentIndex = current.findIndex((row) => row.id === rowId);
+      const nextIndex = currentIndex + direction;
+
+      if (
+        currentIndex < 0 ||
+        nextIndex < 0 ||
+        nextIndex >= current.length
+      ) {
+        return current;
+      }
+
+      const nextRows = [...current];
+      const [movedRow] = nextRows.splice(currentIndex, 1);
+      nextRows.splice(nextIndex, 0, movedRow);
+      return nextRows;
+    });
+  };
+
   const removeSongRow = (rowId: string) => {
     setSongRows((current) => {
       if (current.length === 1) {
@@ -2151,6 +2181,7 @@ export default function MapsPage() {
     difficulty,
     visibility,
     showMediaControls,
+    songOrderMode,
     answerMode,
     roundFlowMode,
     roundTimeLimitSeconds: Number(roundTimeLimitSeconds),
@@ -2187,6 +2218,9 @@ export default function MapsPage() {
 
   const activeSongRow =
     songRows.find((row) => row.id === selectedSongRowId) ?? songRows[0];
+  const activeSongIndex = activeSongRow
+    ? songRows.findIndex((row) => row.id === activeSongRow.id)
+    : -1;
   const activeClipSliderMax = activeSongRow ? getClipSliderMax(activeSongRow) : 240;
   const activeClipStartSeconds = activeSongRow
     ? parseSeconds(activeSongRow.clipStartSeconds, 0)
@@ -2373,6 +2407,9 @@ export default function MapsPage() {
               {selectedMap ? (
                 <div className="chip-list">
                   <span className="chip">
+                    {songOrderModeLabels[selectedMap.songOrderMode]}
+                  </span>
+                  <span className="chip">
                     {answerModeLabels[selectedMap.answerMode]}
                   </span>
                   <span className="chip">
@@ -2409,6 +2446,10 @@ export default function MapsPage() {
                   <div>
                     <span>공개 범위</span>
                     <strong>{visibilityLabels[selectedMap.visibility]}</strong>
+                  </div>
+                  <div>
+                    <span>곡 순서</span>
+                    <strong>{songOrderModeLabels[selectedMap.songOrderMode]}</strong>
                   </div>
                   <div>
                     <span>정답 별칭</span>
@@ -2518,6 +2559,25 @@ export default function MapsPage() {
               >
                 새 맵 만들기
               </button>
+            </div>
+
+            <div className="toggle-card">
+              <div>
+                <strong>곡 순서</strong>
+                <p>
+                  제작자 순서는 편집기에 보이는 곡 순서를 그대로 쓰고, 랜덤은
+                  게임 시작 시마다 순서를 섞습니다.
+                </p>
+              </div>
+              <select
+                value={songOrderMode}
+                onChange={(event) =>
+                  setSongOrderMode(event.target.value as MapSongOrderMode)
+                }
+              >
+                <option value="author-order">제작자 순서</option>
+                <option value="random">랜덤</option>
+              </select>
             </div>
 
             <div className="grid grid--two">
@@ -2685,6 +2745,22 @@ export default function MapsPage() {
                       type="button"
                     >
                       곡 추가
+                    </button>
+                    <button
+                      className="button button--ghost"
+                      onClick={() => moveSongRow(activeSongRow.id, -1)}
+                      type="button"
+                      disabled={activeSongIndex <= 0}
+                    >
+                      위로
+                    </button>
+                    <button
+                      className="button button--ghost"
+                      onClick={() => moveSongRow(activeSongRow.id, 1)}
+                      type="button"
+                      disabled={activeSongIndex < 0 || activeSongIndex >= songRows.length - 1}
+                    >
+                      아래로
                     </button>
                     <button
                       className="button button--ghost"

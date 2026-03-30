@@ -14,6 +14,7 @@ export type GamePhase =
 
 export type MapAnswerMode = "single-lock" | "multi-score";
 export type MapRoundFlowMode = "advance-on-correct" | "timer-or-skip";
+export type MapSongOrderMode = "author-order" | "random";
 
 export interface MapSummary {
   id: number;
@@ -43,6 +44,7 @@ export interface MapDetail {
   difficulty: "easy" | "normal" | "hard";
   visibility: "public" | "private";
   showMediaControls: boolean;
+  songOrderMode: MapSongOrderMode;
   answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
   roundTimeLimitSeconds: number;
@@ -57,6 +59,7 @@ export interface CreateMapRequest {
   difficulty: "easy" | "normal" | "hard";
   visibility: "public" | "private";
   showMediaControls: boolean;
+  songOrderMode: MapSongOrderMode;
   answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
   roundTimeLimitSeconds: number;
