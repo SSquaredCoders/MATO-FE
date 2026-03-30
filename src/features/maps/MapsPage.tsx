@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createMap,
+  deleteMap,
   fetchMapDetail,
   fetchMaps,
   updateMap,
@@ -2066,6 +2067,22 @@ export default function MapsPage() {
     },
   });
 
+  const deleteMapMutation = useMutation({
+    mutationFn: ({ mapId, viewer }: { mapId: number; viewer: string }) =>
+      deleteMap(mapId, viewer),
+    onSuccess: (_unused, variables) => {
+      const remainingMaps = maps.filter((map) => map.id !== variables.mapId);
+      queryClient.removeQueries({
+        queryKey: ["maps", variables.mapId, viewerNickname],
+      });
+      queryClient.invalidateQueries({ queryKey: ["maps", viewerNickname] });
+      setPendingEditorMapId(null);
+      setEditorMode("overview");
+      resetForm();
+      setSelectedMapId(remainingMaps[0]?.id ?? null);
+    },
+  });
+
   const totalAnswerAliases = useMemo(
     () =>
       selectedMap?.songs.reduce(
@@ -2279,6 +2296,7 @@ export default function MapsPage() {
   const submitError =
     (createMapMutation.error as Error | null) ??
     (updateMapMutation.error as Error | null);
+  const deleteError = deleteMapMutation.error as Error | null;
 
   const openOverviewMode = () => {
     setEditorMode("overview");
@@ -2297,6 +2315,24 @@ export default function MapsPage() {
 
     setEditorMode("edit");
     setPendingEditorMapId(selectedMapId);
+  };
+
+  const handleDeleteSelectedMap = () => {
+    if (!selectedMap) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `'${selectedMap.name}' 맵을 삭제합니다. 되돌릴 수 없습니다.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    deleteMapMutation.mutate({
+      mapId: selectedMap.id,
+      viewer: viewerNickname || selectedMap.createdBy,
+    });
   };
 
   return (
@@ -2471,12 +2507,22 @@ export default function MapsPage() {
                   </button>
                   <button
                     className="button button--ghost"
+                    onClick={handleDeleteSelectedMap}
+                    type="button"
+                    disabled={deleteMapMutation.isPending}
+                  >
+                    {deleteMapMutation.isPending ? "삭제 중..." : "맵 삭제"}
+                  </button>
+                  <button
+                    className="button button--ghost"
                     onClick={openCreateMode}
                     type="button"
                   >
                     맵 만들기
                   </button>
                 </div>
+
+                {deleteError ? <p className="footnote">{deleteError.message}</p> : null}
 
                 <div className="map-song-list">
                   {selectedMap.songs.map((song, index) => (
@@ -2559,6 +2605,16 @@ export default function MapsPage() {
               >
                 새 맵 만들기
               </button>
+              {editingMapId ? (
+                <button
+                  className="button button--ghost"
+                  onClick={handleDeleteSelectedMap}
+                  type="button"
+                  disabled={deleteMapMutation.isPending}
+                >
+                  {deleteMapMutation.isPending ? "삭제 중..." : "맵 삭제"}
+                </button>
+              ) : null}
             </div>
 
             <div className="toggle-card">
@@ -2964,6 +3020,8 @@ export default function MapsPage() {
 
             {submitError ? (
               <p className="footnote">{submitError.message}</p>
+            ) : deleteError ? (
+              <p className="footnote">{deleteError.message}</p>
             ) : (
               <p className="footnote">
                 기본값은 플레이어 표시, 기본 문제 모드, 정답 즉시 다음 곡입니다.

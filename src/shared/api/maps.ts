@@ -55,6 +55,22 @@ export function updateMap(mapId: number, request: CreateMapRequest) {
   });
 }
 
+export async function deleteMap(mapId: number, viewer: string) {
+  const query = new URLSearchParams();
+  if (viewer.trim()) {
+    query.set("viewer", viewer.trim());
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/v2/maps/${mapId}?${query.toString()}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "Map delete failed.");
+  }
+}
+
 export async function uploadMapAudioFile(file: File) {
   const formData = new FormData();
   formData.append("file", file);
