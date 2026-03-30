@@ -149,7 +149,7 @@ export default function RoomPage() {
     }
 
     setTransientMessages((current) =>
-      [...current.filter((item) => item.id !== message.id), message].slice(-2),
+      [...current.filter((item) => item.id !== message.id), message].slice(-4),
     );
 
     const timer = setTimeout(() => {
@@ -157,7 +157,7 @@ export default function RoomPage() {
         current.filter((item) => item.id !== message.id),
       );
       transientTimersRef.current.delete(message.id);
-    }, 4200);
+    }, 6000);
 
     transientTimersRef.current.set(message.id, timer);
   };
