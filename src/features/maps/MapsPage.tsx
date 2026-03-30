@@ -4,6 +4,7 @@ import {
   createMap,
   deleteMap,
   fetchMapDetail,
+  fetchMapSongs,
   fetchMaps,
   updateMap,
   uploadMapAudioFile,
@@ -17,6 +18,7 @@ import type {
   MapRoundFlowMode,
   MapSongOrderMode,
   MapSongDefinition,
+  MapSongSummary,
 } from "../../shared/types/contracts";
 
 type MapEditorMode = "overview" | "edit" | "create";
@@ -102,6 +104,8 @@ const songOrderModeLabels: Record<MapSongOrderMode, string> = {
   random: "랜덤",
 };
 
+const MAP_SONG_PAGE_SIZE = 25;
+
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
 }
@@ -173,6 +177,20 @@ function formatSongSource(
   }
 
   return song.audioSourceLabel || song.audioSourceValue;
+}
+
+function formatSongSourceSummary(
+  song: Pick<MapSongSummary, "audioSourceType" | "audioSourceLabel">,
+) {
+  if (!song.audioSourceType) {
+    return "소스 없음";
+  }
+
+  if (song.audioSourceType === "file") {
+    return song.audioSourceLabel || "업로드 파일";
+  }
+
+  return song.audioSourceLabel || "유튜브 링크";
 }
 
 function parseSeconds(value: string, fallback = 0) {
@@ -1948,6 +1966,10 @@ export default function MapsPage() {
     useState<MapRoundFlowMode>("advance-on-correct");
   const [roundTimeLimitSeconds, setRoundTimeLimitSeconds] = useState("30");
   const [hintRevealDelaySeconds, setHintRevealDelaySeconds] = useState("8");
+  const [overviewSongQuery, setOverviewSongQuery] = useState("");
+  const [overviewSongPage, setOverviewSongPage] = useState(0);
+  const [editorSongQuery, setEditorSongQuery] = useState("");
+  const [editorSongPage, setEditorSongPage] = useState(0);
   const [songRows, setSongRows] = useState<SongDraftRow[]>([
     createBlankSongRow(),
   ]);
@@ -1975,13 +1997,42 @@ export default function MapsPage() {
   }, [mapsQuery.data, selectedMapId]);
 
   const selectedMapQuery = useQuery({
-    queryKey: ["maps", selectedMapId, viewerNickname],
-    queryFn: () => fetchMapDetail(selectedMapId as number, viewerNickname),
+    queryKey: ["maps", selectedMapId, viewerNickname, editorMode === "edit"],
+    queryFn: () =>
+      fetchMapDetail(selectedMapId as number, viewerNickname, editorMode === "edit"),
     enabled: selectedMapId !== null && Boolean(viewerNickname),
+  });
+
+  const selectedMapSongsQuery = useQuery({
+    queryKey: [
+      "map-songs",
+      selectedMapId,
+      viewerNickname,
+      overviewSongPage,
+      overviewSongQuery,
+    ],
+    queryFn: () =>
+      fetchMapSongs(selectedMapId as number, viewerNickname, {
+        page: overviewSongPage,
+        size: MAP_SONG_PAGE_SIZE,
+        query: overviewSongQuery,
+      }),
+    enabled:
+      editorMode === "overview" &&
+      selectedMapId !== null &&
+      Boolean(viewerNickname),
   });
 
   const selectedMap = selectedMapQuery.data;
   const maps = mapsQuery.data ?? [];
+
+  useEffect(() => {
+    setOverviewSongPage(0);
+  }, [selectedMapId, overviewSongQuery]);
+
+  useEffect(() => {
+    setEditorSongPage(0);
+  }, [editorSongQuery]);
 
   const resetForm = () => {
     const blankRow = createBlankSongRow();
@@ -2051,6 +2102,7 @@ export default function MapsPage() {
   const refreshMaps = (mapId: number) => {
     queryClient.invalidateQueries({ queryKey: ["maps", viewerNickname] });
     queryClient.invalidateQueries({ queryKey: ["maps", mapId, viewerNickname] });
+    queryClient.invalidateQueries({ queryKey: ["map-songs", mapId, viewerNickname] });
     setSelectedMapId(mapId);
   };
 
@@ -2086,6 +2138,9 @@ export default function MapsPage() {
       queryClient.removeQueries({
         queryKey: ["maps", variables.mapId, viewerNickname],
       });
+      queryClient.removeQueries({
+        queryKey: ["map-songs", variables.mapId, viewerNickname],
+      });
       queryClient.invalidateQueries({ queryKey: ["maps", viewerNickname] });
       setPendingEditorMapId(null);
       setEditorMode("overview");
@@ -2094,13 +2149,34 @@ export default function MapsPage() {
     },
   });
 
-  const totalAnswerAliases = useMemo(
-    () =>
-      selectedMap?.songs.reduce(
-        (count, song) => count + song.answers.length,
-        0,
-      ) ?? 0,
-    [selectedMap],
+  const filteredEditorSongRows = useMemo(() => {
+    const normalizedQuery = editorSongQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return songRows;
+    }
+
+    return songRows.filter((row) => {
+      const haystack = [
+        row.title,
+        row.artist,
+        row.clue,
+        row.answersText,
+        row.audioSourceLabel,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [editorSongQuery, songRows]);
+
+  const editorSongPageCount = Math.max(
+    1,
+    Math.ceil(filteredEditorSongRows.length / MAP_SONG_PAGE_SIZE),
+  );
+  const safeEditorSongPage = Math.min(editorSongPage, editorSongPageCount - 1);
+  const pagedEditorSongRows = filteredEditorSongRows.slice(
+    safeEditorSongPage * MAP_SONG_PAGE_SIZE,
+    (safeEditorSongPage + 1) * MAP_SONG_PAGE_SIZE,
   );
 
   const updateSongRow = (
@@ -2546,8 +2622,8 @@ export default function MapsPage() {
                     <strong>{songOrderModeLabels[selectedMap.songOrderMode]}</strong>
                   </div>
                   <div>
-                    <span>정답 별칭</span>
-                    <strong>{totalAnswerAliases}개</strong>
+                    <span>곡 수</span>
+                    <strong>{selectedMap.songCount}곡</strong>
                   </div>
                   <div>
                     <span>문제 시간</span>
@@ -2582,20 +2658,78 @@ export default function MapsPage() {
 
                 {deleteError ? <p className="footnote">{deleteError.message}</p> : null}
 
+                <div className="field">
+                  <span>곡 검색</span>
+                  <input
+                    value={overviewSongQuery}
+                    onChange={(event) => setOverviewSongQuery(event.target.value)}
+                    placeholder="제목, 가수, 힌트로 검색"
+                  />
+                </div>
+
+                <div className="button-row">
+                  <span className="chip">
+                    {selectedMapSongsQuery.data?.totalElements ?? selectedMap.songCount}곡
+                  </span>
+                  <span className="chip">
+                    {selectedMapSongsQuery.data
+                      ? `${selectedMapSongsQuery.data.page + 1}/${Math.max(
+                          1,
+                          selectedMapSongsQuery.data.totalPages,
+                        )} 페이지`
+                      : "곡 목록 대기"}
+                  </span>
+                  <button
+                    className="button button--ghost"
+                    onClick={() =>
+                      setOverviewSongPage((currentPage) => Math.max(0, currentPage - 1))
+                    }
+                    type="button"
+                    disabled={overviewSongPage <= 0}
+                  >
+                    이전
+                  </button>
+                  <button
+                    className="button button--ghost"
+                    onClick={() =>
+                      setOverviewSongPage((currentPage) =>
+                        selectedMapSongsQuery.data
+                          ? Math.min(
+                              selectedMapSongsQuery.data.totalPages - 1,
+                              currentPage + 1,
+                            )
+                          : currentPage,
+                      )
+                    }
+                    type="button"
+                    disabled={
+                      !selectedMapSongsQuery.data ||
+                      overviewSongPage >= selectedMapSongsQuery.data.totalPages - 1
+                    }
+                  >
+                    다음
+                  </button>
+                </div>
+
+                {selectedMapSongsQuery.isLoading ? (
+                  <p className="footnote">곡 목록을 페이지로 불러오는 중입니다.</p>
+                ) : null}
+
                 <div className="map-song-list">
-                  {selectedMap.songs.map((song, index) => (
+                  {selectedMapSongsQuery.data?.items.map((song) => (
                     <article
                       className="map-song-card"
-                      key={`${song.title}-${song.artist}-${index}`}
+                      key={`${song.id}-${song.songOrder}`}
                     >
                       <div className="map-song-card__head">
                         <strong>
-                          {index + 1}. {song.title || "제목 없음"}
+                          {song.songOrder + 1}. {song.title || "제목 없음"}
                         </strong>
                         <span>{song.artist || "가수 미입력"}</span>
                       </div>
                       <p>힌트: {formatHintText(song.clue) || "힌트 없음"}</p>
-                      <p>소스: {formatSongSource(song)}</p>
+                      <p>소스: {formatSongSourceSummary(song)}</p>
+                      <p>정답 별칭: {song.answerCount}개</p>
                       <p>기본 문제 시간: {selectedMap.roundTimeLimitSeconds}초</p>
                       <p>
                         재생 구간: {song.clipStartSeconds}초부터{" "}
@@ -2603,19 +2737,16 @@ export default function MapsPage() {
                           ? "끝까지"
                           : `${song.clipEndSeconds}초까지`}
                       </p>
-                      <p>
-                        클립이 기본 시간보다 길면 자동 연장되고, 짧으면 시작
-                        지점부터 반복 재생됩니다.
-                      </p>
-                      <div className="chip-list">
-                        {song.answers.map((answer) => (
-                          <span className="chip" key={`${song.title}-${answer}`}>
-                            {answer}
-                          </span>
-                        ))}
-                      </div>
                     </article>
                   ))}
+
+                  {!selectedMapSongsQuery.isLoading &&
+                  (selectedMapSongsQuery.data?.items.length ?? 0) === 0 ? (
+                    <div className="map-empty">
+                      <strong>검색 조건에 맞는 곡이 없습니다.</strong>
+                      <p>검색어를 비우거나 다른 키워드로 다시 찾아보세요.</p>
+                    </div>
+                  ) : null}
                 </div>
               </>
             ) : (
@@ -3146,9 +3277,54 @@ export default function MapsPage() {
                   </button>
                 ))}
               </div>
-            ) : (
-              <div className="song-queue">
-                {songRows.map((row, index) => (
+            ) : null}
+
+            <div className="field">
+              <span>{editorMode === "edit" ? "현재 맵 곡 검색" : "추가한 곡 검색"}</span>
+              <input
+                value={editorSongQuery}
+                onChange={(event) => setEditorSongQuery(event.target.value)}
+                placeholder="제목, 가수, 힌트, 정답으로 검색"
+              />
+            </div>
+
+            <div className="button-row">
+              <span className="chip">
+                {filteredEditorSongRows.length}곡
+              </span>
+              <span className="chip">
+                {safeEditorSongPage + 1}/{editorSongPageCount} 페이지
+              </span>
+              <button
+                className="button button--ghost"
+                onClick={() =>
+                  setEditorSongPage((currentPage) => Math.max(0, currentPage - 1))
+                }
+                type="button"
+                disabled={safeEditorSongPage <= 0}
+              >
+                이전
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={() =>
+                  setEditorSongPage((currentPage) =>
+                    Math.min(editorSongPageCount - 1, currentPage + 1),
+                  )
+                }
+                type="button"
+                disabled={safeEditorSongPage >= editorSongPageCount - 1}
+              >
+                다음
+              </button>
+            </div>
+
+            <div className="song-queue">
+              {pagedEditorSongRows.map((row) => {
+                const songNumber =
+                  songRows.findIndex((candidate) => candidate.id === row.id) + 1;
+
+                return (
                   <button
                     className={`song-queue__item${
                       row.id === activeSongRow?.id
@@ -3161,7 +3337,7 @@ export default function MapsPage() {
                   >
                     <div className="song-queue__title-row">
                       <strong>
-                        {index + 1}. {formatSongSummary(row)}
+                        {songNumber}. {formatSongSummary(row)}
                       </strong>
                       <span>{row.audioSourceType === "file" ? "파일" : "유튜브"}</span>
                     </div>
@@ -3177,9 +3353,16 @@ export default function MapsPage() {
                         : "끝까지"}
                     </p>
                   </button>
-                ))}
-              </div>
-            )}
+                );
+              })}
+
+              {pagedEditorSongRows.length === 0 ? (
+                <div className="map-empty">
+                  <strong>검색 결과가 없습니다.</strong>
+                  <p>검색어를 비우거나 다른 키워드로 다시 찾아보세요.</p>
+                </div>
+              ) : null}
+            </div>
           </article>
         </section>
       ) : null}

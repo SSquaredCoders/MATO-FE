@@ -36,6 +36,28 @@ export interface MapSongDefinition {
   clipEndSeconds: number | null;
 }
 
+export interface MapSongSummary {
+  id: number;
+  songOrder: number;
+  clue: string;
+  title: string;
+  artist: string;
+  audioSourceType: "youtube" | "file" | null;
+  audioSourceLabel: string | null;
+  clipStartSeconds: number;
+  clipEndSeconds: number | null;
+  answerCount: number;
+}
+
+export interface MapSongPage {
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  query: string | null;
+  items: MapSongSummary[];
+}
+
 export interface MapDetail {
   id: number;
   name: string;
@@ -43,6 +65,7 @@ export interface MapDetail {
   createdBy: string;
   difficulty: "easy" | "normal" | "hard";
   visibility: "public" | "private";
+  songCount: number;
   showMediaControls: boolean;
   songOrderMode: MapSongOrderMode;
   answerMode: MapAnswerMode;
