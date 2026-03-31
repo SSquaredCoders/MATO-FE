@@ -76,8 +76,8 @@ button {
 
 .shell--workbench {
   width: min(1580px, calc(100% - 24px));
-  height: 100vh;
-  padding: 10px 0;
+  height: 100dvh;
+  padding: 6px 0 8px;
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
@@ -116,9 +116,9 @@ button {
 .shell__header--workbench {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 16px 20px;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 12px 18px;
 }
 
 .shell__brand--room {
@@ -223,6 +223,7 @@ button {
 .shell--workbench .shell__content {
   min-height: 0;
   overflow: hidden;
+  gap: 14px;
 }
 
 .hero {
@@ -907,6 +908,10 @@ button {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.shell--workbench .map-page {
+  gap: 10px;
+}
+
 .map-page__hero {
   padding: 18px 20px;
 }
@@ -916,8 +921,12 @@ button {
 }
 
 .shell--workbench .map-page__hero {
+  gap: 8px;
+  padding: 10px 16px;
+}
+
+.shell--workbench .map-page__hero .panel__header {
   gap: 12px;
-  padding: 14px 18px;
 }
 
 .shell--workbench .map-page__hero .panel__header h2 {
@@ -930,7 +939,7 @@ button {
 }
 
 .shell--workbench .map-mode-bar {
-  gap: 8px;
+  gap: 6px;
 }
 
 .map-mode-bar {
@@ -995,7 +1004,7 @@ button {
 .map-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.85fr) minmax(280px, 0.95fr);
-  gap: 16px;
+  gap: 14px;
   align-items: stretch;
   min-height: 0;
   height: 100%;
