@@ -105,6 +105,7 @@ const songOrderModeLabels: Record<MapSongOrderMode, string> = {
 };
 
 const MAP_SONG_PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
@@ -1968,8 +1969,14 @@ export default function MapsPage() {
   const [hintRevealDelaySeconds, setHintRevealDelaySeconds] = useState("8");
   const [overviewSongQuery, setOverviewSongQuery] = useState("");
   const [overviewSongPage, setOverviewSongPage] = useState(0);
+  const [overviewSongPageSize, setOverviewSongPageSize] = useState<number>(
+    MAP_SONG_PAGE_SIZE,
+  );
   const [editorSongQuery, setEditorSongQuery] = useState("");
   const [editorSongPage, setEditorSongPage] = useState(0);
+  const [editorSongPageSize, setEditorSongPageSize] = useState<number>(
+    MAP_SONG_PAGE_SIZE,
+  );
   const [songRows, setSongRows] = useState<SongDraftRow[]>([
     createBlankSongRow(),
   ]);
@@ -2009,12 +2016,13 @@ export default function MapsPage() {
       selectedMapId,
       viewerNickname,
       overviewSongPage,
+      overviewSongPageSize,
       overviewSongQuery,
     ],
     queryFn: () =>
       fetchMapSongs(selectedMapId as number, viewerNickname, {
         page: overviewSongPage,
-        size: MAP_SONG_PAGE_SIZE,
+        size: overviewSongPageSize,
         query: overviewSongQuery,
       }),
     enabled:
@@ -2028,11 +2036,11 @@ export default function MapsPage() {
 
   useEffect(() => {
     setOverviewSongPage(0);
-  }, [selectedMapId, overviewSongQuery]);
+  }, [selectedMapId, overviewSongPageSize, overviewSongQuery]);
 
   useEffect(() => {
     setEditorSongPage(0);
-  }, [editorSongQuery]);
+  }, [editorSongPageSize, editorSongQuery]);
 
   const resetForm = () => {
     const blankRow = createBlankSongRow();
@@ -2171,12 +2179,12 @@ export default function MapsPage() {
 
   const editorSongPageCount = Math.max(
     1,
-    Math.ceil(filteredEditorSongRows.length / MAP_SONG_PAGE_SIZE),
+    Math.ceil(filteredEditorSongRows.length / editorSongPageSize),
   );
   const safeEditorSongPage = Math.min(editorSongPage, editorSongPageCount - 1);
   const pagedEditorSongRows = filteredEditorSongRows.slice(
-    safeEditorSongPage * MAP_SONG_PAGE_SIZE,
-    (safeEditorSongPage + 1) * MAP_SONG_PAGE_SIZE,
+    safeEditorSongPage * editorSongPageSize,
+    (safeEditorSongPage + 1) * editorSongPageSize,
   );
 
   const updateSongRow = (
@@ -2679,6 +2687,21 @@ export default function MapsPage() {
                         )} 페이지`
                       : "곡 목록 대기"}
                   </span>
+                  <label className="field field--inline map-toolbar__page-size">
+                    <span>페이지당</span>
+                    <select
+                      value={overviewSongPageSize}
+                      onChange={(event) =>
+                        setOverviewSongPageSize(Number(event.target.value))
+                      }
+                    >
+                      {PAGE_SIZE_OPTIONS.map((sizeOption) => (
+                        <option key={`overview-size-${sizeOption}`} value={sizeOption}>
+                          {sizeOption}개
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <button
                     className="button button--ghost"
                     onClick={() =>
@@ -3295,6 +3318,21 @@ export default function MapsPage() {
               <span className="chip">
                 {safeEditorSongPage + 1}/{editorSongPageCount} 페이지
               </span>
+              <label className="field field--inline map-toolbar__page-size">
+                <span>페이지당</span>
+                <select
+                  value={editorSongPageSize}
+                  onChange={(event) =>
+                    setEditorSongPageSize(Number(event.target.value))
+                  }
+                >
+                  {PAGE_SIZE_OPTIONS.map((sizeOption) => (
+                    <option key={`editor-size-${sizeOption}`} value={sizeOption}>
+                      {sizeOption}개
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 className="button button--ghost"
                 onClick={() =>

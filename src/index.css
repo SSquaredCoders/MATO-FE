@@ -297,6 +297,17 @@ button {
   font-size: 0.92rem;
 }
 
+.field--inline {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.field--inline span {
+  white-space: nowrap;
+}
+
 .field input,
 .field select {
   width: 100%;
@@ -975,6 +986,14 @@ button {
 
 .map-workspace--workbench .map-builder__actions {
   top: 74px;
+}
+
+.map-toolbar__page-size {
+  min-width: 148px;
+}
+
+.map-toolbar__page-size select {
+  min-width: 92px;
 }
 
 .map-browser__detail .map-song-list,
