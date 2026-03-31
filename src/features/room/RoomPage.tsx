@@ -9,7 +9,6 @@ import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
   ConnectionState,
   GamePhase,
-  MapAnswerMode,
   MapRoundFlowMode,
   MapSongOrderMode,
   RoomChatMessage,
@@ -129,12 +128,8 @@ export default function RoomPage() {
   const [connection, setConnection] = useState<ConnectionState>("idle");
   const [isWatcherJoining, setIsWatcherJoining] = useState(false);
   const [isRoomSettingsOpen, setIsRoomSettingsOpen] = useState(false);
-  const [settingsShowMediaControls, setSettingsShowMediaControls] =
-    useState(true);
   const [settingsSongOrderMode, setSettingsSongOrderMode] =
     useState<MapSongOrderMode>("author-order");
-  const [settingsAnswerMode, setSettingsAnswerMode] =
-    useState<MapAnswerMode>("single-lock");
   const [settingsRoundFlowMode, setSettingsRoundFlowMode] =
     useState<MapRoundFlowMode>("advance-on-correct");
   const [settingsRoundTimeLimitSeconds, setSettingsRoundTimeLimitSeconds] =
@@ -243,9 +238,7 @@ export default function RoomPage() {
       return;
     }
 
-    setSettingsShowMediaControls(room.showMediaControls);
     setSettingsSongOrderMode(room.songOrderMode);
-    setSettingsAnswerMode(room.answerMode);
     setSettingsRoundFlowMode(room.roundFlowMode);
     setSettingsRoundTimeLimitSeconds(String(room.roundTimeLimitSeconds ?? 30));
     setSettingsSkipVotesRequired(
@@ -255,12 +248,10 @@ export default function RoomPage() {
   }, [
     isRoomSettingsOpen,
     room,
-    room?.answerMode,
     room?.configuredSkipVotesRequired,
     room?.hintRevealDelaySeconds,
     room?.roundFlowMode,
     room?.roundTimeLimitSeconds,
-    room?.showMediaControls,
     room?.songOrderMode,
     room?.skipVotesRequired,
   ]);
@@ -518,9 +509,7 @@ export default function RoomPage() {
 
     publishEvent("room.settings.update", {
       nickname: currentNickname,
-      showMediaControls: settingsShowMediaControls,
       songOrderMode: settingsSongOrderMode,
-      answerMode: settingsAnswerMode,
       roundFlowMode: settingsRoundFlowMode,
       roundTimeLimitSeconds: normalizedRoundTimeLimitSeconds,
       skipVotesRequired: normalizedSkipVotesRequired,
@@ -533,9 +522,7 @@ export default function RoomPage() {
   };
 
   const resetRoomSettingsDraft = () => {
-    setSettingsShowMediaControls(room.showMediaControls);
     setSettingsSongOrderMode(room.songOrderMode);
-    setSettingsAnswerMode(room.answerMode);
     setSettingsRoundFlowMode(room.roundFlowMode);
     setSettingsRoundTimeLimitSeconds(String(room.roundTimeLimitSeconds ?? 30));
     setSettingsSkipVotesRequired(String(configuredSkipVotesRequired));
@@ -834,26 +821,11 @@ export default function RoomPage() {
                 </div>
                 <div className="chip-list room-settings__summary">
                   <span className="chip">{songOrderModeLabels[room.songOrderMode]}</span>
-                  <span className="chip">{answerModeLabels[room.answerMode]}</span>
                   <span className="chip">{roundFlowModeLabels[room.roundFlowMode]}</span>
                 </div>
               </div>
 
               <div className="room-settings__grid">
-                <label className="field">
-                  <span>플레이어 표시</span>
-                  <select
-                    disabled={!canEditRoomSettings}
-                    onChange={(event) =>
-                      setSettingsShowMediaControls(event.target.value === "show")
-                    }
-                    value={settingsShowMediaControls ? "show" : "hide"}
-                  >
-                    <option value="show">표시</option>
-                    <option value="hide">숨김</option>
-                  </select>
-                </label>
-
                 <label className="field">
                   <span>노래 순서</span>
                   <select
@@ -870,26 +842,6 @@ export default function RoomPage() {
                     </option>
                     <option value="random">
                       {songOrderModeLabels.random}
-                    </option>
-                  </select>
-                </label>
-
-                <label className="field">
-                  <span>정답 방식</span>
-                  <select
-                    disabled={!canEditRoomSettings}
-                    onChange={(event) =>
-                      setSettingsAnswerMode(
-                        event.target.value as MapAnswerMode,
-                      )
-                    }
-                    value={settingsAnswerMode}
-                  >
-                    <option value="single-lock">
-                      {answerModeLabels["single-lock"]}
-                    </option>
-                    <option value="multi-score">
-                      {answerModeLabels["multi-score"]}
                     </option>
                   </select>
                 </label>
@@ -962,7 +914,7 @@ export default function RoomPage() {
 
               <p className="footnote room-settings__note">
                 {canEditRoomSettings
-                  ? `맵 기본값 위에 방 설정을 덮어씁니다. 현재 적용 스킵은 ${skipVoteCountLabel}, 기본 스킵 목표는 ${configuredSkipVotesRequired}표입니다.`
+                  ? `맵 기본값 위에 방 설정을 덮어씁니다. 정답 방식과 재생 UI 표시는 맵 설정을 따르며, 현재 적용 스킵은 ${skipVoteCountLabel}, 기본 스킵 목표는 ${configuredSkipVotesRequired}표입니다.`
                   : "게임이 시작된 뒤에는 방 규칙을 바꿀 수 없습니다."}
               </p>
 

@@ -194,9 +194,7 @@ export interface ReadyPayload {
 
 export interface RoomSettingsPayload {
   nickname: string;
-  showMediaControls: boolean;
   songOrderMode: MapSongOrderMode;
-  answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
   roundTimeLimitSeconds: number;
   skipVotesRequired: number;
