@@ -2460,6 +2460,15 @@ export default function MapsPage() {
   const handleBulkImport = () => {
     try {
       const importedRows = parseBulkImportRows(bulkImportText);
+      if (
+        bulkImportMode === "replace" &&
+        songRows.length > 0 &&
+        !window.confirm(
+          `${importedRows.length}곡으로 현재 목록 ${songRows.length}곡을 교체합니다. 계속할까요?`,
+        )
+      ) {
+        return;
+      }
       setSongRows((current) =>
         bulkImportMode === "replace" ? importedRows : [...current, ...importedRows],
       );
@@ -2541,6 +2550,16 @@ export default function MapsPage() {
           },
         );
         importedRows = parseImportRows(rows);
+      }
+
+      if (
+        bulkImportMode === "replace" &&
+        songRows.length > 0 &&
+        !window.confirm(
+          `${importedRows.length}곡으로 현재 목록 ${songRows.length}곡을 교체합니다. 계속할까요?`,
+        )
+      ) {
+        return;
       }
 
       setSongRows((current) =>
