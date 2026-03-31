@@ -22,6 +22,7 @@ import type {
 } from "../../shared/types/contracts";
 
 type MapEditorMode = "overview" | "edit" | "create";
+type BulkImportMode = "append" | "replace";
 
 interface SongDraftRow {
   id: string;
@@ -127,6 +128,7 @@ const BULK_IMPORT_SAMPLE_ROW = [
   "30",
 ] as const;
 const BULK_IMPORT_TEMPLATE_NAME = "mato-map-import-template.xlsx";
+const BULK_EXPORT_FILE_NAME = "mato-map-songs.xlsx";
 
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
@@ -247,6 +249,22 @@ function parseBulkImportRows(input: string) {
     .filter((columns) => columns.some(Boolean));
 
   return parseImportRows(rows);
+}
+
+function buildSpreadsheetRows(songRows: SongDraftRow[]) {
+  return [
+    [...BULK_IMPORT_COLUMNS],
+    ...songRows.map((row) => [
+      row.title.trim(),
+      row.artist.trim(),
+      row.clue.trim(),
+      row.answersText.trim(),
+      row.audioSourceType,
+      row.audioSourceValue.trim(),
+      row.clipStartSeconds.trim() || "0",
+      row.clipEndSeconds.trim(),
+    ]),
+  ];
 }
 
 function parseImportRows(rawRows: Array<Array<string | number | null | undefined>>) {
@@ -2094,6 +2112,7 @@ export default function MapsPage() {
   ]);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [bulkImportMode, setBulkImportMode] = useState<BulkImportMode>("append");
   const [bulkImportText, setBulkImportText] = useState("");
   const [bulkImportError, setBulkImportError] = useState<string | null>(null);
   const editorSongQueueRef = useRef<HTMLDivElement | null>(null);
@@ -2164,6 +2183,7 @@ export default function MapsPage() {
     setPendingEditorMapId(null);
     setFormErrorMessage(null);
     setBulkImportError(null);
+    setBulkImportMode("append");
     setBulkImportText("");
     setIsBulkImportOpen(false);
     setName("");
@@ -2375,7 +2395,9 @@ export default function MapsPage() {
   const handleBulkImport = () => {
     try {
       const importedRows = parseBulkImportRows(bulkImportText);
-      setSongRows((current) => [...current, ...importedRows]);
+      setSongRows((current) =>
+        bulkImportMode === "replace" ? importedRows : [...current, ...importedRows],
+      );
       setSelectedSongRowId(importedRows[importedRows.length - 1]?.id ?? null);
       setBulkImportError(null);
       setBulkImportText("");
@@ -2385,16 +2407,41 @@ export default function MapsPage() {
     }
   };
 
-  const handleBulkTemplateDownload = async () => {
+  const downloadSpreadsheet = async (
+    fileName: string,
+    rows: Array<Array<string>>,
+  ) => {
     const xlsx = await import("xlsx");
     const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.aoa_to_sheet([
+    const worksheet = xlsx.utils.aoa_to_sheet(rows);
+
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Songs");
+    const workbookBytes = xlsx.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const blob = new Blob([workbookBytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const handleBulkTemplateDownload = async () => {
+    await downloadSpreadsheet(BULK_IMPORT_TEMPLATE_NAME, [
       [...BULK_IMPORT_COLUMNS],
       [...BULK_IMPORT_SAMPLE_ROW],
     ]);
+  };
 
-    xlsx.utils.book_append_sheet(workbook, worksheet, "Songs");
-    xlsx.writeFileXLSX(workbook, BULK_IMPORT_TEMPLATE_NAME);
+  const handleDraftSpreadsheetExport = async () => {
+    await downloadSpreadsheet(BULK_EXPORT_FILE_NAME, buildSpreadsheetRows(songRows));
   };
 
   const handleSpreadsheetImport = async (file?: File) => {
@@ -2427,7 +2474,9 @@ export default function MapsPage() {
         importedRows = parseImportRows(rows);
       }
 
-      setSongRows((current) => [...current, ...importedRows]);
+      setSongRows((current) =>
+        bulkImportMode === "replace" ? importedRows : [...current, ...importedRows],
+      );
       setSelectedSongRowId(importedRows[importedRows.length - 1]?.id ?? null);
       setBulkImportError(null);
       setIsBulkImportOpen(false);
@@ -3080,6 +3129,15 @@ export default function MapsPage() {
                   <button
                     className="button button--ghost"
                     onClick={() => {
+                      void handleDraftSpreadsheetExport();
+                    }}
+                    type="button"
+                  >
+                    현재 곡 엑셀로 내보내기
+                  </button>
+                  <button
+                    className="button button--ghost"
+                    onClick={() => {
                       void handleBulkTemplateDownload();
                     }}
                     type="button"
@@ -3087,6 +3145,18 @@ export default function MapsPage() {
                     엑셀 양식 다운로드
                   </button>
                 </div>
+                <label className="field">
+                  <span>가져오기 방식</span>
+                  <select
+                    value={bulkImportMode}
+                    onChange={(event) =>
+                      setBulkImportMode(event.target.value as BulkImportMode)
+                    }
+                  >
+                    <option value="append">기존 곡 뒤에 추가</option>
+                    <option value="replace">현재 목록을 교체</option>
+                  </select>
+                </label>
                 <label className="field">
                   <span>엑셀 파일 업로드</span>
                   <input
