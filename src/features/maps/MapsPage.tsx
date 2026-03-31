@@ -133,6 +133,33 @@ const BULK_IMPORT_SAMPLE_ROW = [
 ] as const;
 const BULK_IMPORT_TEMPLATE_NAME = "mato-map-import-template.xlsx";
 const BULK_EXPORT_FILE_NAME = "mato-map-songs.xlsx";
+const BULK_IMPORT_HEADER_ALIASES: Record<
+  (typeof BULK_IMPORT_COLUMNS)[number],
+  string[]
+> = {
+  title: ["title", "제목", "곡명", "song", "songtitle"],
+  artist: ["artist", "가수", "아티스트", "singer"],
+  clue: ["clue", "hint", "힌트", "문제", "문제문구"],
+  answers: ["answers", "answer", "정답", "정답별칭", "aliases"],
+  sourceType: ["sourcetype", "source type", "소스종류", "소스타입", "미디어종류"],
+  sourceValue: ["sourcevalue", "source value", "소스값", "링크", "url", "mediaurl"],
+  clipStartSeconds: [
+    "clipstartseconds",
+    "clip start seconds",
+    "start",
+    "startseconds",
+    "시작초",
+    "시작시간",
+  ],
+  clipEndSeconds: [
+    "clipendseconds",
+    "clip end seconds",
+    "end",
+    "endseconds",
+    "끝초",
+    "종료시간",
+  ],
+};
 const BULK_IMPORT_COLUMN_HELP = [
   {
     key: "title",
@@ -329,6 +356,28 @@ function buildSpreadsheetRows(songRows: SongDraftRow[]) {
   ];
 }
 
+function normalizeImportHeader(value: string) {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+function resolveImportHeaderMap(headerRow: string[]) {
+  const normalizedHeaderRow = headerRow.map(normalizeImportHeader);
+  const headerMap = new Map<(typeof BULK_IMPORT_COLUMNS)[number], number>();
+
+  BULK_IMPORT_COLUMNS.forEach((columnKey) => {
+    const aliases = BULK_IMPORT_HEADER_ALIASES[columnKey].map(normalizeImportHeader);
+    const columnIndex = normalizedHeaderRow.findIndex((headerValue) =>
+      aliases.includes(headerValue),
+    );
+
+    if (columnIndex >= 0) {
+      headerMap.set(columnKey, columnIndex);
+    }
+  });
+
+  return headerMap;
+}
+
 function parseImportRows(rawRows: Array<Array<string | number | null | undefined>>) {
   const rows = rawRows
     .map((columns) => columns.map((value) => String(value ?? "").trim()))
@@ -338,32 +387,56 @@ function parseImportRows(rawRows: Array<Array<string | number | null | undefined
     throw new Error("붙여넣은 줄이 없습니다.");
   }
 
-  const headerCandidate = rows[0].map((value) => value.toLowerCase());
-  const hasHeader =
-    headerCandidate[0] === "title" && headerCandidate[1] === "artist";
+  const headerMap = resolveImportHeaderMap(rows[0]);
+  const hasHeader = headerMap.has("title") || headerMap.has("artist");
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
   if (dataRows.length === 0) {
     throw new Error("헤더만 있고 실제 곡 줄이 없습니다.");
   }
 
+  if (hasHeader) {
+    const missingRequiredHeaders = BULK_IMPORT_COLUMN_HELP.filter(
+      (column) => column.required && !headerMap.has(column.key),
+    );
+
+    if (missingRequiredHeaders.length > 0) {
+      throw new Error(
+        `필수 헤더가 없습니다: ${missingRequiredHeaders
+          .map((column) => column.label)
+          .join(", ")}`,
+      );
+    }
+  }
+
   return dataRows.map((columns, index) => {
-    if (columns.length < 4) {
+    if (!hasHeader && columns.length < 4) {
       throw new Error(
         `${index + 1}번째 줄은 최소 4칸이 필요합니다. 제목 | 가수 | 힌트 | 정답 형식으로 넣어주세요.`,
       );
     }
 
-    const [
-      title = "",
-      artist = "",
-      clue = "",
-      answersText = "",
-      rawSourceType = "",
-      sourceValue = "",
-      clipStartSeconds = "0",
-      clipEndSeconds = "",
-    ] = columns;
+    const readColumn = (
+      columnKey: (typeof BULK_IMPORT_COLUMNS)[number],
+      fallback = "",
+    ) => {
+      if (!hasHeader) {
+        const fallbackIndex = BULK_IMPORT_COLUMNS.indexOf(columnKey);
+        return columns[fallbackIndex] ?? fallback;
+      }
+
+      const columnIndex = headerMap.get(columnKey);
+      return columnIndex === undefined ? fallback : columns[columnIndex] ?? fallback;
+    };
+
+    const title = readColumn("title");
+    const artist = readColumn("artist");
+    const clue = readColumn("clue");
+    const answersText = readColumn("answers");
+    const rawSourceType = readColumn("sourceType");
+    const sourceValue = readColumn("sourceValue");
+    const clipStartSeconds = readColumn("clipStartSeconds", "0");
+    const clipEndSeconds = readColumn("clipEndSeconds");
 
     const normalizedSourceType = rawSourceType.toLowerCase();
     const audioSourceType =
@@ -3230,6 +3303,8 @@ export default function MapsPage() {
                   탭 또는 <code>|</code> 구분을 지원합니다. 형식:
                   제목 | 가수 | 힌트 | 정답1,정답2 | youtube/file | 소스값 |
                   시작초 | 끝초
+                  <br />
+                  헤더 이름만 맞으면 열 순서는 바뀌어도 괜찮습니다.
                 </p>
                 <div className="bulk-import-guide">
                   {BULK_IMPORT_COLUMN_HELP.map((column) => (
