@@ -780,6 +780,63 @@ button {
   min-height: 0;
 }
 
+.room-sidebar__player-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.room-settings__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.room-settings__toggle--active {
+  border-color: rgba(240, 123, 63, 0.44);
+  background: rgba(240, 123, 63, 0.14);
+}
+
+.room-settings__panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(240, 123, 63, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.room-settings__panel-header {
+  align-items: center;
+}
+
+.room-settings__panel h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.room-settings__grid {
+  display: grid;
+  gap: 12px;
+}
+
+.room-settings__note {
+  margin: 0;
+}
+
+.room-settings__actions {
+  justify-content: flex-start;
+}
+
 .participant-list--room {
   min-height: 0;
   overflow: auto;

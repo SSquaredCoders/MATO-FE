@@ -9,6 +9,7 @@ import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
   ConnectionState,
   GamePhase,
+  MapRoundFlowMode,
   RoomChatMessage,
   RoomEventPayload,
   RoomParticipant,
@@ -120,6 +121,11 @@ export default function RoomPage() {
   const [clock, setClock] = useState(() => Date.now());
   const [connection, setConnection] = useState<ConnectionState>("idle");
   const [isWatcherJoining, setIsWatcherJoining] = useState(false);
+  const [isRoomSettingsOpen, setIsRoomSettingsOpen] = useState(false);
+  const [settingsRoundFlowMode, setSettingsRoundFlowMode] =
+    useState<MapRoundFlowMode>("advance-on-correct");
+  const [settingsSkipVotesRequired, setSettingsSkipVotesRequired] =
+    useState("2");
   const [transientMessages, setTransientMessages] = useState<RoomChatMessage[]>(
     [],
   );
@@ -214,6 +220,23 @@ export default function RoomPage() {
   });
 
   const room = roomQuery.data;
+
+  useEffect(() => {
+    if (!room || isRoomSettingsOpen) {
+      return;
+    }
+
+    setSettingsRoundFlowMode(room.roundFlowMode);
+    setSettingsSkipVotesRequired(
+      String(room.configuredSkipVotesRequired ?? room.skipVotesRequired ?? 2),
+    );
+  }, [
+    isRoomSettingsOpen,
+    room,
+    room?.configuredSkipVotesRequired,
+    room?.roundFlowMode,
+    room?.skipVotesRequired,
+  ]);
 
   useEffect(() => {
     setClock(Date.now());
@@ -386,6 +409,8 @@ export default function RoomPage() {
     (participant) => participant.nickname === currentNickname,
   );
   const isHost = currentNickname === room.hostNickname;
+  const canManageRoomSettings = isHost;
+  const canEditRoomSettings = isHost && room.phase === "LOBBY";
   const isReady = Boolean(currentPlayer?.ready);
   const canSubmitAnswer = Boolean(currentPlayer?.connected);
   const readyLabel = isReady ? "준비 해제" : "준비 완료";
@@ -413,6 +438,8 @@ export default function RoomPage() {
       ? Math.max(0, Math.ceil((roundEndsAtMs - clock) / 1000))
       : 0;
   const skipVoterNicknames = room.skipVoterNicknames ?? [];
+  const configuredSkipVotesRequired =
+    room.configuredSkipVotesRequired ?? room.skipVotesRequired ?? 2;
   const skipVotesRequired = room.skipVotesRequired ?? 1;
   const currentSkipVotes = room.currentSkipVotes ?? 0;
   const canVoteSkip =
@@ -446,6 +473,21 @@ export default function RoomPage() {
       nickname: currentNickname,
       answer: trimmedAnswer,
     });
+  };
+
+  const handleApplyRoomSettings = () => {
+    const normalizedSkipVotesRequired = Math.max(
+      1,
+      Number.parseInt(settingsSkipVotesRequired, 10) || 1,
+    );
+
+    publishEvent("room.settings.update", {
+      nickname: currentNickname,
+      roundFlowMode: settingsRoundFlowMode,
+      skipVotesRequired: normalizedSkipVotesRequired,
+    });
+    setSettingsSkipVotesRequired(String(normalizedSkipVotesRequired));
+    setIsRoomSettingsOpen(false);
   };
 
   const handleJoinAsWatcher = () => {
@@ -703,14 +745,115 @@ export default function RoomPage() {
               <p className="eyebrow">현재 플레이어</p>
               <h3>{currentNickname}</h3>
             </div>
-            <span className="chip">
-              {currentPlayer?.connected ? "접속됨" : "대기 중"}
-            </span>
+            <div className="room-sidebar__player-tools">
+              <span className="chip">
+                {currentPlayer?.connected ? "접속됨" : "대기 중"}
+              </span>
+              {canManageRoomSettings ? (
+                <button
+                  aria-expanded={isRoomSettingsOpen}
+                  aria-label="방 설정"
+                  className={`room-settings__toggle${
+                    isRoomSettingsOpen ? " room-settings__toggle--active" : ""
+                  }`}
+                  onClick={() =>
+                    setIsRoomSettingsOpen((current) => !current)
+                  }
+                  title="방 설정"
+                  type="button"
+                >
+                  ⚙
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <p className="footnote room-sidebar__current-player">
             {helperText}
           </p>
+
+          {canManageRoomSettings && isRoomSettingsOpen ? (
+            <div className="room-settings__panel">
+              <div className="panel__header room-settings__panel-header">
+                <div>
+                  <p className="eyebrow">Room Settings</p>
+                  <h4>방 규칙</h4>
+                </div>
+                <span className="chip">
+                  현재 스킵 {currentSkipVotes}/{skipVotesRequired}
+                </span>
+              </div>
+
+              <div className="room-settings__grid">
+                <label className="field">
+                  <span>진행 방식</span>
+                  <select
+                    disabled={!canEditRoomSettings}
+                    onChange={(event) =>
+                      setSettingsRoundFlowMode(
+                        event.target.value as MapRoundFlowMode,
+                      )
+                    }
+                    value={settingsRoundFlowMode}
+                  >
+                    <option value="advance-on-correct">
+                      {roundFlowModeLabels["advance-on-correct"]}
+                    </option>
+                    <option value="timer-or-skip">
+                      {roundFlowModeLabels["timer-or-skip"]}
+                    </option>
+                  </select>
+                </label>
+
+                {settingsRoundFlowMode === "timer-or-skip" ? (
+                  <label className="field">
+                    <span>스킵 투표 인원</span>
+                    <input
+                      disabled={!canEditRoomSettings}
+                      inputMode="numeric"
+                      max={room.maxParticipants}
+                      min={1}
+                      onChange={(event) =>
+                        setSettingsSkipVotesRequired(event.target.value)
+                      }
+                      type="number"
+                      value={settingsSkipVotesRequired}
+                    />
+                  </label>
+                ) : null}
+              </div>
+
+              <p className="footnote room-settings__note">
+                {canEditRoomSettings
+                  ? `맵 기본값은 ${configuredSkipVotesRequired}표입니다. 방장 설정으로 이 방만 덮어씁니다.`
+                  : "게임이 시작된 뒤에는 방 규칙을 바꿀 수 없습니다."}
+              </p>
+
+              <div className="button-row room-settings__actions">
+                <button
+                  className="button"
+                  disabled={!canEditRoomSettings}
+                  onClick={handleApplyRoomSettings}
+                  type="button"
+                >
+                  적용
+                </button>
+                <button
+                  className="button button--ghost"
+                  onClick={() => {
+                    setSettingsRoundFlowMode(room.roundFlowMode);
+                    setSettingsSkipVotesRequired(
+                      String(configuredSkipVotesRequired),
+                    );
+                    setIsRoomSettingsOpen(false);
+                  }}
+                  type="button"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="action-stack action-stack--compact">
             <button

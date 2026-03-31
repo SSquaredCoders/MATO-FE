@@ -136,6 +136,7 @@ export interface RoomSnapshot {
   answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
   skipVotesRequired: number;
+  configuredSkipVotesRequired: number;
   currentSkipVotes: number;
   skipVoterNicknames: string[];
   currentPrompt: string;
@@ -157,6 +158,7 @@ export type ClientEventType =
   | "room.join"
   | "room.leave"
   | "room.ready.set"
+  | "room.settings.update"
   | "game.start"
   | "game.answer.submit"
   | "game.next.request"
@@ -185,6 +187,12 @@ export interface LeaveRoomPayload {
 export interface ReadyPayload {
   nickname: string;
   ready: boolean;
+}
+
+export interface RoomSettingsPayload {
+  nickname: string;
+  roundFlowMode: MapRoundFlowMode;
+  skipVotesRequired: number;
 }
 
 export interface StartGamePayload {
