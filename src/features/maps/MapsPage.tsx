@@ -2327,6 +2327,18 @@ export default function MapsPage() {
   const [bulkImportError, setBulkImportError] = useState<string | null>(null);
   const [bulkImportSummary, setBulkImportSummary] =
     useState<BulkImportSummary>(null);
+  const [youtubeUrlsText, setYoutubeUrlsText] = useState("");
+  const [youtubeFetchLoading, setYoutubeFetchLoading] = useState(false);
+  const [youtubeFetchResults, setYoutubeFetchResults] = useState<
+    Array<{
+      youtubeUrl: string;
+      title: string;
+      artist: string;
+      work: string;
+      answerType: Array<"title" | "artist" | "work">;
+      success: boolean;
+    }>
+  >([]);
   const editorSongQueueRef = useRef<HTMLDivElement | null>(null);
 
   const viewerNickname = currentNickname.trim();
@@ -2664,6 +2676,121 @@ export default function MapsPage() {
     } catch (error) {
       setBulkImportError((error as Error).message);
     }
+  };
+
+  const handleYoutubeBulkFetch = async () => {
+    const urls = youtubeUrlsText
+      .split("\n")
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0);
+    if (urls.length === 0) return;
+
+    setYoutubeFetchLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/songs/bulk-meta`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls }),
+      });
+      if (!res.ok) throw new Error("메타데이터 조회 실패");
+      const data: Array<{
+        youtubeUrl: string;
+        title: string | null;
+        artist: string | null;
+        success: boolean;
+      }> = await res.json();
+      setYoutubeFetchResults(
+        data.map((item) => ({
+          youtubeUrl: item.youtubeUrl,
+          title: item.title ?? "",
+          artist: item.artist ?? "",
+          work: "",
+          answerType: ["title"] as Array<"title" | "artist" | "work">,
+          success: item.success,
+        })),
+      );
+    } catch {
+      setBulkImportError("유튜브 메타데이터 조회 중 오류가 발생했습니다.");
+    } finally {
+      setYoutubeFetchLoading(false);
+    }
+  };
+
+  const updateYoutubeFetchResult = (
+    index: number,
+    field: string,
+    value: unknown,
+  ) => {
+    setYoutubeFetchResults((prev) =>
+      prev.map((entry, i) => (i === index ? { ...entry, [field]: value } : entry)),
+    );
+  };
+
+  const toggleYoutubeAnswerType = (
+    index: number,
+    type: "title" | "artist" | "work",
+  ) => {
+    setYoutubeFetchResults((prev) =>
+      prev.map((entry, i) => {
+        if (i !== index) return entry;
+        const has = entry.answerType.includes(type);
+        return {
+          ...entry,
+          answerType: has
+            ? entry.answerType.filter((t) => t !== type)
+            : [...entry.answerType, type],
+        };
+      }),
+    );
+  };
+
+  const removeYoutubeFetchResult = (index: number) => {
+    setYoutubeFetchResults((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleYoutubeBulkAdd = () => {
+    const validEntries = youtubeFetchResults.filter(
+      (e) => e.success && e.answerType.length > 0,
+    );
+    if (validEntries.length === 0) {
+      setBulkImportError("추가할 곡이 없습니다. 정답 유형을 하나 이상 선택해주세요.");
+      return;
+    }
+
+    const newRows: SongDraftRow[] = validEntries.map((entry) => {
+      const answers: string[] = [];
+      if (entry.answerType.includes("title")) answers.push(entry.title);
+      if (entry.answerType.includes("artist")) answers.push(entry.artist);
+      if (entry.answerType.includes("work") && entry.work.trim())
+        answers.push(entry.work.trim());
+
+      return {
+        id: `song-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        clue: "",
+        title: entry.title,
+        artist: entry.artist,
+        answersText: answers.join(", "),
+        audioSourceType: "youtube" as const,
+        audioSourceValue: entry.youtubeUrl,
+        audioSourceLabel: "",
+        clipStartSeconds: "0",
+        clipEndSeconds: "",
+        isUploading: false,
+        uploadError: null,
+      };
+    });
+
+    setSongRows((current) =>
+      bulkImportMode === "replace" ? newRows : [...current, ...newRows],
+    );
+    setSelectedSongRowId(newRows[newRows.length - 1]?.id ?? null);
+    setBulkImportSummary({
+      mode: bulkImportMode,
+      count: newRows.length,
+    });
+    setYoutubeFetchResults([]);
+    setYoutubeUrlsText("");
+    setIsBulkImportOpen(false);
   };
 
   const downloadSpreadsheet = async (
@@ -3515,7 +3642,106 @@ export default function MapsPage() {
               <article className="song-builder-card song-builder-card--bulk">
                 <div className="song-builder-card__header">
                   <div>
-                    <p className="eyebrow">일괄 추가</p>
+                    <p className="eyebrow">유튜브 링크로 일괄 추가</p>
+                    <h3>유튜브 URL만 붙여넣으면 제목/가수를 자동으로 채워줍니다.</h3>
+                  </div>
+                </div>
+                <label className="field">
+                  <span>유튜브 URL (한 줄에 하나씩)</span>
+                  <textarea
+                    value={youtubeUrlsText}
+                    onChange={(event) => setYoutubeUrlsText(event.target.value)}
+                    placeholder={"https://youtube.com/watch?v=...\nhttps://youtu.be/..."}
+                    style={{ minHeight: "100px", fontFamily: "monospace", fontSize: "13px" }}
+                  />
+                </label>
+                <div className="button-row">
+                  <button
+                    className="button"
+                    onClick={() => { void handleYoutubeBulkFetch(); }}
+                    type="button"
+                    disabled={youtubeFetchLoading}
+                  >
+                    {youtubeFetchLoading ? "조회 중..." : "메타데이터 자동 조회"}
+                  </button>
+                </div>
+
+                {youtubeFetchResults.length > 0 ? (
+                  <div style={{ marginTop: "16px" }}>
+                    <p className="eyebrow" style={{ marginBottom: "8px" }}>
+                      조회 결과 ({youtubeFetchResults.length}곡)
+                    </p>
+                    {youtubeFetchResults.map((entry, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          border: entry.success ? "1px solid var(--border)" : "1px solid #f87171",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          marginBottom: "8px",
+                          backgroundColor: entry.success ? "var(--surface-1)" : "rgba(239,68,68,0.1)",
+                        }}
+                      >
+                        {!entry.success ? (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "#f87171" }}>조회 실패: {entry.youtubeUrl}</span>
+                            <button type="button" onClick={() => removeYoutubeFetchResult(idx)} style={{ color: "#f87171", background: "none", border: "none", cursor: "pointer" }}>삭제</button>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                              <span style={{ fontSize: "11px", opacity: 0.6, wordBreak: "break-all" }}>{entry.youtubeUrl}</span>
+                              <button type="button" onClick={() => removeYoutubeFetchResult(idx)} style={{ color: "#f87171", background: "none", border: "none", cursor: "pointer", fontSize: "12px" }}>삭제</button>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                              <label className="field">
+                                <span>제목</span>
+                                <input value={entry.title} onChange={(e) => updateYoutubeFetchResult(idx, "title", e.target.value)} />
+                              </label>
+                              <label className="field">
+                                <span>가수</span>
+                                <input value={entry.artist} onChange={(e) => updateYoutubeFetchResult(idx, "artist", e.target.value)} />
+                              </label>
+                            </div>
+                            <label className="field" style={{ marginBottom: "8px" }}>
+                              <span>작품 (애니, 드라마 등 - 선택)</span>
+                              <input value={entry.work} onChange={(e) => updateYoutubeFetchResult(idx, "work", e.target.value)} placeholder="작품명 입력" />
+                            </label>
+                            <div style={{ display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
+                              <strong style={{ fontSize: "13px" }}>정답:</strong>
+                              <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "13px" }}>
+                                <input type="checkbox" checked={entry.answerType.includes("title")} onChange={() => toggleYoutubeAnswerType(idx, "title")} />
+                                제목{entry.title ? ` (${entry.title})` : ""}
+                              </label>
+                              <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "13px" }}>
+                                <input type="checkbox" checked={entry.answerType.includes("artist")} onChange={() => toggleYoutubeAnswerType(idx, "artist")} />
+                                가수{entry.artist ? ` (${entry.artist})` : ""}
+                              </label>
+                              <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "13px" }}>
+                                <input type="checkbox" checked={entry.answerType.includes("work")} onChange={() => toggleYoutubeAnswerType(idx, "work")} />
+                                작품{entry.work ? ` (${entry.work})` : ""}
+                              </label>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    <div className="button-row" style={{ marginTop: "12px" }}>
+                      <button className="button" onClick={handleYoutubeBulkAdd} type="button">
+                        {youtubeFetchResults.filter((e) => e.success && e.answerType.length > 0).length}곡 추가
+                      </button>
+                      <button className="button button--ghost" onClick={() => { setYoutubeFetchResults([]); setYoutubeUrlsText(""); }} type="button">
+                        초기화
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <hr style={{ margin: "20px 0", border: "none", borderTop: "1px solid var(--border)" }} />
+
+                <div className="song-builder-card__header">
+                  <div>
+                    <p className="eyebrow">엑셀/텍스트로 일괄 추가</p>
                     <h3>엑셀이나 시트에서 여러 곡을 한 번에 붙여넣으세요.</h3>
                   </div>
                 </div>
