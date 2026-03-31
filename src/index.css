@@ -378,6 +378,12 @@ button {
   color: var(--success);
 }
 
+.chip--warning {
+  color: var(--warning);
+  border-color: rgba(230, 194, 106, 0.26);
+  background: rgba(230, 194, 106, 0.1);
+}
+
 .status-pill--connecting,
 .status-pill--reconnecting {
   color: var(--warning);
@@ -1662,6 +1668,40 @@ button {
 .map-import-summary span {
   color: #d9f7ea;
   font-size: 0.88rem;
+}
+
+.map-feedback {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+}
+
+.map-feedback strong {
+  font-size: 0.95rem;
+}
+
+.map-feedback span {
+  font-size: 0.88rem;
+}
+
+.map-feedback--success {
+  border-color: rgba(99, 197, 155, 0.32);
+  background: rgba(99, 197, 155, 0.12);
+}
+
+.map-feedback--success span {
+  color: #d9f7ea;
+}
+
+.map-feedback--warning {
+  border-color: rgba(230, 194, 106, 0.32);
+  background: rgba(230, 194, 106, 0.12);
+}
+
+.map-feedback--warning span {
+  color: #fff0bf;
 }
 
 .room-view--refined {

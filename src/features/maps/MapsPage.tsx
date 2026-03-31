@@ -27,6 +27,13 @@ type BulkImportSummary = {
   mode: BulkImportMode;
   count: number;
 } | null;
+type MapFeedbackTone = "success" | "warning";
+
+interface MapFeedback {
+  tone: MapFeedbackTone;
+  title: string;
+  description: string;
+}
 
 interface SongDraftRow {
   id: string;
@@ -221,6 +228,68 @@ const BULK_IMPORT_COLUMN_HELP = [
 
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
+}
+
+function createBlankSongDefinition(): MapSongDefinition {
+  return {
+    clue: "",
+    title: "",
+    artist: "",
+    answers: [],
+    audioSourceType: "youtube",
+    audioSourceValue: null,
+    audioSourceLabel: null,
+    clipStartSeconds: 0,
+    clipEndSeconds: null,
+  };
+}
+
+function buildBlankMapRequest(createdBy: string): CreateMapRequest {
+  return {
+    name: "",
+    description: "",
+    createdBy,
+    difficulty: "normal",
+    visibility: "public",
+    showMediaControls: true,
+    songOrderMode: "author-order",
+    answerMode: "single-lock",
+    roundFlowMode: "advance-on-correct",
+    roundTimeLimitSeconds: 30,
+    hintRevealDelaySeconds: 8,
+    songs: [createBlankSongDefinition()],
+  };
+}
+
+function buildRequestFromMapDetail(map: MapDetail): CreateMapRequest {
+  return {
+    name: map.name,
+    description: map.description,
+    createdBy: map.createdBy,
+    difficulty: map.difficulty,
+    visibility: map.visibility,
+    showMediaControls: map.showMediaControls,
+    songOrderMode: map.songOrderMode,
+    answerMode: map.answerMode,
+    roundFlowMode: map.roundFlowMode,
+    roundTimeLimitSeconds: map.roundTimeLimitSeconds,
+    hintRevealDelaySeconds: map.hintRevealDelaySeconds,
+    songs: map.songs.map((song) => ({
+      clue: song.clue,
+      title: song.title,
+      artist: song.artist,
+      answers: [...song.answers],
+      audioSourceType: song.audioSourceType,
+      audioSourceValue: song.audioSourceValue,
+      audioSourceLabel: song.audioSourceLabel,
+      clipStartSeconds: song.clipStartSeconds,
+      clipEndSeconds: song.clipEndSeconds,
+    })),
+  };
+}
+
+function serializeMapRequest(request: CreateMapRequest) {
+  return JSON.stringify(request);
 }
 
 function createBlankSongRow(): SongDraftRow {
@@ -2246,6 +2315,8 @@ export default function MapsPage() {
     createBlankSongRow(),
   ]);
   const [songMoveTarget, setSongMoveTarget] = useState("1");
+  const [savedDraftSignature, setSavedDraftSignature] = useState("");
+  const [mapFeedback, setMapFeedback] = useState<MapFeedback | null>(null);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [bulkImportMode, setBulkImportMode] = useState<BulkImportMode>("append");
@@ -2317,6 +2388,7 @@ export default function MapsPage() {
 
   const resetForm = () => {
     const blankRow = createBlankSongRow();
+    const blankRequest = buildBlankMapRequest(creatorNickname);
     setEditingMapId(null);
     setPendingEditorMapId(null);
     setFormErrorMessage(null);
@@ -2337,12 +2409,14 @@ export default function MapsPage() {
     setHintRevealDelaySeconds("8");
     setSongRows([blankRow]);
     setSelectedSongRowId(blankRow.id);
+    setSavedDraftSignature(serializeMapRequest(blankRequest));
   };
 
   const applyMapToForm = (map: MapDetail) => {
     const nextRows = map.songs.length
       ? map.songs.map(mapSongToDraft)
       : [createBlankSongRow()];
+    const nextRequest = buildRequestFromMapDetail(map);
 
     setEditingMapId(map.id);
     setNickname(map.createdBy);
@@ -2359,6 +2433,7 @@ export default function MapsPage() {
     setHintRevealDelaySeconds(String(map.hintRevealDelaySeconds));
     setSongRows(nextRows);
     setSelectedSongRowId(nextRows[0]?.id ?? null);
+    setSavedDraftSignature(serializeMapRequest(nextRequest));
   };
 
   useEffect(() => {
@@ -2394,8 +2469,15 @@ export default function MapsPage() {
 
   const createMapMutation = useMutation({
     mutationFn: createMap,
-    onSuccess: (createdMap) => {
+    onSuccess: (createdMap, request) => {
       refreshMaps(createdMap.id);
+      setMapFeedback({
+        tone: "success",
+        title: "맵을 저장했습니다.",
+        description: `'${createdMap.name}' 맵을 새로 만들었습니다.`,
+      });
+      setSavedDraftSignature(serializeMapRequest(request));
+      setFormErrorMessage(null);
       setEditorMode("overview");
       resetForm();
     },
@@ -2409,15 +2491,29 @@ export default function MapsPage() {
       mapId: number;
       request: CreateMapRequest;
     }) => updateMap(mapId, request),
-    onSuccess: (updatedMap) => {
+    onSuccess: (updatedMap, variables) => {
       refreshMaps(updatedMap.id);
+      setMapFeedback({
+        tone: "success",
+        title: "맵을 수정했습니다.",
+        description: `'${updatedMap.name}' 변경사항을 저장했습니다.`,
+      });
+      setSavedDraftSignature(serializeMapRequest(variables.request));
+      setFormErrorMessage(null);
       setEditorMode("overview");
       setPendingEditorMapId(null);
     },
   });
 
   const deleteMapMutation = useMutation({
-    mutationFn: ({ mapId, viewer }: { mapId: number; viewer: string }) =>
+    mutationFn: ({
+      mapId,
+      viewer,
+    }: {
+      mapId: number;
+      viewer: string;
+      mapName: string;
+    }) =>
       deleteMap(mapId, viewer),
     onSuccess: (_unused, variables) => {
       const remainingMaps = maps.filter((map) => map.id !== variables.mapId);
@@ -2429,6 +2525,12 @@ export default function MapsPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["maps", viewerNickname] });
       setPendingEditorMapId(null);
+      setMapFeedback({
+        tone: "success",
+        title: "맵을 삭제했습니다.",
+        description: `'${variables.mapName}' 맵을 목록에서 제거했습니다.`,
+      });
+      setFormErrorMessage(null);
       setEditorMode("overview");
       resetForm();
       setSelectedMapId(remainingMaps[0]?.id ?? null);
@@ -2773,6 +2875,22 @@ export default function MapsPage() {
     })),
   });
 
+  const currentDraftSignature = serializeMapRequest(buildRequest());
+  const hasUnsavedChanges =
+    (editorMode === "create" || editorMode === "edit") &&
+    savedDraftSignature.length > 0 &&
+    currentDraftSignature !== savedDraftSignature;
+
+  const confirmDiscardChanges = (nextActionLabel: string) => {
+    if (!hasUnsavedChanges) {
+      return true;
+    }
+
+    return window.confirm(
+      `저장하지 않은 변경이 있습니다. ${nextActionLabel} 전에 지금 편집 중인 내용을 버릴까요?`,
+    );
+  };
+
   const handleSubmitMap = () => {
     const request = buildRequest();
     const invalidSongIndex = request.songs.findIndex((song) => !song.audioSourceValue);
@@ -2889,6 +3007,22 @@ export default function MapsPage() {
     }
   }, [activeSongPosition, activeSongRow?.id]);
 
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
   const handleMoveActiveSongToPosition = () => {
     if (!activeSongRow || activeSongIndex < 0) {
       return;
@@ -2909,18 +3043,30 @@ export default function MapsPage() {
   };
 
   const openOverviewMode = () => {
+    if (!confirmDiscardChanges("맵 보기로 돌아가기")) {
+      return;
+    }
+
     setEditorMode("overview");
     setPendingEditorMapId(null);
     setFormErrorMessage(null);
   };
 
   const openCreateMode = () => {
+    if (!confirmDiscardChanges("새 맵 만들기")) {
+      return;
+    }
+
     resetForm();
     setEditorMode("create");
   };
 
   const openEditMode = () => {
     if (!selectedMapId) {
+      return;
+    }
+
+    if (!confirmDiscardChanges("맵 수정 열기")) {
       return;
     }
 
@@ -2944,6 +3090,7 @@ export default function MapsPage() {
     deleteMapMutation.mutate({
       mapId: selectedMap.id,
       viewer: viewerNickname || selectedMap.createdBy,
+      mapName: selectedMap.name,
     });
   };
 
@@ -3001,6 +3148,13 @@ export default function MapsPage() {
           <p className="footnote">{(mapsQuery.error as Error).message}</p>
         ) : null}
       </section>
+
+      {mapFeedback ? (
+        <div className={`map-feedback map-feedback--${mapFeedback.tone}`}>
+          <strong>{mapFeedback.title}</strong>
+          <span>{mapFeedback.description}</span>
+        </div>
+      ) : null}
 
       {editorMode === "overview" ? (
         <section className="map-browser map-browser--workbench">
@@ -3275,6 +3429,9 @@ export default function MapsPage() {
               </div>
               <div className="chip-list">
                 {editingMapId ? <span className="chip">수정 중</span> : null}
+                {hasUnsavedChanges ? (
+                  <span className="chip chip--warning">미저장 변경 있음</span>
+                ) : null}
                 <span className="chip">곡 {songRows.length}개</span>
               </div>
             </div>
@@ -3890,7 +4047,13 @@ export default function MapsPage() {
               </button>
               <button
                 className="button button--ghost"
-                onClick={resetForm}
+                onClick={() => {
+                  if (!confirmDiscardChanges("입력 초기화")) {
+                    return;
+                  }
+
+                  resetForm();
+                }}
                 type="button"
               >
                 입력 초기화
@@ -3944,6 +4107,13 @@ export default function MapsPage() {
                     }`}
                     key={map.id}
                     onClick={() => {
+                      if (
+                        map.id !== selectedMapId &&
+                        !confirmDiscardChanges(`'${map.name}' 맵 열기`)
+                      ) {
+                        return;
+                      }
+
                       setSelectedMapId(map.id);
                       setPendingEditorMapId(map.id);
                     }}
