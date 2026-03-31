@@ -133,10 +133,13 @@ export interface RoomSnapshot {
   maxParticipants: number;
   round: number;
   totalRounds: number;
+  songOrderMode: MapSongOrderMode;
   answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
+  roundTimeLimitSeconds: number;
   skipVotesRequired: number;
   configuredSkipVotesRequired: number;
+  hintRevealDelaySeconds: number;
   currentSkipVotes: number;
   skipVoterNicknames: string[];
   currentPrompt: string;
@@ -191,8 +194,13 @@ export interface ReadyPayload {
 
 export interface RoomSettingsPayload {
   nickname: string;
+  showMediaControls: boolean;
+  songOrderMode: MapSongOrderMode;
+  answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
+  roundTimeLimitSeconds: number;
   skipVotesRequired: number;
+  hintRevealDelaySeconds: number;
 }
 
 export interface StartGamePayload {

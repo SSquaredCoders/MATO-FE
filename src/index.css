@@ -827,6 +827,11 @@ button {
 .room-settings__grid {
   display: grid;
   gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.room-settings__summary {
+  justify-content: flex-end;
 }
 
 .room-settings__note {
@@ -835,6 +840,12 @@ button {
 
 .room-settings__actions {
   justify-content: flex-start;
+}
+
+@media (max-width: 720px) {
+  .room-settings__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .participant-list--room {
