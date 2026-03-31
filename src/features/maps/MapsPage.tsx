@@ -23,6 +23,10 @@ import type {
 
 type MapEditorMode = "overview" | "edit" | "create";
 type BulkImportMode = "append" | "replace";
+type BulkImportSummary = {
+  mode: BulkImportMode;
+  count: number;
+} | null;
 
 interface SongDraftRow {
   id: string;
@@ -129,6 +133,64 @@ const BULK_IMPORT_SAMPLE_ROW = [
 ] as const;
 const BULK_IMPORT_TEMPLATE_NAME = "mato-map-import-template.xlsx";
 const BULK_EXPORT_FILE_NAME = "mato-map-songs.xlsx";
+const BULK_IMPORT_COLUMN_HELP = [
+  {
+    key: "title",
+    label: "title",
+    required: true,
+    description: "노래 제목",
+    example: "A Cruel Angel's Thesis",
+  },
+  {
+    key: "artist",
+    label: "artist",
+    required: true,
+    description: "가수 또는 아티스트",
+    example: "Yoko Takahashi",
+  },
+  {
+    key: "clue",
+    label: "clue",
+    required: true,
+    description: "게임 중 보여줄 힌트",
+    example: "일본 애니메이션 오프닝입니다.",
+  },
+  {
+    key: "answers",
+    label: "answers",
+    required: true,
+    description: "정답 별칭, 쉼표로 여러 개 입력",
+    example: "잔혹한 천사의 테제, A Cruel Angel's Thesis",
+  },
+  {
+    key: "sourceType",
+    label: "sourceType",
+    required: false,
+    description: "youtube 또는 file",
+    example: "youtube",
+  },
+  {
+    key: "sourceValue",
+    label: "sourceValue",
+    required: false,
+    description: "유튜브 링크 또는 업로드 파일 경로",
+    example: "https://www.youtube.com/watch?v=example",
+  },
+  {
+    key: "clipStartSeconds",
+    label: "clipStartSeconds",
+    required: false,
+    description: "재생 시작 초",
+    example: "0",
+  },
+  {
+    key: "clipEndSeconds",
+    label: "clipEndSeconds",
+    required: false,
+    description: "재생 종료 초, 비우면 끝까지",
+    example: "30",
+  },
+] as const;
 
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
@@ -2115,6 +2177,8 @@ export default function MapsPage() {
   const [bulkImportMode, setBulkImportMode] = useState<BulkImportMode>("append");
   const [bulkImportText, setBulkImportText] = useState("");
   const [bulkImportError, setBulkImportError] = useState<string | null>(null);
+  const [bulkImportSummary, setBulkImportSummary] =
+    useState<BulkImportSummary>(null);
   const editorSongQueueRef = useRef<HTMLDivElement | null>(null);
 
   const viewerNickname = currentNickname.trim();
@@ -2184,6 +2248,7 @@ export default function MapsPage() {
     setFormErrorMessage(null);
     setBulkImportError(null);
     setBulkImportMode("append");
+    setBulkImportSummary(null);
     setBulkImportText("");
     setIsBulkImportOpen(false);
     setName("");
@@ -2400,6 +2465,10 @@ export default function MapsPage() {
       );
       setSelectedSongRowId(importedRows[importedRows.length - 1]?.id ?? null);
       setBulkImportError(null);
+      setBulkImportSummary({
+        mode: bulkImportMode,
+        count: importedRows.length,
+      });
       setBulkImportText("");
       setIsBulkImportOpen(false);
     } catch (error) {
@@ -2479,6 +2548,10 @@ export default function MapsPage() {
       );
       setSelectedSongRowId(importedRows[importedRows.length - 1]?.id ?? null);
       setBulkImportError(null);
+      setBulkImportSummary({
+        mode: bulkImportMode,
+        count: importedRows.length,
+      });
       setIsBulkImportOpen(false);
     } catch (error) {
       setBulkImportError((error as Error).message);
@@ -3112,6 +3185,20 @@ export default function MapsPage() {
               ) : null}
             </div>
 
+            {bulkImportSummary ? (
+              <div className="map-import-summary">
+                <strong>
+                  {bulkImportSummary.mode === "replace" ? "교체 가져오기 완료" : "일괄 추가 완료"}
+                </strong>
+                <span>
+                  {bulkImportSummary.count}곡을{" "}
+                  {bulkImportSummary.mode === "replace"
+                    ? "현재 목록으로 교체했습니다."
+                    : "현재 맵 뒤에 추가했습니다."}
+                </span>
+              </div>
+            ) : null}
+
             {isBulkImportOpen ? (
               <article className="song-builder-card song-builder-card--bulk">
                 <div className="song-builder-card__header">
@@ -3125,6 +3212,18 @@ export default function MapsPage() {
                   제목 | 가수 | 힌트 | 정답1,정답2 | youtube/file | 소스값 |
                   시작초 | 끝초
                 </p>
+                <div className="bulk-import-guide">
+                  {BULK_IMPORT_COLUMN_HELP.map((column) => (
+                    <article className="bulk-import-guide__item" key={column.key}>
+                      <div className="bulk-import-guide__head">
+                        <strong>{column.label}</strong>
+                        <span>{column.required ? "필수" : "선택"}</span>
+                      </div>
+                      <p>{column.description}</p>
+                      <code>{column.example}</code>
+                    </article>
+                  ))}
+                </div>
                 <div className="button-row">
                   <button
                     className="button button--ghost"
