@@ -709,7 +709,7 @@ button {
 .flash-message {
   display: grid;
   gap: 6px;
-  width: 100%;
+  width: min(100%, 360px);
   max-width: 100%;
   min-height: 88px;
   padding: 16px 18px;
@@ -734,6 +734,16 @@ button {
   font-size: 0.92rem;
   line-height: 1.38;
   word-break: break-word;
+}
+
+.flash-message--mine {
+  align-self: flex-end;
+  border-color: rgba(240, 123, 63, 0.34);
+  background: rgba(240, 123, 63, 0.14);
+}
+
+.flash-message--theirs {
+  align-self: flex-start;
 }
 
 .flash-message--correct {

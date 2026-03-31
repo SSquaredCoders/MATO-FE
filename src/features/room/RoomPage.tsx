@@ -657,15 +657,23 @@ export default function RoomPage() {
           }`}
         >
           <div className="room-stage__overlay">
-            {transientMessages.map((message) => (
-              <article
-                className={`flash-message flash-message--${message.tone}`}
-                key={message.id}
-              >
-                <strong>{message.nickname}</strong>
-                <p>{message.content}</p>
-              </article>
-            ))}
+            {transientMessages.map((message) => {
+              const isOwnMessage = message.nickname === currentNickname;
+
+              return (
+                <article
+                  className={`flash-message flash-message--${message.tone} ${
+                    isOwnMessage
+                      ? "flash-message--mine"
+                      : "flash-message--theirs"
+                  }`}
+                  key={message.id}
+                >
+                  <strong>{message.nickname}</strong>
+                  <p>{message.content}</p>
+                </article>
+              );
+            })}
           </div>
 
           {showVisibleMedia ? (
