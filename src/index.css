@@ -1089,6 +1089,26 @@ button {
   align-items: start;
 }
 
+.song-editor__actions {
+  align-items: flex-end;
+}
+
+.song-order-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.song-order-controls__field {
+  grid-template-columns: auto minmax(84px, 108px);
+}
+
+.song-order-controls__field input {
+  text-align: right;
+}
+
 .song-preview {
   display: grid;
   gap: 14px;
@@ -1651,6 +1671,14 @@ button {
   .song-editor__header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .song-editor__actions {
+    align-items: stretch;
+  }
+
+  .song-order-controls {
+    justify-content: flex-start;
   }
 
   .room-stage__board--clean {

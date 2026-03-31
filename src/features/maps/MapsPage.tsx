@@ -2245,6 +2245,7 @@ export default function MapsPage() {
   const [songRows, setSongRows] = useState<SongDraftRow[]>([
     createBlankSongRow(),
   ]);
+  const [songMoveTarget, setSongMoveTarget] = useState("1");
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [bulkImportMode, setBulkImportMode] = useState<BulkImportMode>("append");
@@ -2663,24 +2664,36 @@ export default function MapsPage() {
     setSelectedSongRowId(nextRow.id);
   };
 
-  const moveSongRow = (rowId: string, direction: -1 | 1) => {
+  const moveSongRowToIndex = (rowId: string, targetIndex: number) => {
     setSongRows((current) => {
       const currentIndex = current.findIndex((row) => row.id === rowId);
-      const nextIndex = currentIndex + direction;
+      if (currentIndex < 0) {
+        return current;
+      }
 
-      if (
-        currentIndex < 0 ||
-        nextIndex < 0 ||
-        nextIndex >= current.length
-      ) {
+      const boundedIndex = Math.min(
+        Math.max(targetIndex, 0),
+        Math.max(current.length - 1, 0),
+      );
+
+      if (currentIndex === boundedIndex) {
         return current;
       }
 
       const nextRows = [...current];
       const [movedRow] = nextRows.splice(currentIndex, 1);
-      nextRows.splice(nextIndex, 0, movedRow);
+      nextRows.splice(boundedIndex, 0, movedRow);
       return nextRows;
     });
+  };
+
+  const moveSongRow = (rowId: string, direction: -1 | 1) => {
+    const currentIndex = songRows.findIndex((row) => row.id === rowId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    moveSongRowToIndex(rowId, currentIndex + direction);
   };
 
   const removeSongRow = (rowId: string) => {
@@ -2809,6 +2822,7 @@ export default function MapsPage() {
   const activeSongIndex = activeSongRow
     ? songRows.findIndex((row) => row.id === activeSongRow.id)
     : -1;
+  const activeSongPosition = activeSongIndex >= 0 ? activeSongIndex + 1 : 0;
   const activeClipSliderMax = activeSongRow ? getClipSliderMax(activeSongRow) : 240;
   const activeClipStartSeconds = activeSongRow
     ? parseSeconds(activeSongRow.clipStartSeconds, 0)
@@ -2868,6 +2882,31 @@ export default function MapsPage() {
     (createMapMutation.error as Error | null) ??
     (updateMapMutation.error as Error | null);
   const deleteError = deleteMapMutation.error as Error | null;
+
+  useEffect(() => {
+    if (activeSongPosition > 0) {
+      setSongMoveTarget(String(activeSongPosition));
+    }
+  }, [activeSongPosition, activeSongRow?.id]);
+
+  const handleMoveActiveSongToPosition = () => {
+    if (!activeSongRow || activeSongIndex < 0) {
+      return;
+    }
+
+    const requestedPosition = Number.parseInt(songMoveTarget.trim(), 10);
+    if (!Number.isFinite(requestedPosition)) {
+      setSongMoveTarget(String(activeSongPosition));
+      return;
+    }
+
+    const boundedPosition = Math.min(
+      Math.max(requestedPosition, 1),
+      Math.max(songRows.length, 1),
+    );
+    moveSongRowToIndex(activeSongRow.id, boundedPosition - 1);
+    setSongMoveTarget(String(boundedPosition));
+  };
 
   const openOverviewMode = () => {
     setEditorMode("overview");
@@ -3569,45 +3608,103 @@ export default function MapsPage() {
                     <p className="eyebrow">곡 편집</p>
                     <h3>{formatSongSummary(activeSongRow)}</h3>
                   </div>
-                  <div className="button-row">
-                    <button
-                      className="button button--ghost"
-                      onClick={addSongRow}
-                      type="button"
-                    >
-                      곡 추가
-                    </button>
-                    <button
-                      className="button button--ghost"
-                      onClick={() => duplicateSongRow(activeSongRow.id)}
-                      type="button"
-                    >
-                      복제
-                    </button>
-                    <button
-                      className="button button--ghost"
-                      onClick={() => moveSongRow(activeSongRow.id, -1)}
-                      type="button"
-                      disabled={activeSongIndex <= 0}
-                    >
-                      위로
-                    </button>
-                    <button
-                      className="button button--ghost"
-                      onClick={() => moveSongRow(activeSongRow.id, 1)}
-                      type="button"
-                      disabled={activeSongIndex < 0 || activeSongIndex >= songRows.length - 1}
-                    >
-                      아래로
-                    </button>
-                    <button
-                      className="button button--ghost"
-                      onClick={() => removeSongRow(activeSongRow.id)}
-                      type="button"
-                      disabled={songRows.length === 1}
-                    >
-                      현재 곡 삭제
-                    </button>
+                  <div className="song-editor__actions stack stack--tight">
+                    <div className="button-row">
+                      <button
+                        className="button button--ghost"
+                        onClick={addSongRow}
+                        type="button"
+                      >
+                        곡 추가
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => duplicateSongRow(activeSongRow.id)}
+                        type="button"
+                      >
+                        복제
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => moveSongRowToIndex(activeSongRow.id, 0)}
+                        type="button"
+                        disabled={activeSongIndex <= 0}
+                      >
+                        맨 위
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => moveSongRow(activeSongRow.id, -1)}
+                        type="button"
+                        disabled={activeSongIndex <= 0}
+                      >
+                        위로
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => moveSongRow(activeSongRow.id, 1)}
+                        type="button"
+                        disabled={
+                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
+                        }
+                      >
+                        아래로
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() =>
+                          moveSongRowToIndex(activeSongRow.id, songRows.length - 1)
+                        }
+                        type="button"
+                        disabled={
+                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
+                        }
+                      >
+                        맨 아래
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => removeSongRow(activeSongRow.id)}
+                        type="button"
+                        disabled={songRows.length === 1}
+                      >
+                        현재 곡 삭제
+                      </button>
+                    </div>
+
+                    <div className="song-order-controls">
+                      <span className="chip">현재 {activeSongPosition}/{songRows.length}번째 곡</span>
+                      <label className="field field--inline song-order-controls__field">
+                        <span>번호로 이동</span>
+                        <input
+                          value={songMoveTarget}
+                          onChange={(event) => setSongMoveTarget(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleMoveActiveSongToPosition();
+                            }
+                          }}
+                          onBlur={() => {
+                            if (!songMoveTarget.trim()) {
+                              setSongMoveTarget(String(activeSongPosition));
+                            }
+                          }}
+                          inputMode="numeric"
+                          min="1"
+                          max={String(songRows.length)}
+                          placeholder={String(activeSongPosition || 1)}
+                        />
+                      </label>
+                      <button
+                        className="button button--ghost"
+                        onClick={handleMoveActiveSongToPosition}
+                        type="button"
+                        disabled={songRows.length <= 1}
+                      >
+                        이동
+                      </button>
+                    </div>
                   </div>
                 </div>
 
