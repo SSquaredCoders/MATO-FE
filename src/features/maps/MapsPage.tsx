@@ -106,6 +106,27 @@ const songOrderModeLabels: Record<MapSongOrderMode, string> = {
 
 const MAP_SONG_PAGE_SIZE = 25;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+const BULK_IMPORT_COLUMNS = [
+  "title",
+  "artist",
+  "clue",
+  "answers",
+  "sourceType",
+  "sourceValue",
+  "clipStartSeconds",
+  "clipEndSeconds",
+] as const;
+const BULK_IMPORT_SAMPLE_ROW = [
+  "A Cruel Angel's Thesis",
+  "Yoko Takahashi",
+  "일본 애니메이션 오프닝입니다.",
+  "잔혹한 천사의 테제, A Cruel Angel's Thesis",
+  "youtube",
+  "https://www.youtube.com/watch?v=example",
+  "0",
+  "30",
+] as const;
+const BULK_IMPORT_TEMPLATE_NAME = "mato-map-import-template.xlsx";
 
 function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
@@ -219,20 +240,34 @@ function formatClipRangeSummary(
 }
 
 function parseBulkImportRows(input: string) {
-  const lines = input
+  const rows = input
     .split(/\r?\n/u)
-    .map((line) => line.trim())
-    .filter(Boolean);
+    .map((line) => (line.includes("\t") ? line.split("\t") : line.split("|")))
+    .map((columns) => columns.map((value) => value.trim()))
+    .filter((columns) => columns.some(Boolean));
 
-  if (lines.length === 0) {
+  return parseImportRows(rows);
+}
+
+function parseImportRows(rawRows: Array<Array<string | number | null | undefined>>) {
+  const rows = rawRows
+    .map((columns) => columns.map((value) => String(value ?? "").trim()))
+    .filter((columns) => columns.some(Boolean));
+
+  if (rows.length === 0) {
     throw new Error("붙여넣은 줄이 없습니다.");
   }
 
-  return lines.map((line, index) => {
-    const columns = (line.includes("\t") ? line.split("\t") : line.split("|")).map(
-      (value) => value.trim(),
-    );
+  const headerCandidate = rows[0].map((value) => value.toLowerCase());
+  const hasHeader =
+    headerCandidate[0] === "title" && headerCandidate[1] === "artist";
+  const dataRows = hasHeader ? rows.slice(1) : rows;
 
+  if (dataRows.length === 0) {
+    throw new Error("헤더만 있고 실제 곡 줄이 없습니다.");
+  }
+
+  return dataRows.map((columns, index) => {
     if (columns.length < 4) {
       throw new Error(
         `${index + 1}번째 줄은 최소 4칸이 필요합니다. 제목 | 가수 | 힌트 | 정답 형식으로 넣어주세요.`,
@@ -2350,6 +2385,57 @@ export default function MapsPage() {
     }
   };
 
+  const handleBulkTemplateDownload = async () => {
+    const xlsx = await import("xlsx");
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.aoa_to_sheet([
+      [...BULK_IMPORT_COLUMNS],
+      [...BULK_IMPORT_SAMPLE_ROW],
+    ]);
+
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Songs");
+    xlsx.writeFileXLSX(workbook, BULK_IMPORT_TEMPLATE_NAME);
+  };
+
+  const handleSpreadsheetImport = async (file?: File) => {
+    if (!file) {
+      return;
+    }
+
+    try {
+      let importedRows: SongDraftRow[] = [];
+
+      if (file.name.toLowerCase().endsWith(".csv")) {
+        importedRows = parseBulkImportRows(await file.text());
+      } else {
+        const xlsx = await import("xlsx");
+        const workbook = xlsx.read(await file.arrayBuffer(), { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+
+        if (!firstSheetName) {
+          throw new Error("엑셀 파일에 시트가 없습니다.");
+        }
+
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rows = xlsx.utils.sheet_to_json<Array<string | number | null>>(
+          worksheet,
+          {
+            header: 1,
+            raw: false,
+          },
+        );
+        importedRows = parseImportRows(rows);
+      }
+
+      setSongRows((current) => [...current, ...importedRows]);
+      setSelectedSongRowId(importedRows[importedRows.length - 1]?.id ?? null);
+      setBulkImportError(null);
+      setIsBulkImportOpen(false);
+    } catch (error) {
+      setBulkImportError((error as Error).message);
+    }
+  };
+
   const duplicateSongRow = (rowId: string) => {
     const currentIndex = songRows.findIndex((row) => row.id === rowId);
     if (currentIndex < 0) {
@@ -2990,6 +3076,28 @@ export default function MapsPage() {
                   제목 | 가수 | 힌트 | 정답1,정답2 | youtube/file | 소스값 |
                   시작초 | 끝초
                 </p>
+                <div className="button-row">
+                  <button
+                    className="button button--ghost"
+                    onClick={() => {
+                      void handleBulkTemplateDownload();
+                    }}
+                    type="button"
+                  >
+                    엑셀 양식 다운로드
+                  </button>
+                </div>
+                <label className="field">
+                  <span>엑셀 파일 업로드</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(event) => {
+                      void handleSpreadsheetImport(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
                 <label className="field">
                   <span>곡 줄 붙여넣기</span>
                   <textarea
