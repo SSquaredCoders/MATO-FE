@@ -116,9 +116,9 @@ button {
 .shell__header--workbench {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  padding: 12px 18px;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 8px 14px;
 }
 
 .shell__brand--room {
@@ -131,6 +131,11 @@ button {
   display: flex;
   align-items: end;
   gap: 14px;
+}
+
+.shell__brand--workbench h1 {
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .shell__brand--room .eyebrow {
@@ -158,8 +163,8 @@ button {
 }
 
 .nav--workbench .nav__link {
-  padding: 8px 13px;
-  font-size: 0.92rem;
+  padding: 6px 11px;
+  font-size: 0.84rem;
 }
 
 .shell__brand h1,
@@ -921,17 +926,23 @@ button {
 }
 
 .shell--workbench .map-page__hero {
-  gap: 8px;
-  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px;
 }
 
 .shell--workbench .map-page__hero .panel__header {
-  gap: 12px;
+  flex: 1 1 auto;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .shell--workbench .map-page__hero .panel__header h2 {
-  font-size: clamp(1.3rem, 1.9vw, 1.9rem);
-  line-height: 1.12;
+  display: none;
 }
 
 .shell--workbench .map-page__hero .lede {
@@ -939,7 +950,31 @@ button {
 }
 
 .shell--workbench .map-mode-bar {
+  flex: 0 0 auto;
   gap: 6px;
+  margin-left: auto;
+}
+
+.shell--workbench .eyebrow {
+  margin-bottom: 0;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+}
+
+.shell--workbench .map-page__hero .chip-list {
+  gap: 8px;
+}
+
+.shell--workbench .map-page__hero .chip,
+.shell--workbench .map-page__hero .map-mode-button {
+  padding: 6px 10px;
+  font-size: 0.84rem;
+}
+
+.shell--workbench .map-page__hero .panel__header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .map-mode-bar {
