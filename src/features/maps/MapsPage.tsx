@@ -3955,6 +3955,9 @@ export default function MapsPage() {
                     }
                     placeholder="a cruel angel's thesis, 잔혹한 천사의 테제"
                   />
+                  <small className="field__hint">
+                    쉼표로 여러 정답을 넣고, 실제 판정에서는 띄어쓰기를 무시합니다.
+                  </small>
                 </label>
 
                 <div className="grid grid--three">
