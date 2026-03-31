@@ -2471,7 +2471,7 @@ export default function MapsPage() {
 
   return (
     <div className="map-page stack">
-      <section className="panel stack">
+      <section className="panel stack map-page__hero">
         <div className="panel__header">
           <div>
             <p className="eyebrow">맵</p>
@@ -2525,7 +2525,7 @@ export default function MapsPage() {
       </section>
 
       {editorMode === "overview" ? (
-        <section className="map-browser">
+        <section className="map-browser map-browser--workbench">
           <article className="panel stack map-browser__list">
             <div className="panel__header">
               <div>
@@ -2658,7 +2658,7 @@ export default function MapsPage() {
 
                 {deleteError ? <p className="footnote">{deleteError.message}</p> : null}
 
-                <div className="field">
+                <div className="field map-toolbar map-toolbar__search">
                   <span>곡 검색</span>
                   <input
                     value={overviewSongQuery}
@@ -2667,7 +2667,7 @@ export default function MapsPage() {
                   />
                 </div>
 
-                <div className="button-row">
+                <div className="button-row map-toolbar map-toolbar--pager">
                   <span className="chip">
                     {selectedMapSongsQuery.data?.totalElements ?? selectedMap.songCount}곡
                   </span>
@@ -2760,7 +2760,7 @@ export default function MapsPage() {
       ) : null}
 
       {editorMode === "edit" || editorMode === "create" ? (
-        <section className="map-workspace">
+        <section className="map-workspace map-workspace--workbench">
           <article className="panel stack map-workspace__main">
             <div className="map-builder__header">
               <div>
@@ -2779,7 +2779,7 @@ export default function MapsPage() {
               </div>
             </div>
 
-            <div className="button-row">
+            <div className="button-row map-builder__actions">
               <button
                 className="button button--ghost"
                 onClick={openOverviewMode}
@@ -3279,7 +3279,7 @@ export default function MapsPage() {
               </div>
             ) : null}
 
-            <div className="field">
+            <div className="field map-toolbar map-toolbar__search">
               <span>{editorMode === "edit" ? "현재 맵 곡 검색" : "추가한 곡 검색"}</span>
               <input
                 value={editorSongQuery}
@@ -3288,7 +3288,7 @@ export default function MapsPage() {
               />
             </div>
 
-            <div className="button-row">
+            <div className="button-row map-toolbar map-toolbar--pager">
               <span className="chip">
                 {filteredEditorSongRows.length}곡
               </span>

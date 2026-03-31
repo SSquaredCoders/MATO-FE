@@ -74,6 +74,15 @@ button {
   overflow: hidden;
 }
 
+.shell--workbench {
+  width: min(1580px, calc(100% - 24px));
+  height: 100vh;
+  padding: 10px 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
 .shell__header,
 .shell__footer,
 .panel,
@@ -104,9 +113,23 @@ button {
   padding: 14px 18px;
 }
 
+.shell__header--workbench {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 16px 20px;
+}
+
 .shell__brand--room {
   display: flex;
   align-items: center;
+  gap: 14px;
+}
+
+.shell__brand--workbench {
+  display: flex;
+  align-items: end;
   gap: 14px;
 }
 
@@ -124,7 +147,17 @@ button {
   gap: 8px;
 }
 
+.nav--workbench {
+  justify-content: end;
+  gap: 8px;
+}
+
 .nav--room .nav__link {
+  padding: 8px 13px;
+  font-size: 0.92rem;
+}
+
+.nav--workbench .nav__link {
   padding: 8px 13px;
   font-size: 0.92rem;
 }
@@ -185,6 +218,11 @@ button {
 
 .shell--room .shell__content {
   min-height: 0;
+}
+
+.shell--workbench .shell__content {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .hero {
@@ -805,7 +843,36 @@ button {
 
 .map-page {
   display: grid;
-  gap: 24px;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.map-page__hero {
+  padding: 18px 20px;
+}
+
+.map-page__hero .panel__header {
+  align-items: center;
+}
+
+.shell--workbench .map-page__hero {
+  gap: 12px;
+  padding: 14px 18px;
+}
+
+.shell--workbench .map-page__hero .panel__header h2 {
+  font-size: clamp(1.3rem, 1.9vw, 1.9rem);
+  line-height: 1.12;
+}
+
+.shell--workbench .map-page__hero .lede {
+  display: none;
+}
+
+.shell--workbench .map-mode-bar {
+  gap: 8px;
 }
 
 .map-mode-bar {
@@ -822,8 +889,10 @@ button {
 .map-browser {
   display: grid;
   grid-template-columns: minmax(300px, 0.92fr) minmax(0, 1.4fr);
-  gap: 24px;
-  align-items: start;
+  gap: 16px;
+  align-items: stretch;
+  min-height: 0;
+  height: 100%;
 }
 
 .map-browser__list,
@@ -831,6 +900,11 @@ button {
 .map-workspace__main,
 .map-workspace__side {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .map-empty {
@@ -851,8 +925,62 @@ button {
 .map-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.85fr) minmax(280px, 0.95fr);
-  gap: 24px;
-  align-items: start;
+  gap: 16px;
+  align-items: stretch;
+  min-height: 0;
+  height: 100%;
+}
+
+.map-browser--workbench .panel__header,
+.map-workspace--workbench .panel__header,
+.map-workspace--workbench .map-builder__header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding-bottom: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(21, 22, 24, 0.98) 0%,
+    rgba(21, 22, 24, 0.92) 76%,
+    rgba(21, 22, 24, 0) 100%
+  );
+}
+
+.map-browser--workbench .map-toolbar,
+.map-workspace--workbench .map-toolbar,
+.map-workspace--workbench .map-builder__actions {
+  position: sticky;
+  top: 78px;
+  z-index: 4;
+  padding-bottom: 10px;
+  background: linear-gradient(
+    180deg,
+    rgba(21, 22, 24, 0.97) 0%,
+    rgba(21, 22, 24, 0.88) 82%,
+    rgba(21, 22, 24, 0) 100%
+  );
+}
+
+.map-workspace--workbench .map-builder__actions {
+  top: 74px;
+}
+
+.map-browser__detail .map-song-list,
+.map-browser__list .room-list,
+.map-workspace__side .room-list,
+.map-workspace__side .song-queue {
+  min-height: 0;
+}
+
+.map-workspace__main .song-editor,
+.map-browser__detail .map-song-list,
+.map-workspace__side .song-queue {
+  padding-bottom: 8px;
+}
+
+.map-workspace__main .song-preview__frame {
+  min-height: 240px;
+  max-height: 320px;
 }
 
 .song-editor {
@@ -1068,7 +1196,19 @@ button {
     overflow: visible;
   }
 
+  .shell--workbench {
+    width: min(100%, calc(100% - 20px));
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .shell__header--room {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .shell__header--workbench {
     grid-template-columns: 1fr;
     align-items: start;
   }
@@ -1078,11 +1218,20 @@ button {
     gap: 8px;
   }
 
+  .shell__brand--workbench {
+    display: grid;
+    gap: 8px;
+  }
+
   .shell__brand--room h1 {
     font-size: 2.25rem;
   }
 
   .nav--room {
+    justify-content: start;
+  }
+
+  .nav--workbench {
     justify-content: start;
   }
 
@@ -1112,6 +1261,17 @@ button {
   .map-browser,
   .map-workspace {
     grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .shell--workbench .shell__content,
+  .map-page,
+  .map-browser__list,
+  .map-browser__detail,
+  .map-workspace__main,
+  .map-workspace__side {
+    overflow: visible;
+    height: auto;
   }
 
   .room-stage,
