@@ -194,6 +194,83 @@ function formatSongSourceSummary(
   return song.audioSourceLabel || "유튜브 링크";
 }
 
+function formatClipRangeSummary(
+  clipStartSeconds: number | string,
+  clipEndSeconds: number | string | null,
+) {
+  const safeStartSeconds =
+    typeof clipStartSeconds === "number"
+      ? Math.max(0, clipStartSeconds)
+      : parseSeconds(clipStartSeconds, 0);
+
+  if (
+    clipEndSeconds === null ||
+    (typeof clipEndSeconds === "string" && !clipEndSeconds.trim())
+  ) {
+    return `${safeStartSeconds}초부터 끝까지`;
+  }
+
+  const safeEndSeconds =
+    typeof clipEndSeconds === "number"
+      ? Math.max(safeStartSeconds, clipEndSeconds)
+      : Math.max(safeStartSeconds, parseSeconds(clipEndSeconds, safeStartSeconds));
+
+  return `${safeStartSeconds}초부터 ${safeEndSeconds}초`;
+}
+
+function parseBulkImportRows(input: string) {
+  const lines = input
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    throw new Error("붙여넣은 줄이 없습니다.");
+  }
+
+  return lines.map((line, index) => {
+    const columns = (line.includes("\t") ? line.split("\t") : line.split("|")).map(
+      (value) => value.trim(),
+    );
+
+    if (columns.length < 4) {
+      throw new Error(
+        `${index + 1}번째 줄은 최소 4칸이 필요합니다. 제목 | 가수 | 힌트 | 정답 형식으로 넣어주세요.`,
+      );
+    }
+
+    const [
+      title = "",
+      artist = "",
+      clue = "",
+      answersText = "",
+      rawSourceType = "",
+      sourceValue = "",
+      clipStartSeconds = "0",
+      clipEndSeconds = "",
+    ] = columns;
+
+    const normalizedSourceType = rawSourceType.toLowerCase();
+    const audioSourceType =
+      normalizedSourceType === "file" || normalizedSourceType === "파일"
+        ? "file"
+        : "youtube";
+
+    return {
+      ...createBlankSongRow(),
+      title,
+      artist,
+      clue,
+      answersText,
+      audioSourceType,
+      audioSourceValue: sourceValue,
+      audioSourceLabel: sourceValue,
+      clipStartSeconds: clipStartSeconds || "0",
+      clipEndSeconds,
+    };
+  });
+}
+
 function parseSeconds(value: string, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -1981,6 +2058,10 @@ export default function MapsPage() {
     createBlankSongRow(),
   ]);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [bulkImportText, setBulkImportText] = useState("");
+  const [bulkImportError, setBulkImportError] = useState<string | null>(null);
+  const editorSongQueueRef = useRef<HTMLDivElement | null>(null);
 
   const viewerNickname = currentNickname.trim();
   const creatorNickname = nickname.trim() || viewerNickname || "host-01";
@@ -2047,6 +2128,9 @@ export default function MapsPage() {
     setEditingMapId(null);
     setPendingEditorMapId(null);
     setFormErrorMessage(null);
+    setBulkImportError(null);
+    setBulkImportText("");
+    setIsBulkImportOpen(false);
     setName("");
     setDescription("");
     setDifficulty("normal");
@@ -2187,6 +2271,40 @@ export default function MapsPage() {
     (safeEditorSongPage + 1) * editorSongPageSize,
   );
 
+  useEffect(() => {
+    if (!selectedSongRowId) {
+      return;
+    }
+
+    const selectedIndex = filteredEditorSongRows.findIndex(
+      (row) => row.id === selectedSongRowId,
+    );
+
+    if (selectedIndex < 0) {
+      return;
+    }
+
+    const targetPage = Math.floor(selectedIndex / editorSongPageSize);
+    setEditorSongPage((currentPage) =>
+      currentPage === targetPage ? currentPage : targetPage,
+    );
+  }, [editorSongPageSize, filteredEditorSongRows, selectedSongRowId]);
+
+  useEffect(() => {
+    if (!selectedSongRowId || !editorSongQueueRef.current) {
+      return;
+    }
+
+    const selectedButton = editorSongQueueRef.current.querySelector<HTMLElement>(
+      `[data-song-row-id="${selectedSongRowId}"]`,
+    );
+
+    selectedButton?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [pagedEditorSongRows, selectedSongRowId]);
+
   const updateSongRow = (
     rowId: string,
     field: keyof Omit<SongDraftRow, "id">,
@@ -2217,6 +2335,19 @@ export default function MapsPage() {
     const nextRow = createBlankSongRow();
     setSongRows((current) => [...current, nextRow]);
     setSelectedSongRowId(nextRow.id);
+  };
+
+  const handleBulkImport = () => {
+    try {
+      const importedRows = parseBulkImportRows(bulkImportText);
+      setSongRows((current) => [...current, ...importedRows]);
+      setSelectedSongRowId(importedRows[importedRows.length - 1]?.id ?? null);
+      setBulkImportError(null);
+      setBulkImportText("");
+      setIsBulkImportOpen(false);
+    } catch (error) {
+      setBulkImportError((error as Error).message);
+    }
   };
 
   const duplicateSongRow = (rowId: string) => {
@@ -2741,24 +2872,31 @@ export default function MapsPage() {
                 <div className="map-song-list">
                   {selectedMapSongsQuery.data?.items.map((song) => (
                     <article
-                      className="map-song-card"
+                      className="map-song-card map-song-card--compact"
                       key={`${song.id}-${song.songOrder}`}
                     >
-                      <div className="map-song-card__head">
+                      <div className="map-song-card__head map-song-card__head--compact">
                         <strong>
                           {song.songOrder + 1}. {song.title || "제목 없음"}
                         </strong>
                         <span>{song.artist || "가수 미입력"}</span>
                       </div>
-                      <p>힌트: {formatHintText(song.clue) || "힌트 없음"}</p>
-                      <p>소스: {formatSongSourceSummary(song)}</p>
-                      <p>정답 별칭: {song.answerCount}개</p>
-                      <p>기본 문제 시간: {selectedMap.roundTimeLimitSeconds}초</p>
-                      <p>
-                        재생 구간: {song.clipStartSeconds}초부터{" "}
-                        {song.clipEndSeconds === null
-                          ? "끝까지"
-                          : `${song.clipEndSeconds}초까지`}
+                      <div className="map-song-card__meta-row">
+                        <span className="chip chip--compact">
+                          {formatSongSourceSummary(song)}
+                        </span>
+                        <span className="chip chip--compact">
+                          별칭 {song.answerCount}개
+                        </span>
+                        <span className="chip chip--compact">
+                          {formatClipRangeSummary(
+                            song.clipStartSeconds,
+                            song.clipEndSeconds,
+                          )}
+                        </span>
+                      </div>
+                      <p className="map-song-card__hint">
+                        {formatHintText(song.clue) || "힌트 없음"}
                       </p>
                     </article>
                   ))}
@@ -2817,6 +2955,16 @@ export default function MapsPage() {
               >
                 새 맵 만들기
               </button>
+              <button
+                className="button button--ghost"
+                onClick={() => {
+                  setIsBulkImportOpen((current) => !current);
+                  setBulkImportError(null);
+                }}
+                type="button"
+              >
+                {isBulkImportOpen ? "일괄 추가 닫기" : "일괄 추가"}
+              </button>
               {editingMapId ? (
                 <button
                   className="button button--ghost"
@@ -2828,6 +2976,50 @@ export default function MapsPage() {
                 </button>
               ) : null}
             </div>
+
+            {isBulkImportOpen ? (
+              <article className="song-builder-card song-builder-card--bulk">
+                <div className="song-builder-card__header">
+                  <div>
+                    <p className="eyebrow">일괄 추가</p>
+                    <h3>엑셀이나 시트에서 여러 곡을 한 번에 붙여넣으세요.</h3>
+                  </div>
+                </div>
+                <p className="footnote">
+                  탭 또는 <code>|</code> 구분을 지원합니다. 형식:
+                  제목 | 가수 | 힌트 | 정답1,정답2 | youtube/file | 소스값 |
+                  시작초 | 끝초
+                </p>
+                <label className="field">
+                  <span>곡 줄 붙여넣기</span>
+                  <textarea
+                    value={bulkImportText}
+                    onChange={(event) => setBulkImportText(event.target.value)}
+                    placeholder={
+                      "A Cruel Angel's Thesis\tYoko Takahashi\t일본 애니메이션 오프닝입니다.\t잔혹한 천사의 테제, A Cruel Angel's Thesis\tyoutube\thttps://youtu.be/example\t0\t30"
+                    }
+                  />
+                </label>
+                {bulkImportError ? (
+                  <p className="footnote">{bulkImportError}</p>
+                ) : null}
+                <div className="button-row">
+                  <button className="button" onClick={handleBulkImport} type="button">
+                    붙여넣은 곡 추가
+                  </button>
+                  <button
+                    className="button button--ghost"
+                    onClick={() => {
+                      setBulkImportText("");
+                      setBulkImportError(null);
+                    }}
+                    type="button"
+                  >
+                    입력 비우기
+                  </button>
+                </div>
+              </article>
+            ) : null}
 
             <div className="toggle-card">
               <div>
@@ -3357,7 +3549,7 @@ export default function MapsPage() {
               </button>
             </div>
 
-            <div className="song-queue">
+            <div className="song-queue" ref={editorSongQueueRef}>
               {pagedEditorSongRows.map((row) => {
                 const songNumber =
                   songRows.findIndex((candidate) => candidate.id === row.id) + 1;
@@ -3368,10 +3560,11 @@ export default function MapsPage() {
                       row.id === activeSongRow?.id
                         ? " song-queue__item--selected"
                         : ""
-                    }`}
+                    } song-queue__item--dense`}
                     key={row.id}
                     onClick={() => setSelectedSongRowId(row.id)}
                     type="button"
+                    data-song-row-id={row.id}
                   >
                     <div className="song-queue__title-row">
                       <strong>
@@ -3379,17 +3572,15 @@ export default function MapsPage() {
                       </strong>
                       <span>{row.audioSourceType === "file" ? "파일" : "유튜브"}</span>
                     </div>
-                    <p>{row.artist.trim() || "가수 미입력"}</p>
-                    <p>
-                      기본 시간 {roundTimeLimitSeconds || "30"}초 · 길면 자동 연장,
-                      짧으면 반복
-                    </p>
-                    <p>
-                      {row.clipStartSeconds || "0"}초부터{" "}
-                      {row.clipEndSeconds.trim()
-                        ? `${row.clipEndSeconds}초까지`
-                        : "끝까지"}
-                    </p>
+                    <div className="song-queue__meta-row">
+                      <p>{row.artist.trim() || "가수 미입력"}</p>
+                      <p>
+                        {formatClipRangeSummary(
+                          row.clipStartSeconds || "0",
+                          row.clipEndSeconds,
+                        )}
+                      </p>
+                    </div>
                   </button>
                 );
               })}
