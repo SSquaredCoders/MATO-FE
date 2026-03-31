@@ -389,9 +389,6 @@ export default function RoomPage() {
   const isReady = Boolean(currentPlayer?.ready);
   const canSubmitAnswer = Boolean(currentPlayer?.connected);
   const readyLabel = isReady ? "준비 해제" : "준비 완료";
-  const helperText = isHost
-    ? "방장이면 준비가 끝난 뒤 게임 시작 또는 스킵을 직접 누를 수 있습니다."
-    : "준비를 마치고 채팅 입력창으로 정답을 제출하면 됩니다.";
   const hintRevealAtMs = room.hintRevealAt ? Date.parse(room.hintRevealAt) : null;
   const isHintVisible = Boolean(room.currentHint) && (
     room.phase !== "PLAYING" ||
@@ -415,6 +412,20 @@ export default function RoomPage() {
     roundEndsAtMs > clock
       ? Math.max(0, Math.ceil((roundEndsAtMs - clock) / 1000))
       : 0;
+  const skipVoterNicknames = room.skipVoterNicknames ?? [];
+  const skipVotesRequired = room.skipVotesRequired ?? 1;
+  const currentSkipVotes = room.currentSkipVotes ?? 0;
+  const canVoteSkip =
+    room.phase === "PLAYING" && room.roundFlowMode === "timer-or-skip";
+  const hasCurrentSkipVote = skipVoterNicknames.includes(currentNickname);
+  const skipVoteCountLabel = `${currentSkipVotes}/${skipVotesRequired}`;
+  const helperText = canVoteSkip
+    ? hasCurrentSkipVote
+      ? `스킵 투표 ${skipVoteCountLabel}. 다시 누르면 투표를 취소합니다.`
+      : `스킵 투표 ${skipVoteCountLabel}. 기준 인원이 모이면 다음 곡으로 넘어갑니다.`
+    : isHost
+      ? "방장이면 준비가 끝난 뒤 게임을 시작할 수 있습니다."
+      : "준비를 마치고 채팅 입력창으로 정답을 제출하면 됩니다.";
   const showVisibleMedia =
     room.phase === "PLAYING" &&
     room.showMediaControls &&
@@ -633,6 +644,9 @@ export default function RoomPage() {
               <span className="chip">
                 {roundFlowModeLabels[room.roundFlowMode]}
               </span>
+              {canVoteSkip ? (
+                <span className="chip">스킵 {skipVoteCountLabel}</span>
+              ) : null}
               <span className="chip">
                 {room.showMediaControls ? "플레이어 표시" : "플레이어 숨김"}
               </span>
@@ -727,17 +741,20 @@ export default function RoomPage() {
               </button>
             ) : null}
 
-            {isHost &&
-            room.phase === "PLAYING" &&
-            room.roundFlowMode === "timer-or-skip" ? (
+            {canVoteSkip ? (
               <button
-                className="button action-stack__button"
+                className={`button action-stack__button${
+                  hasCurrentSkipVote ? " button--active" : ""
+                }`}
                 onClick={() =>
                   publishEvent("game.next.request", { nickname: currentNickname })
                 }
+                disabled={!currentPlayer?.connected}
                 type="button"
               >
-                현재 곡 스킵
+                {hasCurrentSkipVote
+                  ? `스킵 투표 취소 (${skipVoteCountLabel})`
+                  : `스킵 투표 (${skipVoteCountLabel})`}
               </button>
             ) : null}
 

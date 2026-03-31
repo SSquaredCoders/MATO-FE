@@ -256,6 +256,7 @@ function buildBlankMapRequest(createdBy: string): CreateMapRequest {
     answerMode: "single-lock",
     roundFlowMode: "advance-on-correct",
     roundTimeLimitSeconds: 30,
+    skipVotesRequired: 2,
     hintRevealDelaySeconds: 8,
     songs: [createBlankSongDefinition()],
   };
@@ -273,6 +274,7 @@ function buildRequestFromMapDetail(map: MapDetail): CreateMapRequest {
     answerMode: map.answerMode,
     roundFlowMode: map.roundFlowMode,
     roundTimeLimitSeconds: map.roundTimeLimitSeconds,
+    skipVotesRequired: map.skipVotesRequired ?? 2,
     hintRevealDelaySeconds: map.hintRevealDelaySeconds,
     songs: map.songs.map((song) => ({
       clue: song.clue,
@@ -2300,6 +2302,7 @@ export default function MapsPage() {
   const [roundFlowMode, setRoundFlowMode] =
     useState<MapRoundFlowMode>("advance-on-correct");
   const [roundTimeLimitSeconds, setRoundTimeLimitSeconds] = useState("30");
+  const [skipVotesRequired, setSkipVotesRequired] = useState("2");
   const [hintRevealDelaySeconds, setHintRevealDelaySeconds] = useState("8");
   const [overviewSongQuery, setOverviewSongQuery] = useState("");
   const [overviewSongPage, setOverviewSongPage] = useState(0);
@@ -2406,6 +2409,7 @@ export default function MapsPage() {
     setAnswerMode("single-lock");
     setRoundFlowMode("advance-on-correct");
     setRoundTimeLimitSeconds("30");
+    setSkipVotesRequired("2");
     setHintRevealDelaySeconds("8");
     setSongRows([blankRow]);
     setSelectedSongRowId(blankRow.id);
@@ -2430,6 +2434,7 @@ export default function MapsPage() {
     setAnswerMode(map.answerMode);
     setRoundFlowMode(map.roundFlowMode);
     setRoundTimeLimitSeconds(String(map.roundTimeLimitSeconds));
+    setSkipVotesRequired(String(map.skipVotesRequired ?? 2));
     setHintRevealDelaySeconds(String(map.hintRevealDelaySeconds));
     setSongRows(nextRows);
     setSelectedSongRowId(nextRows[0]?.id ?? null);
@@ -2856,6 +2861,7 @@ export default function MapsPage() {
     answerMode,
     roundFlowMode,
     roundTimeLimitSeconds: Number(roundTimeLimitSeconds),
+    skipVotesRequired: Number(skipVotesRequired),
     hintRevealDelaySeconds: Number(hintRevealDelaySeconds),
     songs: songRows.map<MapSongDefinition>((row) => ({
       clue: row.clue.trim(),
@@ -2903,6 +2909,8 @@ export default function MapsPage() {
     const answerlessSongIndex = request.songs.findIndex(
       (song) => song.answers.length === 0,
     );
+    const hasInvalidSkipVoteRequirement =
+      !Number.isFinite(request.skipVotesRequired) || request.skipVotesRequired < 1;
 
     setFormErrorMessage(null);
 
@@ -2922,6 +2930,11 @@ export default function MapsPage() {
       setFormErrorMessage(
         `${answerlessSongIndex + 1}번 곡에 정답 별칭을 하나 이상 넣어주세요.`,
       );
+      return;
+    }
+
+    if (hasInvalidSkipVoteRequirement) {
+      setFormErrorMessage("스킵 투표 인원은 1명 이상으로 입력해 주세요.");
       return;
     }
 
@@ -3217,6 +3230,11 @@ export default function MapsPage() {
                   <span className="chip">
                     {roundFlowModeLabels[selectedMap.roundFlowMode]}
                   </span>
+                  {selectedMap.roundFlowMode === "timer-or-skip" ? (
+                    <span className="chip">
+                      스킵 {selectedMap.skipVotesRequired ?? 2}명
+                    </span>
+                  ) : null}
                   <span className="chip">
                     {selectedMap.showMediaControls
                       ? "플레이어 표시"
@@ -3261,6 +3279,12 @@ export default function MapsPage() {
                     <span>문제 시간</span>
                     <strong>{selectedMap.roundTimeLimitSeconds}초</strong>
                   </div>
+                  {selectedMap.roundFlowMode === "timer-or-skip" ? (
+                    <div>
+                      <span>스킵 인원</span>
+                      <strong>{selectedMap.skipVotesRequired ?? 2}명</strong>
+                    </div>
+                  ) : null}
                   <div>
                     <span>힌트 지연</span>
                     <strong>{selectedMap.hintRevealDelaySeconds}초</strong>
@@ -3731,6 +3755,24 @@ export default function MapsPage() {
                   <option value="advance-on-correct">정답 즉시 다음 곡</option>
                   <option value="timer-or-skip">시간 종료 또는 스킵</option>
                 </select>
+              </article>
+
+              <article className="toggle-card">
+                <div>
+                  <strong>스킵 투표 인원</strong>
+                  <p>
+                    시간 종료 또는 스킵 규칙일 때 몇 명이 스킵에 동의하면 다음 곡으로
+                    넘어갈지 정합니다.
+                  </p>
+                </div>
+                <input
+                  value={skipVotesRequired}
+                  onChange={(event) => setSkipVotesRequired(event.target.value)}
+                  inputMode="numeric"
+                  min="1"
+                  placeholder="2"
+                  disabled={roundFlowMode !== "timer-or-skip"}
+                />
               </article>
             </div>
 

@@ -71,6 +71,7 @@ export interface MapDetail {
   answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
   roundTimeLimitSeconds: number;
+  skipVotesRequired: number;
   hintRevealDelaySeconds: number;
   songs: MapSongDefinition[];
 }
@@ -86,6 +87,7 @@ export interface CreateMapRequest {
   answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
   roundTimeLimitSeconds: number;
+  skipVotesRequired: number;
   hintRevealDelaySeconds: number;
   songs: MapSongDefinition[];
 }
@@ -133,6 +135,9 @@ export interface RoomSnapshot {
   totalRounds: number;
   answerMode: MapAnswerMode;
   roundFlowMode: MapRoundFlowMode;
+  skipVotesRequired: number;
+  currentSkipVotes: number;
+  skipVoterNicknames: string[];
   currentPrompt: string;
   currentHint: string | null;
   hintRevealAt: string | null;
