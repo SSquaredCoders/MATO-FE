@@ -3920,8 +3920,8 @@ export default function MapsPage() {
                 </p>
                 <h3>
                   {editorMode === "edit"
-                    ? "왼쪽 에디터로 불러올 맵을 고르세요."
-                    : "곡 목록을 보면서 필요한 곡을 추가하고 선택합니다."}
+                    ? "불러올 맵을 고르세요."
+                    : "추가한 곡을 보고 선택합니다."}
                 </h3>
               </div>
               {editorMode === "create" ? (

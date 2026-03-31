@@ -1021,6 +1021,27 @@ button {
   overflow: hidden;
 }
 
+.map-workspace__side .panel__header {
+  gap: 10px;
+  align-items: start;
+}
+
+.map-workspace__side .panel__header h3 {
+  font-size: 1.02rem;
+  line-height: 1.2;
+}
+
+.map-workspace__side .panel__header .eyebrow {
+  margin-bottom: 4px;
+}
+
+.map-workspace__side .panel__header > .button {
+  flex: 0 0 auto;
+  min-width: 92px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
 .map-empty {
   display: grid;
   gap: 12px;
