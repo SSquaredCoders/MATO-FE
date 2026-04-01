@@ -2341,8 +2341,8 @@ export default function MapsPage() {
   >([]);
   const editorSongQueueRef = useRef<HTMLDivElement | null>(null);
 
-  const viewerNickname = currentNickname.trim();
-  const creatorNickname = nickname.trim() || viewerNickname || "host-01";
+  const viewerNickname = currentNickname.trim() || nickname.trim();
+  const creatorNickname = nickname.trim() || currentNickname.trim();
 
   const mapsQuery = useQuery({
     queryKey: ["maps", viewerNickname],
@@ -3041,6 +3041,11 @@ export default function MapsPage() {
 
     setFormErrorMessage(null);
 
+    if (!creatorNickname) {
+      setFormErrorMessage("맵 저장 전에 닉네임을 먼저 입력해주세요.");
+      return;
+    }
+
     if (invalidSongIndex >= 0) {
       setFormErrorMessage(`${invalidSongIndex + 1}번 곡의 소스를 먼저 입력해주세요.`);
       return;
@@ -3252,6 +3257,15 @@ export default function MapsPage() {
           먼저 맵을 고르고 흐름을 결정한 다음, 수정 모드나 만들기 모드로
           들어가면 됩니다.
         </p>
+
+        <label className="field map-page__nickname-field">
+          <span>현재 닉네임</span>
+          <input
+            value={nickname}
+            onChange={(event) => setNickname(event.target.value)}
+            placeholder="베타에서 쓸 닉네임을 입력하세요"
+          />
+        </label>
 
         <div className="map-mode-bar">
           <button
