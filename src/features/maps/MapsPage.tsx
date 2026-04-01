@@ -4199,167 +4199,173 @@ export default function MapsPage() {
                   </details>
                 </div>
 
-                <div className="grid grid--two">
-                  <label className="field">
-                    <span>곡 제목</span>
-                    <input
-                      value={activeSongRow.title}
-                      onChange={(event) =>
-                        updateSongRow(activeSongRow.id, "title", event.target.value)
-                      }
-                      placeholder="A Cruel Angel's Thesis"
-                    />
-                  </label>
+                <section className="song-editor__section">
+                  <div className="grid grid--two">
+                    <label className="field">
+                      <span>곡 제목</span>
+                      <input
+                        value={activeSongRow.title}
+                        onChange={(event) =>
+                          updateSongRow(activeSongRow.id, "title", event.target.value)
+                        }
+                        placeholder="A Cruel Angel's Thesis"
+                      />
+                    </label>
 
-                  <label className="field">
-                    <span>가수</span>
-                    <input
-                      value={activeSongRow.artist}
-                      onChange={(event) =>
-                        updateSongRow(activeSongRow.id, "artist", event.target.value)
-                      }
-                      placeholder="Yoko Takahashi"
-                    />
-                  </label>
-                </div>
-
-                <label className="field">
-                  <span>힌트 문구</span>
-                  <input
-                    value={activeSongRow.clue}
-                    onChange={(event) =>
-                      updateSongRow(activeSongRow.id, "clue", event.target.value)
-                    }
-                    placeholder="힌트: 일본 애니메이션 오프닝입니다."
-                  />
-                </label>
-
-                <label className="field">
-                  <span>정답 별칭</span>
-                  <input
-                    value={activeSongRow.answersText}
-                    onChange={(event) =>
-                      updateSongRow(
-                        activeSongRow.id,
-                        "answersText",
-                        event.target.value,
-                      )
-                    }
-                    placeholder="a cruel angel's thesis, 잔혹한 천사의 테제"
-                  />
-                  <small className="field__hint">
-                    쉼표로 여러 정답을 넣고, 실제 판정에서는 띄어쓰기를 무시합니다.
-                  </small>
-                </label>
-
-                <div className="grid grid--three">
-                  <label className="field">
-                    <span>소스 종류</span>
-                    <select
-                      value={activeSongRow.audioSourceType}
-                      onChange={(event) =>
-                        updateSongRowState(activeSongRow.id, (currentRow) => ({
-                          ...currentRow,
-                          audioSourceType: event.target.value as
-                            | "youtube"
-                            | "file",
-                          audioSourceValue:
-                            event.target.value === "youtube" &&
-                            currentRow.audioSourceType !== "youtube"
-                              ? ""
-                              : currentRow.audioSourceValue,
-                          audioSourceLabel:
-                            event.target.value === "youtube"
-                              ? ""
-                              : currentRow.audioSourceLabel,
-                          uploadError: null,
-                        }))
-                      }
-                    >
-                      <option value="youtube">{audioSourceLabels.youtube}</option>
-                      <option value="file">{audioSourceLabels.file}</option>
-                    </select>
-                  </label>
-
-                  <label className="field">
-                    <span>시작 시점(초)</span>
-                    <input
-                      value={activeSongRow.clipStartSeconds}
-                      onChange={(event) =>
-                        updateSongRow(
-                          activeSongRow.id,
-                          "clipStartSeconds",
-                          event.target.value,
-                        )
-                      }
-                      inputMode="numeric"
-                      placeholder="0"
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>끝 시점(초)</span>
-                    <input
-                      value={activeSongRow.clipEndSeconds}
-                      onChange={(event) =>
-                        updateSongRow(
-                          activeSongRow.id,
-                          "clipEndSeconds",
-                          event.target.value,
-                        )
-                      }
-                      inputMode="numeric"
-                      placeholder="비우면 끝까지"
-                    />
-                  </label>
-                </div>
-
-                <p className="footnote">
-                  기본 문제시간보다 클립이 길면 그 길이만큼 라운드가 늘어나고,
-                  짧으면 시작 지점부터 다시 재생합니다.
-                </p>
-
-                {activeSongRow.audioSourceType === "youtube" ? (
-                  <label className="field">
-                    <span>유튜브 링크</span>
-                    <input
-                      value={activeSongRow.audioSourceValue}
-                      onChange={(event) =>
-                        updateSongRowState(activeSongRow.id, (currentRow) => ({
-                          ...currentRow,
-                          audioSourceValue: event.target.value,
-                          audioSourceLabel: event.target.value,
-                          uploadError: null,
-                        }))
-                      }
-                      placeholder="https://www.youtube.com/watch?v=..."
-                    />
-                  </label>
-                ) : (
-                  <div className="field">
-                    <span>음원 파일</span>
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      onChange={(event) =>
-                        void handleSongFileUpload(
-                          activeSongRow.id,
-                          event.target.files?.[0],
-                        )
-                      }
-                    />
-                    <p className="footnote">
-                      {activeSongRow.isUploading
-                        ? "파일 업로드 중입니다."
-                        : activeSongRow.audioSourceValue
-                          ? `업로드됨: ${activeSongRow.audioSourceLabel}`
-                          : "mp3, wav 같은 음원 파일을 업로드할 수 있습니다."}
-                    </p>
-                    {activeSongRow.uploadError ? (
-                      <p className="footnote">{activeSongRow.uploadError}</p>
-                    ) : null}
+                    <label className="field">
+                      <span>가수</span>
+                      <input
+                        value={activeSongRow.artist}
+                        onChange={(event) =>
+                          updateSongRow(activeSongRow.id, "artist", event.target.value)
+                        }
+                        placeholder="Yoko Takahashi"
+                      />
+                    </label>
                   </div>
-                )}
+
+                  <div className="grid grid--two">
+                    <label className="field">
+                      <span>힌트 문구</span>
+                      <input
+                        value={activeSongRow.clue}
+                        onChange={(event) =>
+                          updateSongRow(activeSongRow.id, "clue", event.target.value)
+                        }
+                        placeholder="힌트: 일본 애니메이션 오프닝입니다."
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>정답 별칭</span>
+                      <input
+                        value={activeSongRow.answersText}
+                        onChange={(event) =>
+                          updateSongRow(
+                            activeSongRow.id,
+                            "answersText",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="a cruel angel's thesis, 잔혹한 천사의 테제"
+                      />
+                      <small className="field__hint">
+                        쉼표로 여러 정답을 넣고, 실제 판정에서는 띄어쓰기를 무시합니다.
+                      </small>
+                    </label>
+                  </div>
+                </section>
+
+                <section className="song-editor__section song-editor__section--source">
+                  <div className="grid grid--three">
+                    <label className="field">
+                      <span>소스 종류</span>
+                      <select
+                        value={activeSongRow.audioSourceType}
+                        onChange={(event) =>
+                          updateSongRowState(activeSongRow.id, (currentRow) => ({
+                            ...currentRow,
+                            audioSourceType: event.target.value as
+                              | "youtube"
+                              | "file",
+                            audioSourceValue:
+                              event.target.value === "youtube" &&
+                              currentRow.audioSourceType !== "youtube"
+                                ? ""
+                                : currentRow.audioSourceValue,
+                            audioSourceLabel:
+                              event.target.value === "youtube"
+                                ? ""
+                                : currentRow.audioSourceLabel,
+                            uploadError: null,
+                          }))
+                        }
+                      >
+                        <option value="youtube">{audioSourceLabels.youtube}</option>
+                        <option value="file">{audioSourceLabels.file}</option>
+                      </select>
+                    </label>
+
+                    <label className="field">
+                      <span>시작 시점(초)</span>
+                      <input
+                        value={activeSongRow.clipStartSeconds}
+                        onChange={(event) =>
+                          updateSongRow(
+                            activeSongRow.id,
+                            "clipStartSeconds",
+                            event.target.value,
+                          )
+                        }
+                        inputMode="numeric"
+                        placeholder="0"
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>끝 시점(초)</span>
+                      <input
+                        value={activeSongRow.clipEndSeconds}
+                        onChange={(event) =>
+                          updateSongRow(
+                            activeSongRow.id,
+                            "clipEndSeconds",
+                            event.target.value,
+                          )
+                        }
+                        inputMode="numeric"
+                        placeholder="비우면 끝까지"
+                      />
+                    </label>
+                  </div>
+
+                  {activeSongRow.audioSourceType === "youtube" ? (
+                    <label className="field">
+                      <span>유튜브 링크</span>
+                      <input
+                        value={activeSongRow.audioSourceValue}
+                        onChange={(event) =>
+                          updateSongRowState(activeSongRow.id, (currentRow) => ({
+                            ...currentRow,
+                            audioSourceValue: event.target.value,
+                            audioSourceLabel: event.target.value,
+                            uploadError: null,
+                          }))
+                        }
+                        placeholder="https://www.youtube.com/watch?v=..."
+                      />
+                    </label>
+                  ) : (
+                    <div className="field">
+                      <span>음원 파일</span>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={(event) =>
+                          void handleSongFileUpload(
+                            activeSongRow.id,
+                            event.target.files?.[0],
+                          )
+                        }
+                      />
+                      <p className="footnote">
+                        {activeSongRow.isUploading
+                          ? "파일 업로드 중입니다."
+                          : activeSongRow.audioSourceValue
+                            ? `업로드됨: ${activeSongRow.audioSourceLabel}`
+                            : "mp3, wav 같은 음원 파일을 업로드할 수 있습니다."}
+                      </p>
+                      {activeSongRow.uploadError ? (
+                        <p className="footnote">{activeSongRow.uploadError}</p>
+                      ) : null}
+                    </div>
+                  )}
+
+                  <p className="footnote">
+                    기본 문제시간보다 클립이 길면 그 길이만큼 라운드가 늘어나고,
+                    짧으면 시작 지점부터 다시 재생합니다.
+                  </p>
+                </section>
 
                 {activeSongRow.audioSourceValue ? (
                   <SongPreviewPlayer
