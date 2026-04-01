@@ -3574,8 +3574,8 @@ export default function MapsPage() {
                 </p>
                 <h2>
                   {editorMode === "edit"
-                    ? "내가 만든 맵을 불러와 바로 수정합니다."
-                    : "맵 설정을 잡고, 오른쪽 곡 목록을 보면서 한 곡씩 추가합니다."}
+                    ? "맵을 불러와 바로 수정합니다."
+                    : "기본 정보와 현재 곡만 먼저 입력합니다."}
                 </h2>
               </div>
               <div className="chip-list">
@@ -3601,16 +3601,6 @@ export default function MapsPage() {
                 type="button"
               >
                 새 맵 만들기
-              </button>
-              <button
-                className="button button--ghost"
-                onClick={() => {
-                  setIsBulkImportOpen((current) => !current);
-                  setBulkImportError(null);
-                }}
-                type="button"
-              >
-                {isBulkImportOpen ? "일괄 추가 닫기" : "일괄 추가"}
               </button>
               {editingMapId ? (
                 <button
@@ -3638,8 +3628,27 @@ export default function MapsPage() {
               </div>
             ) : null}
 
-            {isBulkImportOpen ? (
-              <article className="song-builder-card song-builder-card--bulk">
+            <details
+              className="map-collapsible"
+              open={isBulkImportOpen}
+              onToggle={(event) => {
+                setIsBulkImportOpen(event.currentTarget.open);
+                if (!event.currentTarget.open) {
+                  setBulkImportError(null);
+                }
+              }}
+            >
+              <summary className="map-collapsible__summary">
+                <div>
+                  <strong>일괄 추가 도구</strong>
+                  <p>엑셀, 텍스트, 유튜브 링크 여러 개를 한 번에 가져옵니다.</p>
+                </div>
+                <span className="chip">
+                  {isBulkImportOpen ? "열림" : "닫힘"}
+                </span>
+              </summary>
+              <div className="map-collapsible__body">
+                <article className="song-builder-card song-builder-card--bulk">
                 <div className="song-builder-card__header">
                   <div>
                     <p className="eyebrow">유튜브 링크로 일괄 추가</p>
@@ -3835,8 +3844,48 @@ export default function MapsPage() {
                     입력 비우기
                   </button>
                 </div>
-              </article>
-            ) : null}
+                </article>
+              </div>
+            </details>
+
+            <div className="grid grid--two">
+              <label className="field">
+                <span>맵 이름</span>
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Anime Sprint"
+                />
+              </label>
+
+              <label className="field">
+                <span>설명</span>
+                <input
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="빠르게 듣고 바로 맞히는 노래맞추기 맵"
+                />
+              </label>
+            </div>
+
+            <p className="footnote">
+              먼저 맵 이름과 곡부터 채우고, 세부 규칙은 아래 고급 설정에서
+              필요할 때만 열어 바꾸면 됩니다.
+            </p>
+
+            <details className="map-collapsible map-collapsible--soft">
+              <summary className="map-collapsible__summary">
+                <div>
+                  <strong>고급 설정</strong>
+                  <p>
+                    {difficultyLabels[difficulty]} ·{" "}
+                    {visibilityLabels[visibility]} ·{" "}
+                    {songOrderModeLabels[songOrderMode]}
+                  </p>
+                </div>
+                <span className="chip">{roundTimeLimitSeconds || "30"}초</span>
+              </summary>
+              <div className="map-collapsible__body">
 
             <div className="toggle-card">
               <div>
@@ -4026,14 +4075,29 @@ export default function MapsPage() {
               </label>
             </div>
 
+              </div>
+            </details>
+
             {activeSongRow ? (
               <article className="song-editor">
                 <div className="song-editor__header">
                   <div>
                     <p className="eyebrow">곡 편집</p>
                     <h3>{formatSongSummary(activeSongRow)}</h3>
+                    <p className="footnote song-editor__meta">
+                      현재 {activeSongPosition}/{songRows.length}번째 곡
+                    </p>
                   </div>
-                  <div className="song-editor__actions stack stack--tight">
+                  <details className="map-collapsible map-collapsible--soft">
+                    <summary className="map-collapsible__summary">
+                      <div>
+                        <strong>곡 편집 도구</strong>
+                        <p>추가, 복제, 순서 이동, 삭제를 정리합니다.</p>
+                      </div>
+                      <span className="chip">도구 보기</span>
+                    </summary>
+                    <div className="map-collapsible__body">
+                      <div className="song-editor__actions stack stack--tight">
                     <div className="button-row">
                       <button
                         className="button button--ghost"
@@ -4130,7 +4194,9 @@ export default function MapsPage() {
                         이동
                       </button>
                     </div>
+                    </div>
                   </div>
+                  </details>
                 </div>
 
                 <div className="grid grid--two">
@@ -4354,8 +4420,8 @@ export default function MapsPage() {
                 </p>
                 <h3>
                   {editorMode === "edit"
-                    ? "불러올 맵을 고르세요."
-                    : "추가한 곡을 보고 선택합니다."}
+                    ? "수정할 맵을 고르세요."
+                    : `곡 ${songRows.length}개`}
                 </h3>
               </div>
               {editorMode === "create" ? (
