@@ -3848,30 +3848,38 @@ export default function MapsPage() {
               </div>
             </details>
 
-            <div className="grid grid--two">
-              <label className="field">
-                <span>맵 이름</span>
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Anime Sprint"
-                />
-              </label>
+            <section className="song-editor__section song-editor__section--intro">
+              <div className="song-editor__section-header">
+                <div>
+                  <p className="eyebrow">맵 기본 정보</p>
+                  <strong>맵 이름과 설명만 먼저 정합니다.</strong>
+                  <p>세부 규칙은 아래 고급 설정에서 필요할 때만 바꾸면 됩니다.</p>
+                </div>
+                <div className="chip-list chip-list--compact">
+                  <span className="chip">제작자 {creatorNickname}</span>
+                </div>
+              </div>
 
-              <label className="field">
-                <span>설명</span>
-                <input
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="빠르게 듣고 바로 맞히는 노래맞추기 맵"
-                />
-              </label>
-            </div>
+              <div className="grid grid--two">
+                <label className="field">
+                  <span>맵 이름</span>
+                  <input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Anime Sprint"
+                  />
+                </label>
 
-            <p className="footnote">
-              먼저 맵 이름과 곡부터 채우고, 세부 규칙은 아래 고급 설정에서
-              필요할 때만 열어 바꾸면 됩니다.
-            </p>
+                <label className="field">
+                  <span>설명</span>
+                  <input
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder="빠르게 듣고 바로 맞히는 노래맞추기 맵"
+                  />
+                </label>
+              </div>
+            </section>
 
             <details className="map-collapsible map-collapsible--soft">
               <summary className="map-collapsible__summary">
@@ -3905,39 +3913,6 @@ export default function MapsPage() {
                 <option value="random">랜덤</option>
               </select>
             </div>
-
-            <div className="grid grid--two">
-              <label className="field">
-                <span>제작자 닉네임</span>
-                <input
-                  value={nickname}
-                  onChange={(event) => {
-                    const nextNickname = event.target.value;
-                    setNickname(nextNickname);
-                    setCurrentNickname(nextNickname);
-                  }}
-                  placeholder="host-01"
-                />
-              </label>
-
-              <label className="field">
-                <span>맵 이름</span>
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Anime Sprint"
-                />
-              </label>
-            </div>
-
-            <label className="field">
-              <span>설명</span>
-              <input
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="빠르게 듣고 바로 맞히는 노래맞추기 맵"
-              />
-            </label>
 
             <div className="grid grid--two">
               <label className="field">
@@ -4081,23 +4056,30 @@ export default function MapsPage() {
             {activeSongRow ? (
               <article className="song-editor">
                 <div className="song-editor__header">
-                  <div>
-                    <p className="eyebrow">곡 편집</p>
+                  <div className="song-editor__identity">
+                    <p className="eyebrow">현재 곡</p>
                     <h3>{formatSongSummary(activeSongRow)}</h3>
-                    <p className="footnote song-editor__meta">
-                      현재 {activeSongPosition}/{songRows.length}번째 곡
-                    </p>
+                    <div className="chip-list chip-list--compact song-editor__meta">
+                      <span className="chip">
+                        현재 {activeSongPosition}/{songRows.length}번째 곡
+                      </span>
+                      <span className="chip">
+                        {activeSongRow.audioSourceType === "file" ? "파일" : "유튜브"}
+                      </span>
+                    </div>
                   </div>
-                  <details className="map-collapsible map-collapsible--soft">
-                    <summary className="map-collapsible__summary">
-                      <div>
-                        <strong>곡 편집 도구</strong>
-                        <p>추가, 복제, 순서 이동, 삭제를 정리합니다.</p>
-                      </div>
-                      <span className="chip">도구 보기</span>
-                    </summary>
-                    <div className="map-collapsible__body">
-                      <div className="song-editor__actions stack stack--tight">
+                </div>
+
+                <details className="map-collapsible map-collapsible--soft song-editor__tools">
+                  <summary className="map-collapsible__summary">
+                    <div>
+                      <strong>곡 편집 도구</strong>
+                      <p>추가, 복제, 순서 이동, 삭제를 정리합니다.</p>
+                    </div>
+                    <span className="chip">도구 보기</span>
+                  </summary>
+                  <div className="map-collapsible__body">
+                    <div className="song-editor__actions stack stack--tight">
                     <div className="button-row">
                       <button
                         className="button button--ghost"
@@ -4196,10 +4178,15 @@ export default function MapsPage() {
                     </div>
                     </div>
                   </div>
-                  </details>
-                </div>
+                </details>
 
                 <section className="song-editor__section">
+                  <div className="song-editor__section-header">
+                    <div>
+                      <p className="eyebrow">곡 기본 정보</p>
+                      <strong>제목과 가수를 먼저 정합니다.</strong>
+                    </div>
+                  </div>
                   <div className="grid grid--two">
                     <label className="field">
                       <span>곡 제목</span>
@@ -4222,6 +4209,16 @@ export default function MapsPage() {
                         placeholder="Yoko Takahashi"
                       />
                     </label>
+                  </div>
+
+                </section>
+
+                <section className="song-editor__section">
+                  <div className="song-editor__section-header">
+                    <div>
+                      <p className="eyebrow">정답과 힌트</p>
+                      <strong>보여줄 힌트와 맞는 정답 묶음을 정합니다.</strong>
+                    </div>
                   </div>
 
                   <div className="grid grid--two">
@@ -4257,6 +4254,13 @@ export default function MapsPage() {
                 </section>
 
                 <section className="song-editor__section song-editor__section--source">
+                  <div className="song-editor__section-header">
+                    <div>
+                      <p className="eyebrow">재생 소스와 구간</p>
+                      <strong>유튜브나 파일을 고르고 들려줄 범위를 맞춥니다.</strong>
+                    </div>
+                  </div>
+
                   <div className="grid grid--three">
                     <label className="field">
                       <span>소스 종류</span>
@@ -4429,6 +4433,11 @@ export default function MapsPage() {
                     ? "수정할 맵을 고르세요."
                     : `곡 ${songRows.length}개`}
                 </h3>
+                <p className="footnote">
+                  {editorMode === "edit"
+                    ? "왼쪽 편집기에 불러올 맵을 고릅니다."
+                    : "추가한 곡을 고르고 순서를 확인합니다."}
+                </p>
               </div>
               {editorMode === "create" ? (
                 <button
