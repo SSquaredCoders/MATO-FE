@@ -3,7 +3,13 @@
   background:
     linear-gradient(180deg, rgba(244, 154, 86, 0.08) 0%, transparent 12%),
     #121110;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family:
+    "Pretendard",
+    "Noto Sans KR",
+    "Malgun Gothic",
+    "Apple SD Gothic Neo",
+    "Segoe UI",
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -179,8 +185,14 @@ button {
 .panel h2,
 .panel h3 {
   margin: 0;
-  font-family: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
-  letter-spacing: 0.02em;
+  font-family:
+    "Pretendard",
+    "Noto Sans KR",
+    "Malgun Gothic",
+    "Apple SD Gothic Neo",
+    "Segoe UI",
+    sans-serif;
+  letter-spacing: -0.01em;
 }
 
 .shell__summary,
@@ -194,10 +206,10 @@ button {
 
 .eyebrow {
   margin: 0 0 10px;
-  color: var(--accent);
-  font-size: 0.82rem;
+  color: #d79264;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -306,8 +318,8 @@ button {
 }
 
 .field span {
-  color: rgba(244, 239, 232, 0.8);
-  font-size: 0.92rem;
+  color: rgba(245, 241, 234, 0.92);
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
@@ -1021,10 +1033,15 @@ button {
 
 .map-page__hero {
   padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 14px;
 }
 
 .map-page__hero .panel__header {
-  align-items: center;
+  align-items: end;
+  margin: 0;
 }
 
 .map-page__hero h2 {
@@ -1041,7 +1058,9 @@ button {
 }
 
 .map-page__nickname-field {
-  max-width: 320px;
+  max-width: 280px;
+  min-width: 220px;
+  justify-self: end;
 }
 
 .shell--workbench .map-page__hero {
@@ -1099,7 +1118,8 @@ button {
 .map-mode-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
+  grid-column: 1 / -1;
 }
 
 .map-mode-button--active {
@@ -1141,13 +1161,13 @@ button {
 }
 
 .map-workspace__side .panel__header {
-  gap: 10px;
+  gap: 8px;
   align-items: start;
 }
 
 .map-workspace__side .panel__header h3 {
-  font-size: 1.02rem;
-  line-height: 1.2;
+  font-size: 0.98rem;
+  line-height: 1.3;
 }
 
 .map-workspace__side .panel__header .eyebrow {
@@ -1256,10 +1276,10 @@ button {
 .song-editor {
   display: grid;
   gap: 14px;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(240, 123, 63, 0.18);
-  background: var(--surface-1);
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
 }
 
 .song-editor__header {
@@ -1285,10 +1305,11 @@ button {
 .song-editor__section {
   display: grid;
   gap: 14px;
-  padding: 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.025);
+  padding: 16px 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
@@ -1297,8 +1318,8 @@ button {
 }
 
 .song-editor__section--intro {
-  border-color: rgba(240, 123, 63, 0.12);
-  background: rgba(244, 154, 86, 0.06);
+  padding-top: 0;
+  border-top: 0;
 }
 
 .song-editor__section--intro .chip-list {
@@ -1318,19 +1339,19 @@ button {
 
 .song-editor__section-header strong {
   display: block;
-  font-size: 1.02rem;
-  line-height: 1.3;
+  font-size: 1.08rem;
+  line-height: 1.35;
 }
 
 .song-editor__section-header p:last-child {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 .song-editor__tools {
-  margin-top: -2px;
+  margin-top: 2px;
 }
 
 .chip-list--compact {
@@ -1360,6 +1381,11 @@ button {
   border-radius: 16px;
   border: 1px solid rgba(240, 123, 63, 0.24);
   background: rgba(17, 17, 17, 0.9);
+}
+
+.map-workspace__main > .button-row:last-of-type,
+.map-workspace__main > .footnote:last-of-type {
+  margin-top: 4px;
 }
 
 .song-preview__meta {
@@ -1674,6 +1700,8 @@ button {
 
   .map-page__hero {
     gap: 8px;
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
   .map-page__hero .chip-list,
@@ -1682,6 +1710,12 @@ button {
     overflow-x: auto;
     flex-wrap: nowrap;
     padding-bottom: 2px;
+  }
+
+  .map-page__nickname-field {
+    max-width: none;
+    min-width: 0;
+    justify-self: stretch;
   }
 
   .room-stage,
@@ -1752,10 +1786,11 @@ button {
 .toggle-card {
   display: grid;
   gap: 14px;
-  padding: 14px;
-  border-radius: 14px;
-  border: 1px solid var(--border-soft);
-  background: var(--surface-1);
+  padding: 12px 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  background: transparent;
 }
 
 .toggle-card strong {
@@ -1780,9 +1815,9 @@ button {
   display: grid;
   gap: 14px;
   padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 140, 66, 0.18);
-  background: var(--surface-1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .song-builder-card__header {
@@ -1811,9 +1846,9 @@ button {
   display: grid;
   gap: 6px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--border-soft);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .bulk-import-guide__head {
@@ -1904,14 +1939,15 @@ button {
 .map-collapsible {
   display: grid;
   gap: 0;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid var(--border-soft);
-  background: var(--surface-1);
+  padding: 12px 0;
+  border-radius: 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
 }
 
 .map-collapsible--soft {
-  background: rgba(255, 255, 255, 0.025);
+  background: transparent;
 }
 
 .map-collapsible__summary {
@@ -1943,7 +1979,7 @@ button {
 .map-collapsible__body {
   display: grid;
   gap: 16px;
-  padding-top: 16px;
+  padding-top: 14px;
 }
 
 .map-workspace__side .panel__header .footnote {
