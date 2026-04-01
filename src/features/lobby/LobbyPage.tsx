@@ -24,10 +24,12 @@ export default function LobbyPage() {
   const setCurrentNickname = useSessionStore(
     (state) => state.setCurrentNickname,
   );
-  const [roomName, setRoomName] = useState("ranked-demo");
-  const [nickname, setNickname] = useState(currentNickname);
+  const [roomName, setRoomName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
-  const viewerNickname = nickname.trim() || currentNickname;
+  const trimmedRoomName = roomName.trim();
+  const trimmedNickname = nickname.trim();
+  const viewerNickname = trimmedNickname || currentNickname.trim();
 
   const blueprintQuery = useQuery({
     queryKey: ["rebuild-blueprint"],
@@ -71,16 +73,24 @@ export default function LobbyPage() {
   const selectedMap = maps.find((map) => map.id === selectedMapId) ?? null;
 
   const handleCreateRoom = () => {
-    setCurrentNickname(nickname);
+    if (!trimmedNickname || !trimmedRoomName || !selectedMapId) {
+      return;
+    }
+
+    setCurrentNickname(trimmedNickname);
     createRoomMutation.mutate({
-      roomName,
-      hostNickname: nickname,
-      mapId: selectedMapId ?? undefined,
+      roomName: trimmedRoomName,
+      hostNickname: trimmedNickname,
+      mapId: selectedMapId,
     });
   };
 
   const handleJoinRoom = (targetRoomName: string) => {
-    setCurrentNickname(nickname);
+    if (!trimmedNickname) {
+      return;
+    }
+
+    setCurrentNickname(trimmedNickname);
     startTransition(() => {
       navigate(`/room/${targetRoomName}`);
     });
@@ -143,7 +153,7 @@ export default function LobbyPage() {
             <input
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
-              placeholder="guest-01"
+              placeholder="닉네임을 입력하세요"
             />
           </label>
 
@@ -152,7 +162,7 @@ export default function LobbyPage() {
             <input
               value={roomName}
               onChange={(event) => setRoomName(event.target.value)}
-              placeholder="ranked-demo"
+              placeholder="방 이름을 입력하세요"
             />
           </label>
 
@@ -190,11 +200,22 @@ export default function LobbyPage() {
             <button
               className="button"
               onClick={handleCreateRoom}
-              disabled={!selectedMapId}
+              disabled={
+                !selectedMapId ||
+                !trimmedNickname ||
+                !trimmedRoomName ||
+                createRoomMutation.isPending
+              }
             >
               {createRoomMutation.isPending ? "생성 중..." : "방 만들기"}
             </button>
           </div>
+
+          {!trimmedNickname || !trimmedRoomName ? (
+            <p className="footnote">
+              닉네임과 방 이름을 채우면 바로 방을 만들거나 입장할 수 있습니다.
+            </p>
+          ) : null}
 
           {createRoomMutation.error ? (
             <p className="footnote">
@@ -224,12 +245,17 @@ export default function LobbyPage() {
             <p className="footnote">{(roomsQuery.error as Error).message}</p>
           ) : null}
 
+          {!trimmedNickname ? (
+            <p className="footnote">입장 전에 닉네임을 먼저 입력해주세요.</p>
+          ) : null}
+
           <div className="room-list">
             {rooms.map((room) => (
               <button
                 className="room-card"
                 key={room.name}
                 onClick={() => handleJoinRoom(room.name)}
+                disabled={!trimmedNickname}
                 type="button"
               >
                 <div className="room-card__header">

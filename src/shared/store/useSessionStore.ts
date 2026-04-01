@@ -6,9 +6,9 @@ interface SessionState {
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
-  currentNickname: "host-01",
+  currentNickname: "",
   setCurrentNickname: (nickname) =>
     set({
-      currentNickname: nickname.trim() || "host-01",
+      currentNickname: nickname.trim(),
     }),
 }));
