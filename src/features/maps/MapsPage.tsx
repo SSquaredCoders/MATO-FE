@@ -50,6 +50,30 @@ interface SongDraftRow {
   uploadError: string | null;
 }
 
+type MapCreateStep = 1 | 2 | 3;
+
+const MAP_CREATE_STEPS: Array<{
+  step: MapCreateStep;
+  title: string;
+  description: string;
+}> = [
+  {
+    step: 1,
+    title: "맵 정보",
+    description: "맵 이름과 설명을 먼저 정합니다.",
+  },
+  {
+    step: 2,
+    title: "곡 추가",
+    description: "곡을 모으고 구간과 정답을 손봅니다.",
+  },
+  {
+    step: 3,
+    title: "맵 설정",
+    description: "규칙을 확인하고 바로 생성합니다.",
+  },
+];
+
 declare global {
   interface Window {
     YT?: {
@@ -343,7 +367,20 @@ function formatSongSummary(row: SongDraftRow) {
     return row.title.trim();
   }
 
-  return "제목 없는 곡";
+  const firstAnswer = row.answersText
+    .split(",")
+    .map((answer) => answer.trim())
+    .find(Boolean);
+  if (firstAnswer) {
+    return firstAnswer;
+  }
+
+  const hintText = formatHintText(row.clue);
+  if (hintText) {
+    return hintText;
+  }
+
+  return "정리 전 곡";
 }
 
 function formatSongSource(
@@ -1628,6 +1665,7 @@ function SongPreviewPlayer({
   const [dragHandle, setDragHandle] = useState<"start" | "end" | null>(null);
   const isFileSource = row.audioSourceType === "file";
   const isYouTubeSource = row.audioSourceType === "youtube";
+  const hasSource = row.audioSourceValue.trim().length > 0;
   const youtubeVideoId = useMemo(() => {
     if (!isYouTubeSource || !row.audioSourceValue) {
       return null;
@@ -1660,6 +1698,8 @@ function SongPreviewPlayer({
   const timelinePlayheadPercent =
     (clampSeconds(currentTimeSeconds, 0, timelineMaxSeconds) / timelineMaxSeconds) *
     100;
+  const controlsDisabled =
+    !hasSource || (isYouTubeSource && !youtubeVideoId);
 
   useEffect(() => {
     setDurationSeconds(0);
@@ -2019,7 +2059,7 @@ function SongPreviewPlayer({
   const captureSeconds = () => String(Math.max(0, Math.round(currentTimeSeconds)));
 
   const renderClipTimeline = () => (
-    <div className="clip-timeline">
+    <div className={`clip-timeline${controlsDisabled ? " clip-timeline--disabled" : ""}`}>
       <div className="clip-timeline__labels">
         <span>{"\uc2dc\uc791"} {formatSecondsLabel(clipStartSeconds)}</span>
         <span>{"\ud604\uc7ac"} {formatSecondsLabel(currentTimeSeconds)}</span>
@@ -2033,7 +2073,7 @@ function SongPreviewPlayer({
       <div
         ref={timelineRef}
         className="clip-timeline__track"
-        onPointerDown={handleTimelinePointerDown}
+        onPointerDown={controlsDisabled ? undefined : handleTimelinePointerDown}
       >
         <div className="clip-timeline__base" />
         <div
@@ -2056,6 +2096,7 @@ function SongPreviewPlayer({
           style={{ left: `${timelineStartPercent}%` }}
           type="button"
           aria-label={"\uc2dc\uc791\uc810 \uc774\ub3d9"}
+          disabled={controlsDisabled}
         />
         <button
           className="clip-timeline__handle clip-timeline__handle--end"
@@ -2066,16 +2107,23 @@ function SongPreviewPlayer({
           style={{ left: `${timelineEndPercent}%` }}
           type="button"
           aria-label={"\ub05d\uc810 \uc774\ub3d9"}
+          disabled={controlsDisabled}
         />
       </div>
     </div>
   );
 
   return (
-    <div className="song-preview">
+    <div className={`song-preview${controlsDisabled ? " song-preview--empty" : ""}`}>
       <div className="song-preview__meta">
         <p className="eyebrow">{"\ubbf8\ub9ac\ub4e3\uae30"}</p>
-        <strong>{row.audioSourceLabel || formatSongSummary(row)}</strong>
+        <strong>
+          {row.audioSourceLabel ||
+            formatSongSummary(row) ||
+            (isYouTubeSource
+              ? "\uc720\ud29c\ube0c \uc18c\uc2a4 \ubbf8\ub9ac\ub4e3\uae30"
+              : "\ud30c\uc77c \uc18c\uc2a4 \ubbf8\ub9ac\ub4e3\uae30")}
+        </strong>
         <p className="footnote">
           {clipStartSeconds}{"\ucd08\ubd80\ud130"}{" "}
           {clipEndSeconds !== null ? `${clipEndSeconds}\ucd08\uae4c\uc9c0` : "\ub05d\uae4c\uc9c0"} {"\ubbf8\ub9ac\ub4e3\uae30"}
@@ -2084,12 +2132,14 @@ function SongPreviewPlayer({
 
       {isFileSource ? (
         <>
-          <audio
-            ref={audioRef}
-            className="song-preview__audio"
-            preload="metadata"
-            src={resolveMediaUrl(row.audioSourceValue)}
-          />
+          {hasSource ? (
+            <audio
+              ref={audioRef}
+              className="song-preview__audio"
+              preload="metadata"
+              src={resolveMediaUrl(row.audioSourceValue)}
+            />
+          ) : null}
 
           <div className="song-preview__transport">
             <div className="song-preview__time-row">
@@ -2104,6 +2154,7 @@ function SongPreviewPlayer({
                 className="button song-preview__button"
                 onClick={handleTogglePlayback}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {isPlaying ? "\uc77c\uc2dc\uc815\uc9c0" : "\uc7ac\uc0dd"}
               </button>
@@ -2111,6 +2162,7 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => seekWithinPreview(0)}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ucc98\uc74c"}
               </button>
@@ -2122,6 +2174,7 @@ function SongPreviewPlayer({
                   )
                 }
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"-3\ucd08"}
               </button>
@@ -2136,6 +2189,7 @@ function SongPreviewPlayer({
                   )
                 }
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"+3\ucd08"}
               </button>
@@ -2146,6 +2200,7 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipStartChange(captureSeconds())}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ud604\uc7ac \uc704\uce58\ub97c \uc2dc\uc791\uc810\uc73c\ub85c"}
               </button>
@@ -2153,6 +2208,7 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange(captureSeconds())}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ud604\uc7ac \uc704\uce58\ub97c \ub05d\uc810\uc73c\ub85c"}
               </button>
@@ -2160,10 +2216,17 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange("")}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ub05d\uae4c\uc9c0 \uc7ac\uc0dd"}
               </button>
             </div>
+
+            {controlsDisabled ? (
+              <p className="song-preview__guide">
+                {"\uc18c\uc2a4\ub97c \uba3c\uc800 \ub123\uc73c\uba74 \uc5ec\uae30\uc11c \ubc14\ub85c \uad6c\uac04\uc744 \uc870\uc808\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4."}
+              </p>
+            ) : null}
           </div>
         </>
       ) : (
@@ -2181,6 +2244,7 @@ function SongPreviewPlayer({
                 className="button song-preview__button"
                 onClick={handleTogglePlayback}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {isPlaying ? "\uc77c\uc2dc\uc815\uc9c0" : "\uc7ac\uc0dd"}
               </button>
@@ -2188,6 +2252,7 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => seekWithinPreview(0)}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ucc98\uc74c"}
               </button>
@@ -2199,6 +2264,7 @@ function SongPreviewPlayer({
                   )
                 }
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"-3\ucd08"}
               </button>
@@ -2213,6 +2279,7 @@ function SongPreviewPlayer({
                   )
                 }
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"+3\ucd08"}
               </button>
@@ -2223,6 +2290,7 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipStartChange(captureSeconds())}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ud604\uc7ac \uc704\uce58\ub97c \uc2dc\uc791\uc810\uc73c\ub85c"}
               </button>
@@ -2230,6 +2298,7 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange(captureSeconds())}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ud604\uc7ac \uc704\uce58\ub97c \ub05d\uc810\uc73c\ub85c"}
               </button>
@@ -2237,6 +2306,7 @@ function SongPreviewPlayer({
                 className="button button--ghost song-preview__button"
                 onClick={() => onClipEndChange("")}
                 type="button"
+                disabled={controlsDisabled}
               >
                 {"\ub05d\uae4c\uc9c0 \uc7ac\uc0dd"}
               </button>
@@ -2261,10 +2331,13 @@ function SongPreviewPlayer({
                 allowFullScreen
               />
             ) : (
-              <p className="footnote">
-                {"\uc720\ud29c\ube0c \ub9c1\ud06c\ub97c \ub2e4\uc2dc \ud655\uc778\ud574 \uc8fc\uc138\uc694. \ubbf8\ub9ac\ub4e3\uae30 \uc8fc\uc18c\ub97c \ub9cc\ub4e4 \uc218"}
-                {"\uc5c6\uc2b5\ub2c8\ub2e4."}
-              </p>
+              <div className="song-preview__frame song-preview__frame--empty">
+                <p className="song-preview__guide">
+                  {hasSource
+                    ? "\uc720\ud29c\ube0c \ub9c1\ud06c\ub97c \ub2e4\uc2dc \ud655\uc778\ud574 \uc8fc\uc138\uc694."
+                    : "\uc720\ud29c\ube0c \ub9c1\ud06c\ub97c \ub123\uc73c\uba74 \uc5ec\uae30\uc11c \ubc14\ub85c \ubbf8\ub9ac\ub4e3\uae30\ub97c \ubcf4\uc5ec\uc90d\ub2c8\ub2e4."}
+                </p>
+              </div>
             )}
           </div>
         </>
@@ -2288,6 +2361,7 @@ export default function MapsPage() {
   const [selectedSongRowId, setSelectedSongRowId] = useState<string | null>(
     null,
   );
+  const [createStep, setCreateStep] = useState<MapCreateStep>(1);
   const [nickname, setNickname] = useState(currentNickname);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -2343,6 +2417,8 @@ export default function MapsPage() {
 
   const viewerNickname = currentNickname.trim() || nickname.trim();
   const creatorNickname = nickname.trim() || currentNickname.trim();
+  const isCreateMode = editorMode === "create";
+  const isEditMode = editorMode === "edit";
 
   const mapsQuery = useQuery({
     queryKey: ["maps", viewerNickname],
@@ -2404,6 +2480,7 @@ export default function MapsPage() {
   const resetForm = () => {
     const blankRow = createBlankSongRow();
     const blankRequest = buildBlankMapRequest(creatorNickname);
+    setCreateStep(1);
     setEditingMapId(null);
     setPendingEditorMapId(null);
     setFormErrorMessage(null);
@@ -3095,6 +3172,28 @@ export default function MapsPage() {
       ? parseSeconds(activeSongRow.clipEndSeconds, activeClipStartSeconds)
       : null
     : null;
+  const configuredSongRows = songRows.filter(
+    (row) =>
+      row.title.trim() ||
+      row.artist.trim() ||
+      row.clue.trim() ||
+      row.answersText.trim() ||
+      row.audioSourceValue.trim(),
+  );
+  const readySongRows = configuredSongRows.filter(
+    (row) => row.answersText.trim() && row.audioSourceValue.trim(),
+  );
+  const youtubeSongCount = configuredSongRows.filter(
+    (row) => row.audioSourceType === "youtube",
+  ).length;
+  const fileSongCount = configuredSongRows.length - youtubeSongCount;
+  const createStepOneReady = Boolean(creatorNickname && name.trim() && description.trim());
+  const createStepTwoReady = readySongRows.length > 0;
+  const createStepAccess = {
+    1: true,
+    2: createStepOneReady,
+    3: createStepOneReady && createStepTwoReady,
+  } as const;
   const applyActiveClipStart = (value: string) => {
     if (!activeSongRow) {
       return;
@@ -3187,11 +3286,37 @@ export default function MapsPage() {
     setSongMoveTarget(String(boundedPosition));
   };
 
+  const goToCreateStep = (nextStep: MapCreateStep) => {
+    if (!createStepAccess[nextStep]) {
+      return;
+    }
+
+    setCreateStep(nextStep);
+    setFormErrorMessage(null);
+  };
+
+  const moveCreateStep = (direction: -1 | 1) => {
+    setCreateStep((currentStep) => {
+      const nextStep = Math.min(
+        3,
+        Math.max(1, currentStep + direction),
+      ) as MapCreateStep;
+
+      if (!createStepAccess[nextStep]) {
+        return currentStep;
+      }
+
+      return nextStep;
+    });
+    setFormErrorMessage(null);
+  };
+
   const openOverviewMode = () => {
     if (!confirmDiscardChanges("맵 보기로 돌아가기")) {
       return;
     }
 
+    setCreateStep(1);
     setEditorMode("overview");
     setPendingEditorMapId(null);
     setFormErrorMessage(null);
@@ -3203,6 +3328,7 @@ export default function MapsPage() {
     }
 
     resetForm();
+    setCreateStep(1);
     setEditorMode("create");
   };
 
@@ -3216,6 +3342,7 @@ export default function MapsPage() {
     }
 
     setFormErrorMessage(null);
+    setCreateStep(1);
     setEditorMode("edit");
     setPendingEditorMapId(selectedMapId);
   };
@@ -3587,9 +3714,13 @@ export default function MapsPage() {
                   {editorMode === "edit" ? "맵 수정" : "맵 만들기"}
                 </p>
                 <h2>
-                  {editorMode === "edit"
+                  {isEditMode
                     ? "맵을 불러와 바로 수정합니다."
-                    : "기본 정보와 현재 곡만 먼저 입력합니다."}
+                    : createStep === 1
+                      ? "1단계에서 맵 이름과 설명을 먼저 정합니다."
+                      : createStep === 2
+                        ? "2단계에서 곡을 채우고 정답과 구간을 손봅니다."
+                        : "3단계에서 규칙을 확인하고 바로 맵을 생성합니다."}
                 </h2>
               </div>
               <div className="chip-list">
@@ -3597,7 +3728,9 @@ export default function MapsPage() {
                 {hasUnsavedChanges ? (
                   <span className="chip chip--warning">미저장 변경 있음</span>
                 ) : null}
-                <span className="chip">곡 {songRows.length}개</span>
+                <span className="chip">
+                  곡 {isCreateMode ? configuredSongRows.length : songRows.length}개
+                </span>
               </div>
             </div>
 
@@ -3628,6 +3761,34 @@ export default function MapsPage() {
               ) : null}
             </div>
 
+            {isCreateMode ? (
+              <section className="map-create-steps" aria-label="맵 만들기 단계">
+                {MAP_CREATE_STEPS.map((stepMeta) => {
+                  const isActive = createStep === stepMeta.step;
+                  const isDone = createStep > stepMeta.step;
+                  const isLocked = !createStepAccess[stepMeta.step];
+
+                  return (
+                    <button
+                      key={`create-step-${stepMeta.step}`}
+                      className={`map-create-step${
+                        isActive ? " map-create-step--active" : ""
+                      }${isDone ? " map-create-step--done" : ""}`}
+                      disabled={isLocked}
+                      onClick={() => goToCreateStep(stepMeta.step)}
+                      type="button"
+                    >
+                      <span className="map-create-step__index">{stepMeta.step}</span>
+                      <span className="map-create-step__copy">
+                        <strong>{stepMeta.title}</strong>
+                        <small>{stepMeta.description}</small>
+                      </span>
+                    </button>
+                  );
+                })}
+              </section>
+            ) : null}
+
             {bulkImportSummary ? (
               <div className="map-import-summary">
                 <strong>
@@ -3642,6 +3803,7 @@ export default function MapsPage() {
               </div>
             ) : null}
 
+            {isEditMode || createStep === 2 ? (
             <details
               className="map-collapsible"
               open={isBulkImportOpen}
@@ -3861,7 +4023,9 @@ export default function MapsPage() {
                 </article>
               </div>
             </details>
+            ) : null}
 
+            {isEditMode || createStep === 1 ? (
             <section className="song-editor__section song-editor__section--intro">
               <div className="song-editor__section-header">
                 <div>
@@ -3894,7 +4058,9 @@ export default function MapsPage() {
                 </label>
               </div>
             </section>
+            ) : null}
 
+            {isEditMode || createStep === 3 ? (
             <details className="map-collapsible map-collapsible--soft">
               <summary className="map-collapsible__summary">
                 <div>
@@ -4066,8 +4232,9 @@ export default function MapsPage() {
 
               </div>
             </details>
+            ) : null}
 
-            {activeSongRow ? (
+            {(isEditMode || createStep === 2) && activeSongRow ? (
               <article className="song-editor">
                 <div className="song-editor__header">
                   <div className="song-editor__identity">
@@ -4084,196 +4251,22 @@ export default function MapsPage() {
                   </div>
                 </div>
 
-                <details className="map-collapsible map-collapsible--soft song-editor__tools">
-                  <summary className="map-collapsible__summary">
-                    <div>
-                      <strong>곡 편집 도구</strong>
-                      <p>추가, 복제, 순서 이동, 삭제를 정리합니다.</p>
-                    </div>
-                    <span className="chip">도구 보기</span>
-                  </summary>
-                  <div className="map-collapsible__body">
-                    <div className="song-editor__actions stack stack--tight">
-                    <div className="button-row">
-                      <button
-                        className="button button--ghost"
-                        onClick={addSongRow}
-                        type="button"
-                      >
-                        곡 추가
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => duplicateSongRow(activeSongRow.id)}
-                        type="button"
-                      >
-                        복제
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => moveSongRowToIndex(activeSongRow.id, 0)}
-                        type="button"
-                        disabled={activeSongIndex <= 0}
-                      >
-                        맨 위
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => moveSongRow(activeSongRow.id, -1)}
-                        type="button"
-                        disabled={activeSongIndex <= 0}
-                      >
-                        위로
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => moveSongRow(activeSongRow.id, 1)}
-                        type="button"
-                        disabled={
-                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
-                        }
-                      >
-                        아래로
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() =>
-                          moveSongRowToIndex(activeSongRow.id, songRows.length - 1)
-                        }
-                        type="button"
-                        disabled={
-                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
-                        }
-                      >
-                        맨 아래
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => removeSongRow(activeSongRow.id)}
-                        type="button"
-                        disabled={songRows.length === 1}
-                      >
-                        현재 곡 삭제
-                      </button>
-                    </div>
-
-                    <div className="song-order-controls">
-                      <span className="chip">현재 {activeSongPosition}/{songRows.length}번째 곡</span>
-                      <label className="field field--inline song-order-controls__field">
-                        <span>번호로 이동</span>
-                        <input
-                          value={songMoveTarget}
-                          onChange={(event) => setSongMoveTarget(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              handleMoveActiveSongToPosition();
-                            }
-                          }}
-                          onBlur={() => {
-                            if (!songMoveTarget.trim()) {
-                              setSongMoveTarget(String(activeSongPosition));
-                            }
-                          }}
-                          inputMode="numeric"
-                          min="1"
-                          max={String(songRows.length)}
-                          placeholder={String(activeSongPosition || 1)}
-                        />
-                      </label>
-                      <button
-                        className="button button--ghost"
-                        onClick={handleMoveActiveSongToPosition}
-                        type="button"
-                        disabled={songRows.length <= 1}
-                      >
-                        이동
-                      </button>
-                    </div>
-                    </div>
-                  </div>
-                </details>
-
-                <section className="song-editor__section">
+                <section className="song-editor__section song-editor__section--preview song-editor__section--source">
                   <div className="song-editor__section-header">
                     <div>
-                      <p className="eyebrow">곡 기본 정보</p>
-                      <strong>제목과 가수를 먼저 정합니다.</strong>
-                    </div>
-                  </div>
-                  <div className="grid grid--two">
-                    <label className="field">
-                      <span>곡 제목</span>
-                      <input
-                        value={activeSongRow.title}
-                        onChange={(event) =>
-                          updateSongRow(activeSongRow.id, "title", event.target.value)
-                        }
-                        placeholder="A Cruel Angel's Thesis"
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>가수</span>
-                      <input
-                        value={activeSongRow.artist}
-                        onChange={(event) =>
-                          updateSongRow(activeSongRow.id, "artist", event.target.value)
-                        }
-                        placeholder="Yoko Takahashi"
-                      />
-                    </label>
-                  </div>
-
-                </section>
-
-                <section className="song-editor__section">
-                  <div className="song-editor__section-header">
-                    <div>
-                      <p className="eyebrow">정답과 힌트</p>
-                      <strong>보여줄 힌트와 맞는 정답 묶음을 정합니다.</strong>
+                      <p className="eyebrow">미리듣기와 출처</p>
+                      <strong>출처를 넣고 바로 들으면서 구간을 맞춥니다.</strong>
                     </div>
                   </div>
 
-                  <div className="grid grid--two">
-                    <label className="field">
-                      <span>힌트 문구</span>
-                      <input
-                        value={activeSongRow.clue}
-                        onChange={(event) =>
-                          updateSongRow(activeSongRow.id, "clue", event.target.value)
-                        }
-                        placeholder="힌트: 일본 애니메이션 오프닝입니다."
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>정답 별칭</span>
-                      <input
-                        value={activeSongRow.answersText}
-                        onChange={(event) =>
-                          updateSongRow(
-                            activeSongRow.id,
-                            "answersText",
-                            event.target.value,
-                          )
-                        }
-                        placeholder="a cruel angel's thesis, 잔혹한 천사의 테제"
-                      />
-                      <small className="field__hint">
-                        쉼표로 여러 정답을 넣고, 실제 판정에서는 띄어쓰기를 무시합니다.
-                      </small>
-                    </label>
-                  </div>
-                </section>
-
-                <section className="song-editor__section song-editor__section--source">
-                  <div className="song-editor__section-header">
-                    <div>
-                      <p className="eyebrow">재생 소스와 구간</p>
-                      <strong>유튜브나 파일을 고르고 들려줄 범위를 맞춥니다.</strong>
-                    </div>
-                  </div>
+                  <SongPreviewPlayer
+                    row={activeSongRow}
+                    clipStartSeconds={activeClipStartSeconds}
+                    clipEndSeconds={activeClipEndSeconds}
+                    sliderMaxSeconds={activeClipSliderMax}
+                    onClipStartChange={applyActiveClipStart}
+                    onClipEndChange={applyActiveClipEnd}
+                  />
 
                   <div className="grid grid--three">
                     <label className="field">
@@ -4385,41 +4378,276 @@ export default function MapsPage() {
                   </p>
                 </section>
 
-                {activeSongRow.audioSourceValue ? (
-                  <SongPreviewPlayer
-                    row={activeSongRow}
-                    clipStartSeconds={activeClipStartSeconds}
-                    clipEndSeconds={activeClipEndSeconds}
-                    sliderMaxSeconds={activeClipSliderMax}
-                    onClipStartChange={applyActiveClipStart}
-                    onClipEndChange={applyActiveClipEnd}
-                  />
-                ) : null}
+                <details className="map-collapsible map-collapsible--soft song-editor__tools">
+                  <summary className="map-collapsible__summary">
+                    <div>
+                      <strong>곡 편집 도구</strong>
+                      <p>추가, 복제, 순서 이동, 삭제를 정리합니다.</p>
+                    </div>
+                    <span className="chip">도구 보기</span>
+                  </summary>
+                  <div className="map-collapsible__body">
+                    <div className="song-editor__actions stack stack--tight">
+                    <div className="button-row">
+                      <button
+                        className="button button--ghost"
+                        onClick={addSongRow}
+                        type="button"
+                      >
+                        곡 추가
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => duplicateSongRow(activeSongRow.id)}
+                        type="button"
+                      >
+                        복제
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => moveSongRowToIndex(activeSongRow.id, 0)}
+                        type="button"
+                        disabled={activeSongIndex <= 0}
+                      >
+                        맨 위
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => moveSongRow(activeSongRow.id, -1)}
+                        type="button"
+                        disabled={activeSongIndex <= 0}
+                      >
+                        위로
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => moveSongRow(activeSongRow.id, 1)}
+                        type="button"
+                        disabled={
+                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
+                        }
+                      >
+                        아래로
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() =>
+                          moveSongRowToIndex(activeSongRow.id, songRows.length - 1)
+                        }
+                        type="button"
+                        disabled={
+                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
+                        }
+                      >
+                        맨 아래
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => removeSongRow(activeSongRow.id)}
+                        type="button"
+                        disabled={songRows.length === 1}
+                      >
+                        현재 곡 삭제
+                      </button>
+                    </div>
+
+                    <div className="song-order-controls">
+                      <span className="chip">현재 {activeSongPosition}/{songRows.length}번째 곡</span>
+                      <label className="field field--inline song-order-controls__field">
+                        <span>번호로 이동</span>
+                        <input
+                          value={songMoveTarget}
+                          onChange={(event) => setSongMoveTarget(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleMoveActiveSongToPosition();
+                            }
+                          }}
+                          onBlur={() => {
+                            if (!songMoveTarget.trim()) {
+                              setSongMoveTarget(String(activeSongPosition));
+                            }
+                          }}
+                          inputMode="numeric"
+                          min="1"
+                          max={String(songRows.length)}
+                          placeholder={String(activeSongPosition || 1)}
+                        />
+                      </label>
+                      <button
+                        className="button button--ghost"
+                        onClick={handleMoveActiveSongToPosition}
+                        type="button"
+                        disabled={songRows.length <= 1}
+                      >
+                        이동
+                      </button>
+                    </div>
+                    </div>
+                  </div>
+                </details>
+
+                <details className="map-collapsible map-collapsible--soft song-editor__optional-meta">
+                  <summary className="map-collapsible__summary">
+                    <div>
+                      <strong>곡 메모</strong>
+                      <p>제목과 가수는 필요할 때만 적는 선택 정보입니다.</p>
+                    </div>
+                    <span className="chip">선택 입력</span>
+                  </summary>
+                  <div className="map-collapsible__body">
+                    <section className="song-editor__section">
+                  <div className="song-editor__section-header">
+                    <div>
+                      <p className="eyebrow">곡 기본 정보</p>
+                      <strong>제목과 가수를 먼저 정합니다.</strong>
+                    </div>
+                  </div>
+                  <div className="grid grid--two">
+                    <label className="field">
+                      <span>곡 제목</span>
+                      <input
+                        value={activeSongRow.title}
+                        onChange={(event) =>
+                          updateSongRow(activeSongRow.id, "title", event.target.value)
+                        }
+                        placeholder="A Cruel Angel's Thesis"
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>가수</span>
+                      <input
+                        value={activeSongRow.artist}
+                        onChange={(event) =>
+                          updateSongRow(activeSongRow.id, "artist", event.target.value)
+                        }
+                        placeholder="Yoko Takahashi"
+                      />
+                    </label>
+                  </div>
+
+                    </section>
+                  </div>
+                </details>
+
+                <section className="song-editor__section">
+                  <div className="song-editor__section-header">
+                    <div>
+                      <p className="eyebrow">정답과 힌트</p>
+                      <strong>보여줄 힌트와 맞는 정답 묶음을 정합니다.</strong>
+                    </div>
+                  </div>
+
+                  <div className="grid grid--two">
+                    <label className="field">
+                      <span>힌트 문구</span>
+                      <input
+                        value={activeSongRow.clue}
+                        onChange={(event) =>
+                          updateSongRow(activeSongRow.id, "clue", event.target.value)
+                        }
+                        placeholder="힌트: 일본 애니메이션 오프닝입니다."
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>정답 별칭</span>
+                      <input
+                        value={activeSongRow.answersText}
+                        onChange={(event) =>
+                          updateSongRow(
+                            activeSongRow.id,
+                            "answersText",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="a cruel angel's thesis, 잔혹한 천사의 테제"
+                      />
+                      <small className="field__hint">
+                        쉼표로 여러 정답을 넣고, 실제 판정에서는 띄어쓰기를 무시합니다.
+                      </small>
+                    </label>
+                  </div>
+                </section>
+
               </article>
             ) : null}
 
-            <div className="button-row">
-              <button className="button" onClick={handleSubmitMap} type="button">
-                {isSaving
-                  ? "저장 중..."
-                  : editingMapId
-                    ? "맵 수정 저장"
-                    : "맵 생성"}
-              </button>
-              <button
-                className="button button--ghost"
-                onClick={() => {
-                  if (!confirmDiscardChanges("입력 초기화")) {
-                    return;
-                  }
+            {isEditMode ? (
+              <div className="button-row">
+                <button className="button" onClick={handleSubmitMap} type="button">
+                  {isSaving
+                    ? "저장 중..."
+                    : editingMapId
+                      ? "맵 수정 저장"
+                      : "맵 생성"}
+                </button>
+                <button
+                  className="button button--ghost"
+                  onClick={() => {
+                    if (!confirmDiscardChanges("입력 초기화")) {
+                      return;
+                    }
 
-                  resetForm();
-                }}
-                type="button"
-              >
-                입력 초기화
-              </button>
-            </div>
+                    resetForm();
+                  }}
+                  type="button"
+                >
+                  입력 초기화
+                </button>
+              </div>
+            ) : (
+              <div className="button-row map-create-footer">
+                {createStep > 1 ? (
+                  <button
+                    className="button button--ghost"
+                    onClick={() => moveCreateStep(-1)}
+                    type="button"
+                  >
+                    이전 단계
+                  </button>
+                ) : null}
+
+                <button
+                  className="button button--ghost"
+                  onClick={() => {
+                    if (!confirmDiscardChanges("입력 초기화")) {
+                      return;
+                    }
+
+                    resetForm();
+                  }}
+                  type="button"
+                >
+                  처음부터 다시
+                </button>
+
+                {createStep < 3 ? (
+                  <button
+                    className="button"
+                    disabled={
+                      (createStep === 1 && !createStepOneReady) ||
+                      (createStep === 2 && !createStepTwoReady)
+                    }
+                    onClick={() => moveCreateStep(1)}
+                    type="button"
+                  >
+                    다음 단계
+                  </button>
+                ) : (
+                  <button
+                    className="button"
+                    disabled={!createStepAccess[3] || isSaving}
+                    onClick={handleSubmitMap}
+                    type="button"
+                  >
+                    {isSaving ? "생성 중..." : "맵 생성"}
+                  </button>
+                )}
+              </div>
+            )}
 
             {formErrorMessage ? (
               <p className="footnote">{formErrorMessage}</p>
@@ -4440,20 +4668,34 @@ export default function MapsPage() {
             <div className="panel__header">
               <div>
                 <p className="eyebrow">
-                  {editorMode === "edit" ? "내 맵 리스트" : "추가한 곡 목록"}
+                  {isEditMode
+                    ? "내 맵 리스트"
+                    : createStep === 2
+                      ? "추가한 곡 목록"
+                      : createStep === 1
+                        ? "1단계 요약"
+                        : "생성 전 확인"}
                 </p>
                 <h3>
-                  {editorMode === "edit"
+                  {isEditMode
                     ? "수정할 맵을 고르세요."
-                    : `곡 ${songRows.length}개`}
+                    : createStep === 2
+                      ? `곡 ${configuredSongRows.length}개`
+                      : createStep === 1
+                        ? "맵 정보만 먼저 정리합니다."
+                        : "설정과 곡 수를 확인하고 생성합니다."}
                 </h3>
                 <p className="footnote">
-                  {editorMode === "edit"
+                  {isEditMode
                     ? "왼쪽 편집기에 불러올 맵을 고릅니다."
-                    : "추가한 곡을 고르고 순서를 확인합니다."}
+                    : createStep === 2
+                      ? "추가한 곡을 고르고 순서를 확인합니다."
+                      : createStep === 1
+                        ? "맵 이름과 설명이 채워지면 곡 추가 단계로 넘어갑니다."
+                        : "맵 기본 규칙과 준비된 곡 수를 한 번 더 점검합니다."}
                 </p>
               </div>
-              {editorMode === "create" ? (
+              {isCreateMode && createStep === 2 ? (
                 <button
                   className="button button--ghost"
                   onClick={addSongRow}
@@ -4464,7 +4706,7 @@ export default function MapsPage() {
               ) : null}
             </div>
 
-            {editorMode === "edit" ? (
+            {isEditMode ? (
               <div className="room-list">
                 {maps.map((map) => (
                   <button
@@ -4498,104 +4740,141 @@ export default function MapsPage() {
               </div>
             ) : null}
 
-            <div className="field map-toolbar map-toolbar__search">
-              <span>{editorMode === "edit" ? "현재 맵 곡 검색" : "추가한 곡 검색"}</span>
-              <input
-                value={editorSongQuery}
-                onChange={(event) => setEditorSongQuery(event.target.value)}
-                placeholder="제목, 가수, 힌트, 정답으로 검색"
-              />
-            </div>
+            {isCreateMode && createStep !== 2 ? (
+              <div className="map-create-summary">
+                <article className="map-create-summary__card">
+                  <h4>{createStep === 1 ? "지금 채울 내용" : "생성 전 체크"}</h4>
+                  {createStep === 1 ? (
+                    <ul className="map-create-summary__list">
+                      <li>맵 이름과 설명을 먼저 정하면 곡 추가 단계로 바로 넘어갑니다.</li>
+                      <li>닉네임은 저장 시 제작자 이름으로 함께 들어갑니다.</li>
+                    </ul>
+                  ) : (
+                    <ul className="map-create-summary__list">
+                      <li>준비된 곡 {readySongRows.length}개 / 전체 초안 {configuredSongRows.length}개</li>
+                      <li>유튜브 {youtubeSongCount}개 · 파일 {fileSongCount}개</li>
+                      <li>현재 순서 {songOrderMode === "random" ? "랜덤" : "제작자 순서"}</li>
+                    </ul>
+                  )}
+                </article>
 
-            <div className="button-row map-toolbar map-toolbar--pager">
-              <span className="chip">
-                {filteredEditorSongRows.length}곡
-              </span>
-              <span className="chip">
-                {safeEditorSongPage + 1}/{editorSongPageCount} 페이지
-              </span>
-              <label className="field field--inline map-toolbar__page-size">
-                <span>페이지당</span>
-                <select
-                  value={editorSongPageSize}
-                  onChange={(event) =>
-                    setEditorSongPageSize(Number(event.target.value))
-                  }
-                >
-                  {PAGE_SIZE_OPTIONS.map((sizeOption) => (
-                    <option key={`editor-size-${sizeOption}`} value={sizeOption}>
-                      {sizeOption}개
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                className="button button--ghost"
-                onClick={() =>
-                  setEditorSongPage((currentPage) => Math.max(0, currentPage - 1))
-                }
-                type="button"
-                disabled={safeEditorSongPage <= 0}
-              >
-                이전
-              </button>
-              <button
-                className="button button--ghost"
-                onClick={() =>
-                  setEditorSongPage((currentPage) =>
-                    Math.min(editorSongPageCount - 1, currentPage + 1),
-                  )
-                }
-                type="button"
-                disabled={safeEditorSongPage >= editorSongPageCount - 1}
-              >
-                다음
-              </button>
-            </div>
+                <article className="map-create-summary__card">
+                  <h4>현재 맵 요약</h4>
+                  <p>{name.trim() || "맵 이름이 아직 없습니다."}</p>
+                  <p>{description.trim() || "맵 설명을 적으면 여기에서 바로 확인할 수 있습니다."}</p>
+                </article>
+              </div>
+            ) : null}
 
-            <div className="song-queue" ref={editorSongQueueRef}>
-              {pagedEditorSongRows.map((row) => {
-                const songNumber =
-                  songRows.findIndex((candidate) => candidate.id === row.id) + 1;
-
-                return (
-                  <button
-                    className={`song-queue__item${
-                      row.id === activeSongRow?.id
-                        ? " song-queue__item--selected"
-                        : ""
-                    } song-queue__item--dense`}
-                    key={row.id}
-                    onClick={() => setSelectedSongRowId(row.id)}
-                    type="button"
-                    data-song-row-id={row.id}
-                  >
-                    <div className="song-queue__title-row">
-                      <strong>
-                        {songNumber}. {formatSongSummary(row)}
-                      </strong>
-                      <span>{row.audioSourceType === "file" ? "파일" : "유튜브"}</span>
-                    </div>
-                    <div className="song-queue__meta-row">
-                      <p>{row.artist.trim() || "가수 미입력"}</p>
-                      <p>
-                        {formatClipRangeSummary(
-                          row.clipStartSeconds || "0",
-                          row.clipEndSeconds,
-                        )}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-
-              {pagedEditorSongRows.length === 0 ? (
-                <div className="map-empty">
-                  <strong>검색 결과가 없습니다.</strong>
-                  <p>검색어를 비우거나 다른 키워드로 다시 찾아보세요.</p>
+            {isEditMode || createStep === 2 ? (
+              <>
+                <div className="field map-toolbar map-toolbar__search">
+                  <span>{isEditMode ? "현재 맵 곡 검색" : "추가한 곡 검색"}</span>
+                  <input
+                    value={editorSongQuery}
+                    onChange={(event) => setEditorSongQuery(event.target.value)}
+                    placeholder="제목, 가수, 힌트, 정답으로 검색"
+                  />
                 </div>
-              ) : null}
-            </div>
+
+                <div className="button-row map-toolbar map-toolbar--pager">
+                  <span className="chip">
+                    {filteredEditorSongRows.length}곡
+                  </span>
+                  <span className="chip">
+                    {safeEditorSongPage + 1}/{editorSongPageCount} 페이지
+                  </span>
+                  <label className="field field--inline map-toolbar__page-size">
+                    <span>페이지당</span>
+                    <select
+                      value={editorSongPageSize}
+                      onChange={(event) =>
+                        setEditorSongPageSize(Number(event.target.value))
+                      }
+                    >
+                      {PAGE_SIZE_OPTIONS.map((sizeOption) => (
+                        <option key={`editor-size-${sizeOption}`} value={sizeOption}>
+                          {sizeOption}개
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="button button--ghost"
+                    onClick={() =>
+                      setEditorSongPage((currentPage) => Math.max(0, currentPage - 1))
+                    }
+                    type="button"
+                    disabled={safeEditorSongPage <= 0}
+                  >
+                    이전
+                  </button>
+                  <button
+                    className="button button--ghost"
+                    onClick={() =>
+                      setEditorSongPage((currentPage) =>
+                        Math.min(editorSongPageCount - 1, currentPage + 1),
+                      )
+                    }
+                    type="button"
+                    disabled={safeEditorSongPage >= editorSongPageCount - 1}
+                  >
+                    다음
+                  </button>
+                </div>
+
+                <div className="song-queue" ref={editorSongQueueRef}>
+                  {pagedEditorSongRows.map((row) => {
+                    const songNumber =
+                      songRows.findIndex((candidate) => candidate.id === row.id) + 1;
+
+                    return (
+                      <button
+                        className={`song-queue__item${
+                          row.id === activeSongRow?.id
+                            ? " song-queue__item--selected"
+                            : ""
+                        } song-queue__item--dense`}
+                        key={row.id}
+                        onClick={() => setSelectedSongRowId(row.id)}
+                        type="button"
+                        data-song-row-id={row.id}
+                      >
+                        <div className="song-queue__title-row">
+                          <strong>
+                            {songNumber}. {formatSongSummary(row)}
+                          </strong>
+                          <span>{row.audioSourceType === "file" ? "파일" : "유튜브"}</span>
+                        </div>
+                        <div className="song-queue__meta-row">
+                          <p>
+                            {formatHintText(row.clue) ||
+                              formatSongSource({
+                                audioSourceType: row.audioSourceType,
+                                audioSourceLabel: row.audioSourceLabel,
+                                audioSourceValue: row.audioSourceValue || null,
+                              })}
+                          </p>
+                          <p>
+                            {formatClipRangeSummary(
+                              row.clipStartSeconds || "0",
+                              row.clipEndSeconds,
+                            )}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {pagedEditorSongRows.length === 0 ? (
+                    <div className="map-empty">
+                      <strong>검색 결과가 없습니다.</strong>
+                      <p>검색어를 비우거나 다른 키워드로 다시 찾아보세요.</p>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
           </article>
         </section>
       ) : null}

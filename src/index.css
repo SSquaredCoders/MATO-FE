@@ -345,6 +345,16 @@ button {
   color: #f4efe8;
 }
 
+.field input,
+.field select {
+  height: 48px;
+}
+
+.field input[type="file"] {
+  height: 48px;
+  padding-block: 10px;
+}
+
 .field__hint {
   color: var(--muted);
   font-size: 0.84rem;
@@ -1282,6 +1292,10 @@ button {
   background: transparent;
 }
 
+.song-editor__preview {
+  margin-top: 2px;
+}
+
 .song-editor__header {
   display: flex;
   justify-content: space-between;
@@ -1410,6 +1424,10 @@ button {
   display: none;
 }
 
+.song-preview--empty {
+  border-style: dashed;
+}
+
 .song-preview__transport {
   display: grid;
   gap: 14px;
@@ -1449,6 +1467,10 @@ button {
   gap: 10px;
 }
 
+.clip-timeline--disabled {
+  opacity: 0.62;
+}
+
 .clip-timeline__labels {
   display: flex;
   justify-content: space-between;
@@ -1461,6 +1483,10 @@ button {
   position: relative;
   height: 18px;
   cursor: pointer;
+}
+
+.clip-timeline--disabled .clip-timeline__track {
+  cursor: not-allowed;
 }
 
 .clip-timeline__base,
@@ -1509,6 +1535,12 @@ button {
   box-shadow: 0 0 0 4px rgba(240, 123, 63, 0.32);
 }
 
+.clip-timeline__handle:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
 .song-preview__frame {
   display: block;
   width: 100%;
@@ -1517,6 +1549,13 @@ button {
   border-radius: 18px;
   background: #111111;
   overflow: hidden;
+}
+
+.song-preview__frame--empty {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
 }
 
 .song-preview__frame iframe {
@@ -1768,6 +1807,109 @@ button {
 .map-builder {
   display: grid;
   gap: 18px;
+}
+
+.map-create-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.map-create-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  text-align: left;
+}
+
+.map-create-step--active {
+  border-color: rgba(240, 123, 63, 0.45);
+  background: rgba(240, 123, 63, 0.1);
+}
+
+.map-create-step--done {
+  border-color: rgba(99, 197, 155, 0.28);
+}
+
+.map-create-step__index {
+  inline-size: 32px;
+  block-size: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.map-create-step--active .map-create-step__index {
+  border-color: rgba(240, 123, 63, 0.45);
+  background: rgba(240, 123, 63, 0.16);
+}
+
+.map-create-step__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.map-create-step__copy strong {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.map-create-step__copy small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.map-create-summary {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.map-create-summary__card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.map-create-summary__card h4,
+.map-create-summary__card p {
+  margin: 0;
+}
+
+.map-create-summary__card h4 {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.map-create-summary__card p:last-child {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.map-create-summary__list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.map-create-footer {
+  justify-content: flex-start;
 }
 
 .map-builder__header {
@@ -2075,6 +2217,10 @@ button {
 }
 
 @media (max-width: 980px) {
+  .map-create-steps {
+    grid-template-columns: 1fr;
+  }
+
   .map-builder__header,
   .song-builder-card__header,
   .song-editor__header {
