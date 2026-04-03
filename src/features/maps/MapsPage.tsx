@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   createMap,
   deleteMap,
@@ -9,6 +10,7 @@ import {
   updateMap,
   uploadMapAudioFile,
 } from "../../shared/api/maps";
+import { useAuthStore } from "../../shared/auth/useAuthStore";
 import { API_BASE_URL } from "../../shared/config/env";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
@@ -2348,6 +2350,8 @@ function SongPreviewPlayer({
 
 export default function MapsPage() {
   const queryClient = useQueryClient();
+  const authReady = useAuthStore((state) => state.ready);
+  const authUser = useAuthStore((state) => state.user);
   const currentNickname = useSessionStore((state) => state.currentNickname);
   const setCurrentNickname = useSessionStore(
     (state) => state.setCurrentNickname,
@@ -2362,7 +2366,6 @@ export default function MapsPage() {
     null,
   );
   const [createStep, setCreateStep] = useState<MapCreateStep>(1);
-  const [nickname, setNickname] = useState(currentNickname);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">(
@@ -2415,14 +2418,22 @@ export default function MapsPage() {
   >([]);
   const editorSongQueueRef = useRef<HTMLDivElement | null>(null);
 
-  const viewerNickname = currentNickname.trim() || nickname.trim();
-  const creatorNickname = nickname.trim() || currentNickname.trim();
+  const viewerNickname = authUser?.nickname?.trim() || currentNickname.trim();
+  const creatorNickname = authUser?.nickname?.trim() || currentNickname.trim();
+  const nickname = creatorNickname;
   const isCreateMode = editorMode === "create";
   const isEditMode = editorMode === "edit";
+
+  useEffect(() => {
+    if (authUser?.nickname) {
+      setCurrentNickname(authUser.nickname);
+    }
+  }, [authUser?.nickname, setCurrentNickname]);
 
   const mapsQuery = useQuery({
     queryKey: ["maps", viewerNickname],
     queryFn: () => fetchMaps(viewerNickname),
+    enabled: Boolean(viewerNickname),
   });
 
   useEffect(() => {
@@ -2512,7 +2523,6 @@ export default function MapsPage() {
     const nextRequest = buildRequestFromMapDetail(map);
 
     setEditingMapId(map.id);
-    setNickname(map.createdBy);
     setCurrentNickname(map.createdBy);
     setName(map.name);
     setDescription(map.description);
@@ -3366,6 +3376,34 @@ export default function MapsPage() {
     });
   };
 
+  if (!authReady) {
+    return (
+      <section className="panel stack">
+        <p className="eyebrow">맵</p>
+        <h2>로그인 상태를 확인하는 중입니다.</h2>
+        <p className="footnote">세션이 복구되면 바로 내 맵 목록을 불러올게요.</p>
+      </section>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <section className="panel stack">
+        <p className="eyebrow">맵</p>
+        <h2>맵 만들기와 수정은 로그인한 계정으로 진행합니다.</h2>
+        <p className="lede">
+          베타 단계에서도 맵 작성자 정보는 계정 기준으로 고정하는 편이 안전해요.
+          로그인하면 제작자 이름과 맵 소유권이 자동으로 연결됩니다.
+        </p>
+        <div className="button-row">
+          <Link className="button" to="/account">
+            로그인하러 가기
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="map-page stack">
       <section className="panel stack map-page__hero">
@@ -3389,7 +3427,7 @@ export default function MapsPage() {
           <span>현재 닉네임</span>
           <input
             value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
+            readOnly
             placeholder="베타에서 쓸 닉네임을 입력하세요"
           />
         </label>

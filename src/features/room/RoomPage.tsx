@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL, WS_BASE_URL } from "../../shared/config/env";
 import { fetchRoomSnapshot } from "../../shared/api/rooms";
+import { useAuthStore } from "../../shared/auth/useAuthStore";
 import { useRoomRealtime } from "../../shared/realtime/useRoomRealtime";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
@@ -116,6 +117,7 @@ export default function RoomPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { roomName = "demo-room" } = useParams();
+  const authUser = useAuthStore((state) => state.user);
   const currentNickname = useSessionStore((state) => state.currentNickname);
   const setCurrentNickname = useSessionStore(
     (state) => state.setCurrentNickname,
@@ -152,6 +154,12 @@ export default function RoomPage() {
     queryKey: ["room", roomName],
     queryFn: () => fetchRoomSnapshot(roomName),
   });
+
+  useEffect(() => {
+    if (authUser?.nickname && !currentNickname.trim()) {
+      setCurrentNickname(authUser.nickname);
+    }
+  }, [authUser?.nickname, currentNickname, setCurrentNickname]);
 
   const pushTransientMessage = (message: RoomChatMessage) => {
     const shouldShowToMe =
