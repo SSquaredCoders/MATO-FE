@@ -5,7 +5,3 @@ export const API_BASE_URL =
 
 export const WS_BASE_URL =
   import.meta.env.VITE_WS_BASE_URL?.trim() || "ws://localhost:8080/ws/game";
-
-export const GOOGLE_AUTH_URL =
-  import.meta.env.VITE_GOOGLE_AUTH_URL?.trim() ||
-  `${API_BASE_URL}/oauth2/authorization/google`;

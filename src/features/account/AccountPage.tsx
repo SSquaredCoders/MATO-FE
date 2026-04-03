@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginUser, logoutUser, registerUser } from "../../shared/api/auth";
 import { useAuthStore } from "../../shared/auth/useAuthStore";
-import { GOOGLE_AUTH_URL } from "../../shared/config/env";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 
 type AccountMode = "login" | "register";
@@ -30,10 +29,6 @@ export default function AccountPage() {
   const resetFeedback = () => {
     setMessage(null);
     setError(null);
-  };
-
-  const handleGoogleLogin = () => {
-    window.location.assign(GOOGLE_AUTH_URL);
   };
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -229,13 +224,6 @@ export default function AccountPage() {
             <button className="button" disabled={pending} type="submit">
               {pending ? "로그인 중..." : "로그인"}
             </button>
-            <button
-              className="button button--ghost"
-              onClick={handleGoogleLogin}
-              type="button"
-            >
-              Google로 계속하기
-            </button>
           </div>
         </form>
       ) : (
@@ -289,13 +277,6 @@ export default function AccountPage() {
           <div className="button-row">
             <button className="button" disabled={pending} type="submit">
               {pending ? "계정 만드는 중..." : "회원가입 후 바로 로그인"}
-            </button>
-            <button
-              className="button button--ghost"
-              onClick={handleGoogleLogin}
-              type="button"
-            >
-              Google로 계속하기
             </button>
           </div>
         </form>
