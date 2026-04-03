@@ -7,10 +7,10 @@ interface AppShellProps {
 }
 
 const links = [
-  { to: "/", label: "로비" },
-  { to: "/maps", label: "맵" },
-  { to: "/roadmap", label: "안내" },
-  { to: "/account", label: "계정" },
+  { to: "/", label: "홈" },
+  { to: "/maps", label: "맵 스튜디오" },
+  { to: "/roadmap", label: "플레이 안내" },
+  { to: "/account", label: "내 정보" },
 ];
 
 export function AppShell({ children }: AppShellProps) {
@@ -45,16 +45,24 @@ export function AppShell({ children }: AppShellProps) {
       : "nav";
 
   const eyebrowLabel = isRoomRoute
-    ? "게임 방"
+    ? "게임 플레이"
     : isWorkbenchRoute
-      ? "맵 관리"
-      : "실시간 로비";
+      ? "맵 스튜디오"
+      : isGuideRoute
+        ? "플레이 안내"
+        : isAccountRoute
+          ? "내 정보"
+          : "홈";
 
   const summaryText = isWorkbenchRoute
-    ? "플레이할 맵을 만들고 정리하는 공간입니다."
+    ? "맵을 만들고 정리한 뒤 바로 방에서 사용할 수 있습니다."
     : isRoomRoute
       ? "방 상태와 현재 라운드를 한 화면에서 확인합니다."
-      : "방을 만들고 참가 중인 게임에 바로 들어갈 수 있습니다.";
+      : isGuideRoute
+        ? "처음 들어온 사용자도 순서대로 따라갈 수 있게 정리했습니다."
+        : isAccountRoute
+          ? "로그인 상태와 맵 작성 권한을 관리하는 곳입니다."
+          : "방을 만들고 열린 게임에 바로 참가할 수 있습니다.";
 
   React.useEffect(() => {
     if (isRoomRoute) {
@@ -66,21 +74,21 @@ export function AppShell({ children }: AppShellProps) {
     }
 
     if (isWorkbenchRoute) {
-      document.title = `${APP_TITLE} · 맵`;
+      document.title = `${APP_TITLE} · 맵 스튜디오`;
       return;
     }
 
     if (isGuideRoute) {
-      document.title = `${APP_TITLE} · 안내`;
+      document.title = `${APP_TITLE} · 플레이 안내`;
       return;
     }
 
     if (isAccountRoute) {
-      document.title = `${APP_TITLE} · 계정`;
+      document.title = `${APP_TITLE} · 내 정보`;
       return;
     }
 
-    document.title = `${APP_TITLE} · 로비`;
+    document.title = `${APP_TITLE} · 홈`;
   }, [isAccountRoute, isGuideRoute, isRoomRoute, isWorkbenchRoute, location.pathname]);
 
   return (

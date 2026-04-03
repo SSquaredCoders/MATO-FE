@@ -2478,6 +2478,22 @@ export default function MapsPage() {
 
   const selectedMap = selectedMapQuery.data;
   const maps = mapsQuery.data ?? [];
+  const totalSongs = useMemo(
+    () => maps.reduce((sum, map) => sum + map.songCount, 0),
+    [maps],
+  );
+  const heroTitle =
+    editorMode === "overview"
+      ? "내 맵을 고르고 바로 수정하거나 새 게임을 준비하세요."
+      : isEditMode
+        ? "선택한 맵을 다듬고 곡 순서와 규칙을 정리하세요."
+        : "새 맵을 만들고 바로 방에서 쓸 준비를 마치세요.";
+  const heroDescription =
+    editorMode === "overview"
+      ? "보관함에서 맵을 확인하고, 필요한 맵은 편집으로 넘겨서 바로 다듬을 수 있습니다."
+      : isEditMode
+        ? "곡과 정답, 재생 구간, 맵 규칙까지 한 화면에서 손볼 수 있습니다."
+        : "맵 정보 입력부터 곡 추가, 규칙 설정까지 단계별로 이어서 만들 수 있습니다.";
 
   useEffect(() => {
     setOverviewSongPage(0);
@@ -3380,7 +3396,7 @@ export default function MapsPage() {
       <section className="panel stack">
         <p className="eyebrow">맵</p>
         <h2>로그인 상태를 확인하는 중입니다.</h2>
-        <p className="footnote">세션이 복구되면 바로 내 맵 목록을 불러올게요.</p>
+        <p className="footnote">세션이 복구되면 바로 내 맵 보관함을 불러올게요.</p>
       </section>
     );
   }
@@ -3406,21 +3422,27 @@ export default function MapsPage() {
   return (
     <div className="map-page stack">
       <section className="panel stack map-page__hero">
-        <div className="panel__header">
-          <div>
-            <p className="eyebrow">맵</p>
-            <h2>직접 만든 맵을 관리하고 새 게임을 준비하는 공간입니다.</h2>
+        <div className="map-page__hero-head">
+          <div className="map-page__hero-copy">
+            <p className="eyebrow">맵 스튜디오</p>
+            <h2>{heroTitle}</h2>
+            <p className="lede">{heroDescription}</p>
           </div>
-          <div className="chip-list">
-            <span className="chip">내 맵 {maps.length}개</span>
-            <span className="chip">작성자 {creatorNickname}</span>
+          <div className="map-page__hero-stats">
+            <article className="map-hero-stat">
+              <span>보관한 맵</span>
+              <strong>{maps.length}개</strong>
+            </article>
+            <article className="map-hero-stat">
+              <span>등록한 곡</span>
+              <strong>{totalSongs}곡</strong>
+            </article>
+            <article className="map-hero-stat">
+              <span>작성자</span>
+              <strong>{creatorNickname}</strong>
+            </article>
           </div>
         </div>
-
-        <p className="lede">
-          보관 중인 맵을 정리하거나, 새 맵을 단계별로 만들고 바로 방에서
-          사용할 수 있습니다.
-        </p>
 
         <div className="map-mode-bar">
           <button
@@ -3430,7 +3452,7 @@ export default function MapsPage() {
             onClick={openOverviewMode}
             type="button"
           >
-            맵 보기
+            내 맵
           </button>
           <button
             className={`button button--ghost map-mode-button${
@@ -3440,7 +3462,7 @@ export default function MapsPage() {
             type="button"
             disabled={!selectedMapId}
           >
-            맵 수정
+            편집
           </button>
           <button
             className={`button button--ghost map-mode-button${
@@ -3449,7 +3471,7 @@ export default function MapsPage() {
             onClick={openCreateMode}
             type="button"
           >
-            맵 만들기
+            새 맵
           </button>
         </div>
 
@@ -3470,8 +3492,8 @@ export default function MapsPage() {
           <article className="panel stack map-browser__list">
             <div className="panel__header">
               <div>
-                <p className="eyebrow">내 맵 목록</p>
-                <h3>수정하거나 확인할 맵을 먼저 고르세요.</h3>
+                <p className="eyebrow">내 맵</p>
+                <h3>관리할 맵을 먼저 고르세요.</h3>
               </div>
               <span className="chip">{maps.length}개</span>
             </div>
@@ -3500,9 +3522,9 @@ export default function MapsPage() {
               {maps.length === 0 && !mapsQuery.isLoading ? (
                 <div className="map-empty">
                   <strong>아직 만든 맵이 없습니다.</strong>
-                  <p>먼저 맵 만들기에서 첫 맵을 만들어 보세요.</p>
+                  <p>새 맵에서 첫 플레이용 맵을 만들어 보세요.</p>
                   <button className="button" onClick={openCreateMode} type="button">
-                    맵 만들기
+                    새 맵 시작
                   </button>
                 </div>
               ) : null}
@@ -3512,7 +3534,7 @@ export default function MapsPage() {
           <article className="panel stack map-browser__detail">
             <div className="panel__header">
               <div>
-                <p className="eyebrow">맵 상세</p>
+                <p className="eyebrow">선택한 맵</p>
                 <h3>{selectedMap?.name ?? "맵을 선택하세요."}</h3>
               </div>
               {selectedMap ? (
@@ -3589,7 +3611,7 @@ export default function MapsPage() {
 
                 <div className="button-row">
                   <button className="button" onClick={openEditMode} type="button">
-                    맵 수정
+                    바로 편집
                   </button>
                   <button
                     className="button button--ghost"
@@ -3604,7 +3626,7 @@ export default function MapsPage() {
                     onClick={openCreateMode}
                     type="button"
                   >
-                    맵 만들기
+                    새 맵 만들기
                   </button>
                 </div>
 
@@ -3739,7 +3761,7 @@ export default function MapsPage() {
             <div className="map-builder__header">
               <div>
                 <p className="eyebrow">
-                  {editorMode === "edit" ? "맵 수정" : "맵 만들기"}
+                  {editorMode === "edit" ? "맵 편집" : "새 맵"}
                 </p>
                 <h2>
                   {isEditMode
@@ -3768,7 +3790,7 @@ export default function MapsPage() {
                 onClick={openOverviewMode}
                 type="button"
               >
-                맵 보기로 돌아가기
+                내 맵으로 돌아가기
               </button>
               <button
                 className="button button--ghost"
