@@ -8,6 +8,9 @@ const RoomPage = lazy(() => import("./features/room/RoomPage"));
 const MapsPage = lazy(() => import("./features/maps/MapsPage"));
 const RoadmapPage = lazy(() => import("./features/roadmap/RoadmapPage"));
 const AccountPage = lazy(() => import("./features/account/AccountPage"));
+const GoogleAuthCallbackPage = lazy(
+    () => import("./features/account/GoogleAuthCallbackPage"),
+);
 
 function RouteFallback() {
     return (
@@ -35,6 +38,10 @@ export default function App() {
                         <Route path="/edit-map/:mapId/*" element={<MapsPage />} />
                         <Route path="/roadmap" element={<RoadmapPage />} />
                         <Route path="/account" element={<AccountPage />} />
+                        <Route
+                            path="/auth/google/callback"
+                            element={<GoogleAuthCallbackPage />}
+                        />
                         <Route path="/login" element={<AccountPage />} />
                         <Route path="/signup" element={<AccountPage />} />
                         <Route path="/logout" element={<AccountPage />} />
