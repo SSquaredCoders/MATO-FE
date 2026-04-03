@@ -3533,8 +3533,8 @@ export default function MapsPage() {
                   ) : null}
                   <span className="chip">
                     {selectedMap.showMediaControls
-                      ? "플레이어 표시"
-                      : "플레이어 숨김"}
+                      ? "재생 UI 표시"
+                      : "재생 UI 숨김"}
                   </span>
                 </div>
               ) : null}
@@ -4154,7 +4154,7 @@ export default function MapsPage() {
             <div className="rule-grid">
               <article className="toggle-card">
                 <div>
-                  <strong>플레이어 표시</strong>
+                  <strong>재생 UI 표시</strong>
                   <p>
                     기본은 표시입니다. 끄면 게임 화면에 재생 UI를 숨기고 소리만
                     재생합니다.
@@ -4685,7 +4685,7 @@ export default function MapsPage() {
               <p className="footnote">{deleteError.message}</p>
             ) : (
               <p className="footnote">
-                기본값은 플레이어 표시, 기본 문제 모드, 정답 즉시 다음 곡입니다.
+                기본값은 재생 UI 표시, 기본 문제 모드, 정답 즉시 다음 곡입니다.
                 개인전으로 바꾸면 자동으로 시간 종료 또는 스킵 규칙과 같이
                 움직입니다.
               </p>

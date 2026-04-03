@@ -17,6 +17,11 @@ export function AppShell({ children }: AppShellProps) {
   const location = useLocation();
   const isRoomRoute = location.pathname.startsWith("/room/");
   const isWorkbenchRoute = location.pathname.startsWith("/maps");
+  const isGuideRoute = location.pathname.startsWith("/roadmap");
+  const isAccountRoute =
+    location.pathname.startsWith("/account") ||
+    location.pathname.startsWith("/login") ||
+    location.pathname.startsWith("/signup");
 
   const shellClassName = isRoomRoute
     ? "shell shell--room"
@@ -50,6 +55,33 @@ export function AppShell({ children }: AppShellProps) {
     : isRoomRoute
       ? "방 상태와 현재 라운드를 한 화면에서 확인합니다."
       : "방을 만들고 참가 중인 게임에 바로 들어갈 수 있습니다.";
+
+  React.useEffect(() => {
+    if (isRoomRoute) {
+      const roomName = decodeURIComponent(location.pathname.split("/").pop() || "");
+      document.title = roomName
+        ? `${APP_TITLE} · ${roomName}`
+        : `${APP_TITLE} · 게임 방`;
+      return;
+    }
+
+    if (isWorkbenchRoute) {
+      document.title = `${APP_TITLE} · 맵`;
+      return;
+    }
+
+    if (isGuideRoute) {
+      document.title = `${APP_TITLE} · 안내`;
+      return;
+    }
+
+    if (isAccountRoute) {
+      document.title = `${APP_TITLE} · 계정`;
+      return;
+    }
+
+    document.title = `${APP_TITLE} · 로비`;
+  }, [isAccountRoute, isGuideRoute, isRoomRoute, isWorkbenchRoute, location.pathname]);
 
   return (
     <div className={shellClassName}>

@@ -12,7 +12,7 @@ const AccountPage = lazy(() => import("./features/account/AccountPage"));
 function RouteFallback() {
     return (
         <section className="panel page-loading">
-            <p className="eyebrow">Loading</p>
+            <p className="eyebrow">불러오는 중</p>
             <h2>화면을 불러오는 중입니다.</h2>
             <p className="footnote">조금만 기다리면 바로 이어서 볼 수 있습니다.</p>
         </section>
