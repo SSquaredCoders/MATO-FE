@@ -1084,10 +1084,6 @@ button {
   display: none;
 }
 
-.map-page__nickname-field {
-  display: none;
-}
-
 .shell--workbench .map-page__hero {
   display: flex;
   align-items: center;
@@ -1764,12 +1760,6 @@ button {
     overflow-x: auto;
     flex-wrap: nowrap;
     padding-bottom: 2px;
-  }
-
-  .map-page__nickname-field {
-    max-width: none;
-    min-width: 0;
-    justify-self: stretch;
   }
 
   .room-stage,

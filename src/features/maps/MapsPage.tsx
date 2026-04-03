@@ -2420,7 +2420,6 @@ export default function MapsPage() {
 
   const viewerNickname = authUser?.nickname?.trim() || currentNickname.trim();
   const creatorNickname = authUser?.nickname?.trim() || currentNickname.trim();
-  const nickname = creatorNickname;
   const isCreateMode = editorMode === "create";
   const isEditMode = editorMode === "edit";
 
@@ -3422,15 +3421,6 @@ export default function MapsPage() {
           먼저 맵을 고르고 흐름을 결정한 다음, 수정 모드나 만들기 모드로
           들어가면 됩니다.
         </p>
-
-        <label className="field map-page__nickname-field">
-          <span>현재 닉네임</span>
-          <input
-            value={nickname}
-            readOnly
-            placeholder="베타에서 쓸 닉네임을 입력하세요"
-          />
-        </label>
 
         <div className="map-mode-bar">
           <button
