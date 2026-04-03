@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { APP_TITLE, API_BASE_URL, WS_BASE_URL } from "../../shared/config/env";
+import { APP_TITLE } from "../../shared/config/env";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -9,7 +9,7 @@ interface AppShellProps {
 const links = [
   { to: "/", label: "로비" },
   { to: "/maps", label: "맵" },
-  { to: "/roadmap", label: "로드맵" },
+  { to: "/roadmap", label: "안내" },
   { to: "/account", label: "계정" },
 ];
 
@@ -38,11 +38,18 @@ export function AppShell({ children }: AppShellProps) {
     : isWorkbenchRoute
       ? "nav nav--workbench"
       : "nav";
+
   const eyebrowLabel = isRoomRoute
-    ? "MATO ROOM"
+    ? "게임 방"
     : isWorkbenchRoute
-      ? "MATO MAP LAB"
-      : "MATO V2 ROOM";
+      ? "맵 관리"
+      : "실시간 로비";
+
+  const summaryText = isWorkbenchRoute
+    ? "플레이할 맵을 만들고 정리하는 공간입니다."
+    : isRoomRoute
+      ? "방 상태와 현재 라운드를 한 화면에서 확인합니다."
+      : "방을 만들고 참가 중인 게임에 바로 들어갈 수 있습니다.";
 
   return (
     <div className={shellClassName}>
@@ -50,10 +57,8 @@ export function AppShell({ children }: AppShellProps) {
         <div className={brandClassName}>
           <p className="eyebrow">{eyebrowLabel}</p>
           <h1>{APP_TITLE}</h1>
-          {!isRoomRoute && !isWorkbenchRoute ? (
-            <p className="shell__summary">
-              실시간 방 플레이를 중심으로 다시 정리한 웹 게임 프로토타입입니다.
-            </p>
+          {!isRoomRoute ? (
+            <p className="shell__summary">{summaryText}</p>
           ) : null}
         </div>
 
@@ -73,16 +78,6 @@ export function AppShell({ children }: AppShellProps) {
       </header>
 
       <main className="shell__content">{children}</main>
-
-      {!isRoomRoute && !isWorkbenchRoute ? (
-        <footer className="shell__footer">
-          <div className="chip-list">
-            <span className="chip">REST {API_BASE_URL}</span>
-            <span className="chip">실시간 {WS_BASE_URL}</span>
-            <span className="chip">Query + STOMP 루트</span>
-          </div>
-        </footer>
-      ) : null}
     </div>
   );
 }

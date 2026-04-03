@@ -3391,8 +3391,8 @@ export default function MapsPage() {
         <p className="eyebrow">맵</p>
         <h2>맵 만들기와 수정은 로그인한 계정으로 진행합니다.</h2>
         <p className="lede">
-          베타 단계에서도 맵 작성자 정보는 계정 기준으로 고정하는 편이 안전해요.
           로그인하면 제작자 이름과 맵 소유권이 자동으로 연결됩니다.
+          작업 중인 맵과 업로드한 음원도 내 계정 기준으로 관리됩니다.
         </p>
         <div className="button-row">
           <Link className="button" to="/account">
@@ -3409,17 +3409,17 @@ export default function MapsPage() {
         <div className="panel__header">
           <div>
             <p className="eyebrow">맵</p>
-            <h2>맵 목록, 수정, 만들기를 한 번에 몰아두지 않고 단계별로 나눴습니다.</h2>
+            <h2>직접 만든 맵을 관리하고 새 게임을 준비하는 공간입니다.</h2>
           </div>
           <div className="chip-list">
             <span className="chip">내 맵 {maps.length}개</span>
-            <span className="chip">현재 닉네임 {creatorNickname}</span>
+            <span className="chip">작성자 {creatorNickname}</span>
           </div>
         </div>
 
         <p className="lede">
-          먼저 맵을 고르고 흐름을 결정한 다음, 수정 모드나 만들기 모드로
-          들어가면 됩니다.
+          보관 중인 맵을 정리하거나, 새 맵을 단계별로 만들고 바로 방에서
+          사용할 수 있습니다.
         </p>
 
         <div className="map-mode-bar">

@@ -1,8 +1,7 @@
-import { Client } from "@stomp/stompjs";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL, WS_BASE_URL } from "../../shared/config/env";
+import { API_BASE_URL } from "../../shared/config/env";
 import { fetchRoomSnapshot } from "../../shared/api/rooms";
 import { useAuthStore } from "../../shared/auth/useAuthStore";
 import { useRoomRealtime } from "../../shared/realtime/useRoomRealtime";
@@ -128,7 +127,6 @@ export default function RoomPage() {
   );
   const [clock, setClock] = useState(() => Date.now());
   const [connection, setConnection] = useState<ConnectionState>("idle");
-  const [isWatcherJoining, setIsWatcherJoining] = useState(false);
   const [isRoomSettingsOpen, setIsRoomSettingsOpen] = useState(false);
   const [settingsSongOrderMode, setSettingsSongOrderMode] =
     useState<MapSongOrderMode>("author-order");
@@ -144,7 +142,6 @@ export default function RoomPage() {
     [],
   );
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const debugWatcherClientsRef = useRef<Map<string, Client>>(new Map());
   const joinedNicknameRef = useRef<string | null>(null);
   const transientTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
@@ -194,15 +191,6 @@ export default function RoomPage() {
       transientTimersRef.current.clear();
     };
   }, []);
-
-  useEffect(() => {
-    return () => {
-      debugWatcherClientsRef.current.forEach((client) => {
-        void client.deactivate();
-      });
-      debugWatcherClientsRef.current.clear();
-    };
-  }, [roomName]);
 
   const { publishEvent } = useRoomRealtime({
     roomName,
@@ -388,14 +376,6 @@ export default function RoomPage() {
     room?.roundEndsAt,
   ]);
 
-  const nicknameOptions = useMemo(() => {
-    const options =
-      room?.participants.map((participant) => participant.nickname) ?? [];
-    return options.includes(currentNickname)
-      ? options
-      : [currentNickname, ...options];
-  }, [currentNickname, room?.participants]);
-
   const sortedParticipants = useMemo(() => {
     if (!room) {
       return [];
@@ -537,70 +517,6 @@ export default function RoomPage() {
     setSettingsHintRevealDelaySeconds(String(room.hintRevealDelaySeconds ?? 8));
   };
 
-  const handleJoinAsWatcher = () => {
-    if (isWatcherJoining || room.participants.length >= room.maxParticipants) {
-      return;
-    }
-
-    const occupiedNicknames = new Set([
-      ...room.participants.map((participant) => participant.nickname),
-      ...debugWatcherClientsRef.current.keys(),
-    ]);
-    let nextWatcherIndex = room.participants.length + 1;
-    let watcherName = `watcher-${nextWatcherIndex}`;
-
-    while (occupiedNicknames.has(watcherName)) {
-      nextWatcherIndex += 1;
-      watcherName = `watcher-${nextWatcherIndex}`;
-    }
-
-    const debugClient = new Client({
-      brokerURL: WS_BASE_URL,
-      reconnectDelay: 0,
-      debug: () => {},
-    });
-
-    const publishDebugEvent = (
-      type: string,
-      payload: Record<string, unknown>,
-    ) => {
-      debugClient.publish({
-        destination: "/app/v2/game.send",
-        body: JSON.stringify({
-          type,
-          roomName,
-          payload,
-          clientTimestamp: new Date().toISOString(),
-        }),
-      });
-    };
-
-    setIsWatcherJoining(true);
-
-    debugClient.onConnect = () => {
-      debugWatcherClientsRef.current.set(watcherName, debugClient);
-      debugClient.subscribe(`/topic/v2/rooms/${roomName}`, () => {});
-      publishDebugEvent("room.join", { nickname: watcherName });
-      publishDebugEvent("presence.ping", { nickname: watcherName });
-      setFeedback(`${watcherName} 테스트 세션을 추가했습니다.`);
-      setIsWatcherJoining(false);
-    };
-
-    debugClient.onStompError = () => {
-      debugWatcherClientsRef.current.delete(watcherName);
-      void debugClient.deactivate();
-      setFeedback(`${watcherName} 테스트 세션 연결에 실패했습니다.`);
-      setIsWatcherJoining(false);
-    };
-
-    debugClient.onWebSocketClose = () => {
-      debugWatcherClientsRef.current.delete(watcherName);
-      setIsWatcherJoining(false);
-    };
-
-    debugClient.activate();
-  };
-
   return (
     <div className="room-view room-view--refined">
       {renderHiddenMedia && room.currentAudioSourceType === "file" && currentAudioSourceUrl ? (
@@ -630,7 +546,7 @@ export default function RoomPage() {
       <section className="panel room-stage">
         <div className="room-stage__header">
           <div>
-            <p className="eyebrow">Live Room</p>
+            <p className="eyebrow">게임 방</p>
             <h2>{roomName}</h2>
           </div>
           <span className={`status-pill status-pill--${connection}`}>
@@ -687,7 +603,7 @@ export default function RoomPage() {
           {showVisibleMedia ? (
             <div className="room-stage__media">
               <div className="room-stage__media-meta">
-                <span className="room-stage__media-eyebrow">재생 소스</span>
+                <span className="room-stage__media-eyebrow">현재 재생</span>
                 <strong>
                   {room.currentAudioSourceLabel ??
                     (room.currentAudioSourceType === "youtube"
@@ -733,7 +649,7 @@ export default function RoomPage() {
           ) : null}
 
           <div className="room-stage__board-copy">
-            <p className="eyebrow">Now Playing</p>
+            <p className="eyebrow">현재 문제</p>
             <h3>{room.currentPrompt}</h3>
 
             <div className="chip-list room-stage__rule-strip">
@@ -746,7 +662,7 @@ export default function RoomPage() {
                 <span className="chip">스킵 {skipVoteCountLabel}</span>
               ) : null}
               <span className="chip">
-                {room.showMediaControls ? "플레이어 표시" : "플레이어 숨김"}
+                {room.showMediaControls ? "재생 UI 표시" : "재생 UI 숨김"}
               </span>
               {roundCountdown > 0 ? (
                 <span className="chip">{roundCountdown}초 남음</span>
@@ -832,7 +748,7 @@ export default function RoomPage() {
             <div className="room-settings__panel">
               <div className="panel__header room-settings__panel-header">
                 <div>
-                  <p className="eyebrow">Room Settings</p>
+                  <p className="eyebrow">방 설정</p>
                   <h4>방 규칙</h4>
                 </div>
                 <div className="chip-list room-settings__summary">
@@ -1040,47 +956,6 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <details className="dev-tools">
-          <summary>테스트 도구</summary>
-          <div className="dev-tools__actions">
-            <label className="field">
-              <span>조작 닉네임</span>
-              <select
-                value={
-                  nicknameOptions.includes(currentNickname)
-                    ? currentNickname
-                    : nicknameOptions[0] ?? currentNickname
-                }
-                onChange={(event) => setCurrentNickname(event.target.value)}
-              >
-                {nicknameOptions.map((nicknameOption) => (
-                  <option key={nicknameOption} value={nicknameOption}>
-                    {nicknameOption}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="button button--ghost"
-              onClick={() =>
-                publishEvent("presence.ping", { nickname: currentNickname })
-              }
-              type="button"
-            >
-              상태 새로고침
-            </button>
-            <button
-              className="button button--ghost"
-              onClick={handleJoinAsWatcher}
-              disabled={
-                isWatcherJoining || room.participants.length >= room.maxParticipants
-              }
-              type="button"
-            >
-              {isWatcherJoining ? "참가자 연결 중..." : "관전자 추가"}
-            </button>
-          </div>
-        </details>
       </section>
     </div>
   );

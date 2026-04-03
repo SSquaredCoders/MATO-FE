@@ -1,7 +1,6 @@
 import React, { startTransition, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchRebuildBlueprint } from "../../shared/api/blueprint";
 import { fetchMaps } from "../../shared/api/maps";
 import { createRoom, fetchLobbyRooms } from "../../shared/api/rooms";
 import { useAuthStore } from "../../shared/auth/useAuthStore";
@@ -21,7 +20,7 @@ const visibilityLabels = {
 const phaseLabels = {
   LOBBY: "대기",
   COUNTDOWN: "카운트다운",
-  PLAYING: "플레이 중",
+  PLAYING: "진행 중",
   SCORING: "정산 중",
   FINISHED: "종료",
 } as const;
@@ -47,11 +46,6 @@ export default function LobbyPage() {
       setCurrentNickname(authUser.nickname);
     }
   }, [authUser?.nickname, setCurrentNickname]);
-
-  const blueprintQuery = useQuery({
-    queryKey: ["rebuild-blueprint"],
-    queryFn: fetchRebuildBlueprint,
-  });
 
   const roomsQuery = useQuery({
     queryKey: ["lobby-rooms"],
@@ -83,10 +77,6 @@ export default function LobbyPage() {
       });
     },
   });
-
-  if (!blueprintQuery.data) {
-    return <section className="panel">로비 구성을 불러오는 중입니다.</section>;
-  }
 
   const rooms = roomsQuery.data ?? [];
   const maps = mapsQuery.data ?? [];
@@ -120,61 +110,40 @@ export default function LobbyPage() {
     <div className="stack">
       <section className="hero">
         <div>
-          <p className="eyebrow">Live Lobby</p>
-          <h2>맵을 고르고 바로 방을 열거나, 이미 열린 방에 이어서 들어갈 수 있어요.</h2>
+          <p className="eyebrow">로비</p>
+          <h2>맵을 고르고 방을 만들면 바로 플레이를 시작할 수 있습니다.</h2>
           <p className="lede">
-            로그인해 두면 닉네임과 맵 작성자가 자동으로 이어집니다. 비로그인 상태에서는
-            임시 닉네임으로만 입장할 수 있어요.
+            로그인한 사용자는 본인 맵을 바로 불러올 수 있고, 로그인하지 않아도 닉네임을
+            입력해 방에 참가할 수 있습니다.
           </p>
         </div>
 
         <div className="hero__meta">
           <div className="metric">
-            <span className="metric__label">설계 원칙</span>
-            <strong>{blueprintQuery.data.principles.length}</strong>
-          </div>
-          <div className="metric">
-            <span className="metric__label">내 맵</span>
+            <span className="metric__label">생성 가능한 맵</span>
             <strong>{maps.length}</strong>
           </div>
           <div className="metric">
-            <span className="metric__label">실시간 이벤트</span>
-            <strong>
-              {blueprintQuery.data.clientEvents.length +
-                blueprintQuery.data.serverEvents.length}
-            </strong>
+            <span className="metric__label">열린 방</span>
+            <strong>{rooms.length}</strong>
+          </div>
+          <div className="metric">
+            <span className="metric__label">현재 계정</span>
+            <strong>{authUser?.nickname ?? "게스트"}</strong>
           </div>
         </div>
-      </section>
-
-      <section className="grid grid--three">
-        {blueprintQuery.data.principles.map((section) => (
-          <article className="panel" key={section.title}>
-            <p className="eyebrow">{section.title}</p>
-            <h3>{section.description}</h3>
-            <ul className="list">
-              {section.bullets.map((bullet) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-            </ul>
-          </article>
-        ))}
       </section>
 
       <section className="grid grid--two">
         <article className="panel stack">
           <div>
             <p className="eyebrow">방 만들기</p>
-            <h3>
-              {authUser
-                ? `${authUser.nickname}님 계정으로 바로 방을 열 수 있어요.`
-                : "닉네임과 맵을 정한 뒤 바로 방을 만들 수 있어요."}
-            </h3>
+            <h3>방 이름과 시작 맵을 정하면 바로 새 방을 열 수 있습니다.</h3>
           </div>
 
           {authUser ? (
             <div className="chip-list">
-              <span className="chip">현재 계정 {authUser.nickname}</span>
+              <span className="chip">로그인 계정 {authUser.nickname}</span>
               <span className="chip">아이디 {authUser.userId}</span>
             </div>
           ) : (
@@ -183,7 +152,7 @@ export default function LobbyPage() {
               <input
                 value={guestNickname}
                 onChange={(event) => setGuestNickname(event.target.value)}
-                placeholder="입장에 사용할 닉네임"
+                placeholder="방에서 사용할 이름"
               />
             </label>
           )}
@@ -222,13 +191,12 @@ export default function LobbyPage() {
             </p>
           ) : authUser ? (
             <p className="footnote">
-              로그인 계정 기준으로 보이는 맵만 선택할 수 있어요. 맵이 없다면 먼저 맵
-              화면에서 하나 만들어 주세요.
+              사용할 맵이 없다면 먼저 <Link to="/maps">맵 화면</Link>에서 새 맵을 만들어 주세요.
             </p>
           ) : (
             <p className="footnote">
-              맵 선택은 로그인 계정 기준이에요. 맵을 만들려면 먼저{" "}
-              <Link to="/account">로그인</Link>해 주세요.
+              맵 선택은 로그인한 계정 기준으로 불러옵니다. 맵이 없다면{" "}
+              <Link to="/account">로그인</Link> 후 만들어 주세요.
             </p>
           )}
 
@@ -243,7 +211,7 @@ export default function LobbyPage() {
                 createRoomMutation.isPending
               }
             >
-              {createRoomMutation.isPending ? "생성 중..." : "방 만들기"}
+              {createRoomMutation.isPending ? "방 생성 중..." : "방 만들기"}
             </button>
             {!authUser ? (
               <Link className="button button--ghost" to="/account">
@@ -255,8 +223,8 @@ export default function LobbyPage() {
           {!resolvedNickname || !trimmedRoomName ? (
             <p className="footnote">
               {authUser
-                ? "방 이름과 시작 맵을 정하면 바로 방을 만들 수 있어요."
-                : "닉네임과 방 이름을 채우면 바로 방을 만들거나 입장할 수 있어요."}
+                ? "방 이름을 입력하고 시작 맵을 선택하면 바로 생성할 수 있습니다."
+                : "닉네임과 방 이름을 입력하면 바로 새 방을 열 수 있습니다."}
             </p>
           ) : null}
 
@@ -267,8 +235,8 @@ export default function LobbyPage() {
 
         <article className="panel stack">
           <div>
-            <p className="eyebrow">열린 방</p>
-            <h3>지금 접속 가능한 방 목록입니다.</h3>
+            <p className="eyebrow">참가 중인 방</p>
+            <h3>지금 바로 들어갈 수 있는 방 목록입니다.</h3>
           </div>
 
           <div className="button-row">
@@ -288,7 +256,7 @@ export default function LobbyPage() {
 
           {!resolvedNickname ? (
             <p className="footnote">
-              로그인했거나 닉네임을 입력해야 방에 입장할 수 있어요.
+              로그인했거나 닉네임을 입력해야 방에 참가할 수 있습니다.
             </p>
           ) : null}
 
@@ -306,7 +274,7 @@ export default function LobbyPage() {
                   <span>{phaseLabels[room.phase]}</span>
                 </div>
                 <p>
-                  방장 {room.hostNickname} | {room.participantCount}/{room.maxParticipants}
+                  방장 {room.hostNickname} · {room.participantCount}/{room.maxParticipants}
                 </p>
                 <p>{room.map?.name ?? "맵 미선택"}</p>
               </button>
@@ -314,31 +282,43 @@ export default function LobbyPage() {
 
             {rooms.length === 0 && !roomsQuery.isLoading ? (
               <div className="room-card">
-                <strong>아직 열린 방이 없어요.</strong>
-                <p>시작 맵을 고른 뒤 새 방을 만들면 바로 입장할 수 있습니다.</p>
+                <strong>현재 열려 있는 방이 없습니다.</strong>
+                <p>새 방을 만들거나 조금 뒤 다시 새로고침해 주세요.</p>
               </div>
             ) : null}
           </div>
         </article>
       </section>
 
-      <section className="grid grid--two">
+      <section className="grid grid--three">
         <article className="panel">
-          <p className="eyebrow">프론트 구조</p>
-          <div className="code-list">
-            {blueprintQuery.data.frontendTree.map((item) => (
-              <code key={item}>{item}</code>
-            ))}
-          </div>
+          <p className="eyebrow">빠른 안내</p>
+          <h3>맵을 먼저 만들고 방을 열면 흐름이 가장 간단합니다.</h3>
+          <ul className="list">
+            <li>맵 화면에서 곡과 정답, 재생 구간을 정리합니다.</li>
+            <li>로비에서 방 이름과 시작 맵을 선택합니다.</li>
+            <li>참가자가 준비를 마치면 방장이 게임을 시작합니다.</li>
+          </ul>
         </article>
 
         <article className="panel">
-          <p className="eyebrow">구현 순서</p>
-          <ol className="timeline">
-            {blueprintQuery.data.implementationOrder.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+          <p className="eyebrow">로그인</p>
+          <h3>로그인하면 맵 작성자와 소유 맵이 자동으로 연결됩니다.</h3>
+          <ul className="list">
+            <li>맵 생성 시 작성자 정보가 자동으로 저장됩니다.</li>
+            <li>내 계정으로 만든 맵만 목록에서 바로 불러옵니다.</li>
+            <li>방 입장 닉네임도 현재 계정을 기준으로 채워집니다.</li>
+          </ul>
+        </article>
+
+        <article className="panel">
+          <p className="eyebrow">플레이</p>
+          <h3>방에 들어가면 같은 입력창으로 채팅과 정답 입력을 함께 처리합니다.</h3>
+          <ul className="list">
+            <li>정답 처리, 점수 반영, 다음 곡 진행은 서버 기준으로 움직입니다.</li>
+            <li>방장은 방 설정에서 진행 방식과 시간 제한을 조절할 수 있습니다.</li>
+            <li>유튜브 또는 파일 음원 모두 맵에서 준비할 수 있습니다.</li>
+          </ul>
         </article>
       </section>
     </div>

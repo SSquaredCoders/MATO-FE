@@ -17,6 +17,7 @@ export default function AccountPage() {
   const defaultMode = useMemo<AccountMode>(() => {
     return location.pathname === "/signup" ? "register" : "login";
   }, [location.pathname]);
+
   const [mode, setMode] = useState<AccountMode>(defaultMode);
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +43,7 @@ export default function AccountPage() {
         password,
       });
       setSession(session.user, session.accessToken);
-      setMessage(`${session.user.nickname}님으로 로그인했습니다.`);
+      setMessage(`${session.user.nickname} 계정으로 로그인했습니다.`);
       navigate("/maps");
     } catch (loginError) {
       setError((loginError as Error).message || "로그인에 실패했습니다.");
@@ -69,7 +70,7 @@ export default function AccountPage() {
         password,
       });
       setSession(session.user, session.accessToken);
-      setMessage(`${session.user.nickname}님 계정을 만들고 바로 로그인했습니다.`);
+      setMessage(`${session.user.nickname} 계정을 만들고 바로 로그인했습니다.`);
       navigate("/maps");
     } catch (registerError) {
       setError((registerError as Error).message || "회원가입에 실패했습니다.");
@@ -98,8 +99,8 @@ export default function AccountPage() {
     return (
       <section className="panel stack">
         <p className="eyebrow">계정</p>
-        <h2>로그인 상태를 확인하는 중입니다.</h2>
-        <p className="footnote">조금만 기다리면 바로 이어서 사용할 수 있어요.</p>
+        <h2>로그인 상태를 확인하고 있습니다.</h2>
+        <p className="footnote">잠시만 기다리면 바로 이어서 사용할 수 있습니다.</p>
       </section>
     );
   }
@@ -109,8 +110,8 @@ export default function AccountPage() {
       <section className="panel stack account-page">
         <div className="panel__header">
           <div>
-            <p className="eyebrow">현재 계정</p>
-            <h2>{user.nickname}님으로 로그인 중입니다.</h2>
+            <p className="eyebrow">내 계정</p>
+            <h2>{user.nickname} 계정으로 로그인되어 있습니다.</h2>
           </div>
           <div className="chip-list">
             <span className="chip">아이디 {user.userId}</span>
@@ -119,14 +120,14 @@ export default function AccountPage() {
         </div>
 
         <p className="lede">
-          맵 만들기와 수정은 이제 로그인한 계정 기준으로 자동 연결됩니다. 닉네임을 따로
-          입력하지 않아도 돼요.
+          로그인한 계정은 맵 작성자와 자동으로 연결됩니다. 맵 관리와 방 입장에 필요한 닉네임도
+          현재 계정을 기준으로 채워집니다.
         </p>
 
         <div className="grid grid--two">
           <article className="panel account-page__card">
             <p className="eyebrow">바로 가기</p>
-            <h3>작업 이어가기</h3>
+            <h3>지금 바로 이어서 작업할 수 있습니다.</h3>
             <div className="button-row">
               <Link className="button" to="/maps">
                 맵으로 이동
@@ -139,7 +140,7 @@ export default function AccountPage() {
 
           <article className="panel account-page__card">
             <p className="eyebrow">세션</p>
-            <h3>현재 브라우저 세션</h3>
+            <h3>현재 브라우저 로그인 상태</h3>
             <div className="button-row">
               <button className="button button--ghost" onClick={handleLogout} type="button">
                 {pending ? "정리 중..." : "로그아웃"}
@@ -159,17 +160,17 @@ export default function AccountPage() {
       <div className="panel__header">
         <div>
           <p className="eyebrow">계정</p>
-          <h2>로그인하고 맵과 방을 계정 기준으로 쓰세요.</h2>
+          <h2>로그인하면 맵 작성과 관리가 계정 기준으로 자동 연결됩니다.</h2>
         </div>
         <div className="chip-list">
-          <span className="chip">맵 생성 자동 연결</span>
-          <span className="chip">닉네임 수동 입력 축소</span>
+          <span className="chip">맵 작성자 자동 연결</span>
+          <span className="chip">방 입장 닉네임 자동 반영</span>
         </div>
       </div>
 
       <p className="lede">
-        지금부터는 맵 작성자를 로그인 사용자로 잡습니다. 베타 단계라서 방 입장 쪽은
-        유연하게 두더라도, 맵 관리 쪽은 계정 기준으로 정리하는 편이 안전해요.
+        로그인 후 맵을 만들면 작성자 정보가 자동으로 저장됩니다. 비로그인 상태에서는 로비에서
+        닉네임을 직접 입력해 방에만 참가할 수 있습니다.
       </p>
 
       <div className="button-row">
