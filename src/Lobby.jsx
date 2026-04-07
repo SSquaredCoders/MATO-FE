@@ -97,8 +97,15 @@ function Lobby() {
             }
           } catch (error) {
             console.error("웹소켓 메시지 처리 오류:", error);
-            // 오류 발생 시 안전하게 전체 목록 갱신
-            fetchRooms();
+            // 오류 발생 시에는 방 목록 갱신하지 않음 (DoS 공격 방지)
+            // 단, 연속된 오류가 아닌 경우에만 갱신
+            if (!window.lastLobbyMessageError || Date.now() - window.lastLobbyMessageError > 5000) {
+              window.lastLobbyMessageError = Date.now();
+              console.log("오류가 발생했지만 5초 이상 경과하여 방 목록을 갱신합니다.");
+              fetchRooms();
+            } else {
+              console.log("최근에 오류가 발생했으므로 방 목록 갱신을 건너뜁니다.");
+            }
           }
         });
         
