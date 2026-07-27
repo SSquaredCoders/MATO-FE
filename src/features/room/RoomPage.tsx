@@ -5,6 +5,10 @@ import { API_BASE_URL } from "../../shared/config/env";
 import { fetchRoomSnapshot } from "../../shared/api/rooms";
 import { useAuthStore } from "../../shared/auth/useAuthStore";
 import { useRoomRealtime } from "../../shared/realtime/useRoomRealtime";
+import {
+  type GameReward,
+  useProgressionStore,
+} from "../../shared/store/useProgressionStore";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 import type {
   ConnectionState,
@@ -117,6 +121,7 @@ export default function RoomPage() {
   const queryClient = useQueryClient();
   const { roomName = "demo-room" } = useParams();
   const authUser = useAuthStore((state) => state.user);
+  const grantGameReward = useProgressionStore((state) => state.grantGameReward);
   const currentNickname = useSessionStore((state) => state.currentNickname);
   const setCurrentNickname = useSessionStore(
     (state) => state.setCurrentNickname,
@@ -141,8 +146,10 @@ export default function RoomPage() {
   const [transientMessages, setTransientMessages] = useState<RoomChatMessage[]>(
     [],
   );
+  const [rewardNotice, setRewardNotice] = useState<GameReward | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const joinedNicknameRef = useRef<string | null>(null);
+  const hasSeenActiveGameRef = useRef(false);
   const transientTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
@@ -228,6 +235,33 @@ export default function RoomPage() {
   });
 
   const room = roomQuery.data;
+
+  useEffect(() => {
+    if (!room) {
+      return;
+    }
+
+    if (
+      room.phase === "COUNTDOWN" ||
+      room.phase === "PLAYING" ||
+      room.phase === "SCORING"
+    ) {
+      hasSeenActiveGameRef.current = true;
+      return;
+    }
+
+    if (room.phase !== "FINISHED" || !hasSeenActiveGameRef.current) {
+      return;
+    }
+
+    const score =
+      room.participants.find(
+        (participant) => participant.nickname === currentNickname,
+      )?.score ?? 0;
+    const reward = grantGameReward(score, room.totalRounds);
+    hasSeenActiveGameRef.current = false;
+    setRewardNotice(reward);
+  }, [currentNickname, grantGameReward, room]);
 
   useEffect(() => {
     if (!room || isRoomSettingsOpen) {
@@ -519,6 +553,29 @@ export default function RoomPage() {
 
   return (
     <div className="room-view room-view--refined">
+      {rewardNotice ? (
+        <div className="reward-overlay" role="dialog" aria-modal="true" aria-label="게임 보상">
+          <section className="reward-panel">
+            <span className="reward-panel__eyebrow">STAGE CLEAR</span>
+            <div className="reward-panel__crest" aria-hidden="true">♪</div>
+            <h2>보상 획득</h2>
+            <p>이번 플레이 기록이 로컬 프로필에 저장되었습니다.</p>
+            <div className="reward-panel__items">
+              <div>
+                <span>BEAT</span>
+                <strong>+{rewardNotice.beats.toLocaleString("ko-KR")}</strong>
+              </div>
+              <div>
+                <span>PLAYER EXP</span>
+                <strong>+{rewardNotice.xp.toLocaleString("ko-KR")}</strong>
+              </div>
+            </div>
+            <button onClick={() => setRewardNotice(null)} type="button">
+              로비로 계속
+            </button>
+          </section>
+        </div>
+      ) : null}
       {renderHiddenMedia && room.currentAudioSourceType === "file" && currentAudioSourceUrl ? (
         <audio
           key={mediaKey}

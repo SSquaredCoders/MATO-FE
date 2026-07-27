@@ -1,22 +1,27 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { APP_TITLE } from "../../shared/config/env";
+import { getProgression, useProgressionStore } from "../../shared/store/useProgressionStore";
 
 interface AppShellProps {
   children: React.ReactNode;
 }
 
 const links = [
-  { to: "/", label: "홈" },
-  { to: "/maps", label: "맵 스튜디오" },
-  { to: "/roadmap", label: "플레이 안내" },
-  { to: "/account", label: "내 정보" },
+  { to: "/", label: "로비", icon: "⌂" },
+  { to: "/maps", label: "맵", icon: "▦" },
+  { to: "/roadmap", label: "미션", icon: "◇" },
+  { to: "/account", label: "프로필", icon: "○" },
 ];
 
 export function AppShell({ children }: AppShellProps) {
   const location = useLocation();
+  const totalXp = useProgressionStore((state) => state.totalXp);
+  const beats = useProgressionStore((state) => state.beats);
+  const progression = getProgression(totalXp);
   const isRoomRoute = location.pathname.startsWith("/room/");
   const isWorkbenchRoute = location.pathname.startsWith("/maps");
+  const isLobbyRoute = location.pathname === "/";
   const isGuideRoute = location.pathname.startsWith("/roadmap");
   const isAccountRoute =
     location.pathname.startsWith("/account") ||
@@ -24,25 +29,17 @@ export function AppShell({ children }: AppShellProps) {
     location.pathname.startsWith("/signup");
 
   const shellClassName = isRoomRoute
-    ? "shell shell--room"
+    ? "shell game-shell shell--room"
     : isWorkbenchRoute
-      ? "shell shell--workbench"
-      : "shell";
+      ? "shell game-shell shell--workbench"
+      : isLobbyRoute
+        ? "shell game-shell shell--lobby"
+        : "shell game-shell";
   const headerClassName = isRoomRoute
-    ? "shell__header shell__header--room"
+    ? "shell__header game-hud shell__header--room"
     : isWorkbenchRoute
-      ? "shell__header shell__header--workbench"
-      : "shell__header";
-  const brandClassName = isRoomRoute
-    ? "shell__brand shell__brand--room"
-    : isWorkbenchRoute
-      ? "shell__brand shell__brand--workbench"
-      : "shell__brand";
-  const navClassName = isRoomRoute
-    ? "nav nav--room"
-    : isWorkbenchRoute
-      ? "nav nav--workbench"
-      : "nav";
+      ? "shell__header game-hud shell__header--workbench"
+      : "shell__header game-hud";
 
   const eyebrowLabel = isRoomRoute
     ? "게임 플레이"
@@ -53,16 +50,6 @@ export function AppShell({ children }: AppShellProps) {
         : isAccountRoute
           ? "내 정보"
           : "홈";
-
-  const summaryText = isWorkbenchRoute
-    ? "맵을 만들고 정리한 뒤 바로 방에서 사용할 수 있습니다."
-    : isRoomRoute
-      ? "방 상태와 현재 라운드를 한 화면에서 확인합니다."
-      : isGuideRoute
-        ? "처음 들어온 사용자도 순서대로 따라갈 수 있게 정리했습니다."
-        : isAccountRoute
-          ? "로그인 상태와 맵 작성 권한을 관리하는 곳입니다."
-          : "방을 만들고 열린 게임에 바로 참가할 수 있습니다.";
 
   React.useEffect(() => {
     if (isRoomRoute) {
@@ -94,26 +81,57 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className={shellClassName}>
       <header className={headerClassName}>
-        <div className={brandClassName}>
-          <p className="eyebrow">{eyebrowLabel}</p>
-          <h1>{APP_TITLE}</h1>
-          {!isRoomRoute ? (
-            <p className="shell__summary">{summaryText}</p>
-          ) : null}
+        <NavLink className="game-brand" to="/" aria-label={`${APP_TITLE} 로비`}>
+          <span className="game-brand__mark" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="game-brand__copy">
+            <strong>{APP_TITLE}</strong>
+            <small>{eyebrowLabel}</small>
+          </span>
+        </NavLink>
+
+        <div className="game-hud__progress" aria-label={`레벨 ${progression.level}`}>
+          <span className="game-level">LV.{String(progression.level).padStart(2, "0")}</span>
+          <div className="game-xp">
+            <span>PLAYER EXP</span>
+            <strong>
+              {progression.xpInLevel}<small> / {progression.xpForNextLevel}</small>
+            </strong>
+            <i>
+              <b style={{ width: `${progression.progress}%` }} />
+            </i>
+          </div>
         </div>
 
-        <nav className={navClassName}>
+        <div className="game-currency" aria-label={`${beats} 비트 보유`}>
+          <span className="game-currency__icon" aria-hidden="true">♪</span>
+          <span>
+            <small>BEAT</small>
+            <strong>{beats.toLocaleString("ko-KR")}</strong>
+          </span>
+        </div>
+
+        <nav className="game-nav" aria-label="주 메뉴">
           {links.map((link) => (
             <NavLink
               key={link.to}
               className={({ isActive }) =>
-                isActive ? "nav__link nav__link--active" : "nav__link"
+                isActive ? "game-nav__link game-nav__link--active" : "game-nav__link"
               }
               to={link.to}
             >
-              {link.label}
+              <span aria-hidden="true">{link.icon}</span>
+              <small>{link.label}</small>
             </NavLink>
           ))}
+          <button className="game-nav__link game-nav__link--locked" type="button" disabled>
+            <span aria-hidden="true">♙</span>
+            <small>캐릭터</small>
+            <i>LOCKED</i>
+          </button>
         </nav>
       </header>
 

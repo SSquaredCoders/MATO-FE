@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prepare-sites-build.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "verify:room-clip-range": "node scripts/verify-room-clip-range.mjs"
