@@ -47,6 +47,7 @@ sketch
 # 환경 변수 파일 (실제 값이 들어간 경우)
 .env
 .env.*
+!.env.hostinger
 
 # Mac/Windows 시스템 파일
 Thumbs.db

@@ -10,10 +10,17 @@ interface ImportMeta {
 }
 
 // API 기본 URL
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const productionApiBaseUrl = '';
+const productionWebSocketBaseUrl = `${window.location.origin}/ws`;
+
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.trim() ||
+  (import.meta.env.PROD ? productionApiBaseUrl : 'http://localhost:8080');
 
 // WebSocket 기본 URL
-export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'http://localhost:8080/ws';
+export const WS_BASE_URL =
+  import.meta.env.VITE_WS_BASE_URL?.trim() ||
+  (import.meta.env.PROD ? productionWebSocketBaseUrl : 'http://localhost:8080/ws');
 
 // 기타 환경 설정
 export const DEFAULT_TIMEOUT = 10000; // 10초
