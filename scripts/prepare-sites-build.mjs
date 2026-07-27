@@ -1,10 +1,11 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverDirectory = path.join(projectRoot, "dist", "server");
 const workerPath = path.join(serverDirectory, "index.js");
+const clientEntryPath = path.join(projectRoot, "dist", "client", "index.html");
 
 const workerSource = `export default {
   async fetch(request, env) {
@@ -24,5 +25,6 @@ const workerSource = `export default {
 };
 `;
 
+await access(clientEntryPath);
 await mkdir(serverDirectory, { recursive: true });
 await writeFile(workerPath, workerSource, "utf8");
