@@ -13,7 +13,6 @@ function Lobby() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [nickname, setNickname] = useState(() => localStorage.getItem("nickname") || "");
   const [showNicknameModal, setShowNicknameModal] = useState(false);
-  const [stompClient, setStompClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -38,7 +37,6 @@ function Lobby() {
       webSocketFactory: () => socket,
       onConnect: () => {
         console.log("로비 WebSocket 연결됨");
-        setStompClient(client);
         
         // 글로벌 이벤트 구독 (방 참가자 변경, 방 생성/삭제 등)
         client.subscribe('/topic/lobby', (message) => {
