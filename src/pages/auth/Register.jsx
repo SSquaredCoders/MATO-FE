@@ -58,7 +58,7 @@ const Register = () => {
         throw new Error("회원가입 실패");
       }
 
-      const data = await response.json();
+      await response.json();
       setSuccessMessage("회원가입 성공! 로그인 페이지로 이동합니다.");
 
       setTimeout(() => {
