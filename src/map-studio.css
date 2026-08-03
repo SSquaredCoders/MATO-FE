@@ -1,0 +1,1136 @@
+/* MATO Map Lab -----------------------------------------------------------
+   Isolated after qplay-theme.css so the editor can keep a stronger game UI
+   without changing the lobby, room, or account surfaces. */
+
+.qp-shell .map-page {
+  --map-lab-blue: #4b9fc9;
+  --map-lab-blue-deep: #347ea7;
+  --map-lab-sky: #e8f6fb;
+  --map-lab-yellow: #ffc85a;
+  --map-lab-orange: #ff8d62;
+  --map-lab-mint: #6fc5ae;
+  --map-lab-ink: #35586e;
+  --map-lab-muted: #718997;
+  --map-lab-line: #bedbe7;
+  --map-lab-shadow: 0 5px 0 rgba(67, 134, 165, 0.1);
+}
+
+.qp-shell .map-page--editing {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  color: var(--map-lab-ink);
+}
+
+.qp-shell .map-page__hero--editor {
+  position: relative;
+  gap: 10px;
+  padding: 13px 16px 11px;
+  overflow: hidden;
+  border: 2px solid #7dbbd6;
+  border-bottom-color: #5da4c6;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 88% -30px, rgba(255, 200, 90, 0.35) 0 78px, transparent 79px),
+    linear-gradient(180deg, #ffffff 0%, #f4fbfd 100%);
+  box-shadow: var(--map-lab-shadow);
+}
+
+.qp-shell .map-page__hero--editor::after {
+  content: "♪";
+  position: absolute;
+  top: 4px;
+  right: 20%;
+  color: rgba(75, 159, 201, 0.16);
+  font-size: 3.4rem;
+  font-weight: 900;
+  transform: rotate(12deg);
+  pointer-events: none;
+}
+
+.qp-shell .map-page--editing .map-page__hero-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.qp-shell .map-page--editing .map-page__hero-copy {
+  gap: 3px;
+}
+
+.qp-shell .map-page--editing .map-page__hero-copy .eyebrow {
+  color: var(--map-lab-blue-deep);
+  font-family: "Arial Rounded MT Bold", Arial, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+}
+
+.qp-shell .map-page--editing .map-page__hero-copy h2 {
+  color: #315f78;
+  font-size: clamp(1.08rem, 1.6vw, 1.42rem);
+  font-weight: 900;
+}
+
+.qp-shell .map-page--editing .map-page__hero-copy .lede {
+  color: var(--map-lab-muted);
+  font-size: 0.78rem;
+}
+
+.map-studio__status {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.map-studio__status-item {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #c3dce6;
+  border-radius: 999px;
+  color: #668496;
+  background: rgba(255, 255, 255, 0.86);
+  font-family: "Arial Rounded MT Bold", Arial, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.map-studio__status-item--primary {
+  color: #ffffff;
+  border-color: var(--map-lab-blue-deep);
+  background: linear-gradient(180deg, #65b4da, #4a9bc4);
+}
+
+.map-studio__status-item--warning {
+  color: #9a6323;
+  border-color: #e9c779;
+  background: #fff6d9;
+}
+
+.qp-shell .map-page--editing .map-mode-bar {
+  position: relative;
+  z-index: 2;
+  gap: 5px;
+}
+
+.qp-shell .map-page--editing .map-mode-button {
+  min-height: 30px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.qp-shell .map-page--editing .map-mode-button--active {
+  color: #ffffff;
+  border-color: var(--map-lab-blue-deep);
+  background: var(--map-lab-blue);
+}
+
+/* Main layout */
+
+.qp-shell .map-studio__workspace {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 318px;
+  grid-template-areas: "editor rail";
+  gap: 8px;
+}
+
+.qp-shell .map-studio__workspace--step-2,
+.qp-shell .map-studio__workspace--edit {
+  grid-template-columns: 274px minmax(0, 1fr);
+  grid-template-areas: "rail editor";
+}
+
+.qp-shell .map-studio__editor {
+  grid-area: editor;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px 18px 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 2px solid #9bc9dc;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: var(--map-lab-shadow);
+  scrollbar-color: #a9cfdf #eff8fb;
+}
+
+.qp-shell .map-studio__rail {
+  grid-area: rail;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 13px;
+  overflow: hidden;
+  border: 2px solid #b5d4e0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f9fdfe, #eff8fb);
+  box-shadow: var(--map-lab-shadow);
+}
+
+.qp-shell .map-page--editing .map-builder__header,
+.qp-shell .map-page--editing .map-builder__actions,
+.qp-shell .map-page--editing .map-workspace__side .panel__header,
+.qp-shell .map-page--editing .map-toolbar {
+  position: static;
+  padding: 0;
+  background: transparent;
+}
+
+.qp-shell .map-page--editing .map-builder__header {
+  min-height: 44px;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d8e8ee;
+}
+
+.qp-shell .map-page--editing .map-builder__header h2 {
+  margin: 2px 0 0;
+  color: #365f77;
+  font-size: 1.04rem;
+  font-weight: 900;
+}
+
+.qp-shell .map-page--editing .map-builder__actions {
+  gap: 6px;
+  margin-top: -3px;
+}
+
+.qp-shell .map-page--editing .map-builder__actions .button {
+  min-height: 28px;
+  padding: 4px 9px;
+  font-size: 0.67rem;
+}
+
+/* Step rail */
+
+.qp-shell .map-page--editing .map-create-steps {
+  position: relative;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding: 3px;
+  border: 1px solid #c5dee8;
+  border-radius: 12px;
+  background: #eef8fb;
+}
+
+.qp-shell .map-page--editing .map-create-step {
+  min-height: 52px;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-color: transparent;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.qp-shell .map-page--editing .map-create-step:hover:not(:disabled) {
+  border-color: #c2deea;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.qp-shell .map-page--editing .map-create-step--active {
+  color: #ffffff;
+  border-color: #3e8fb9;
+  background: linear-gradient(180deg, #64b5dc, #4d9fc8);
+  box-shadow: 0 2px 0 rgba(54, 126, 161, 0.16);
+}
+
+.qp-shell .map-page--editing .map-create-step--done {
+  border-color: #a9d6c8;
+  background: #effaf6;
+}
+
+.qp-shell .map-page--editing .map-create-step__index {
+  inline-size: 27px;
+  block-size: 27px;
+  color: #557a8d;
+  border-color: #bcd8e3;
+  background: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.qp-shell .map-page--editing .map-create-step--active .map-create-step__index {
+  color: #4b92b6;
+  border-color: #ffffff;
+  background: #ffffff;
+}
+
+.qp-shell .map-page--editing .map-create-step__copy {
+  gap: 1px;
+}
+
+.qp-shell .map-page--editing .map-create-step__copy strong {
+  font-size: 0.78rem;
+}
+
+.qp-shell .map-page--editing .map-create-step__copy small {
+  color: #8095a1;
+  font-size: 0.62rem;
+  line-height: 1.25;
+}
+
+.qp-shell .map-page--editing .map-create-step--active small {
+  color: rgba(255, 255, 255, 0.84);
+}
+
+/* Form surfaces */
+
+.qp-shell .map-page--editing .field {
+  gap: 6px;
+}
+
+.qp-shell .map-page--editing .field > span {
+  color: #54768a;
+  font-size: 0.73rem;
+  font-weight: 850;
+}
+
+.qp-shell .map-page--editing .field > span em {
+  margin-left: 4px;
+  color: #e47462;
+  font-size: 0.63rem;
+  font-style: normal;
+}
+
+.qp-shell .map-page--editing .field input,
+.qp-shell .map-page--editing .field textarea,
+.qp-shell .map-page--editing .field select,
+.qp-shell .map-page--editing .toggle-card input,
+.qp-shell .map-page--editing .toggle-card select {
+  min-height: 42px;
+  border: 1px solid #b7d3df;
+  border-radius: 9px;
+  color: #355d73;
+  background: #fbfeff;
+  box-shadow: inset 0 1px 2px rgba(71, 119, 143, 0.05);
+}
+
+.qp-shell .map-page--editing .field textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.qp-shell .map-page--editing .field input:focus,
+.qp-shell .map-page--editing .field textarea:focus,
+.qp-shell .map-page--editing .field select:focus,
+.qp-shell .map-page--editing .toggle-card input:focus,
+.qp-shell .map-page--editing .toggle-card select:focus {
+  outline: 3px solid rgba(78, 161, 203, 0.18);
+  border-color: #4d9fc8;
+}
+
+.qp-shell .map-studio__identity-card {
+  min-height: 290px;
+  align-content: center;
+  gap: 24px;
+  padding: clamp(24px, 5vw, 62px);
+  border: 1px solid #c4dee8;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(229, 247, 252, 0.72), rgba(255, 253, 245, 0.9)),
+    #ffffff;
+}
+
+.qp-shell .map-studio__identity-card .song-editor__section-header strong {
+  color: #365f77;
+  font-size: clamp(1.2rem, 2.2vw, 1.65rem);
+}
+
+.qp-shell .map-studio__identity-card .grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 14px;
+}
+
+/* Rules */
+
+.map-studio__rules {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #c3dfe9;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fbfeff, #f3fafc);
+}
+
+.map-studio__section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.map-studio__section-title p,
+.map-studio__section-title strong {
+  margin: 0;
+}
+
+.map-studio__section-title strong {
+  display: block;
+  color: #365f77;
+  font-size: 1rem;
+}
+
+.map-studio__section-title > div > p:last-child {
+  margin-top: 4px;
+  color: var(--map-lab-muted);
+  font-size: 0.75rem;
+}
+
+.map-studio__section-title--compact {
+  align-items: start;
+}
+
+.map-studio__timer-badge {
+  inline-size: 66px;
+  block-size: 66px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 2px solid #efb84e;
+  border-radius: 50%;
+  color: #9b681f;
+  background: #fff5cd;
+  font-family: "Arial Rounded MT Bold", Arial, sans-serif;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.map-studio__timer-badge small {
+  margin-top: 3px;
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+}
+
+.map-studio__rules-body {
+  display: grid;
+  gap: 12px;
+}
+
+.qp-shell .map-page--editing .rule-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.qp-shell .map-page--editing .toggle-card {
+  min-height: 100px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid #cce1e9;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.qp-shell .map-page--editing .toggle-card strong {
+  margin-bottom: 4px;
+  color: #3d657b;
+  font-size: 0.83rem;
+}
+
+.qp-shell .map-page--editing .toggle-card p {
+  color: #8195a0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.qp-shell .map-page--editing .toggle-card select,
+.qp-shell .map-page--editing .toggle-card input {
+  min-width: 104px;
+  max-width: 150px;
+}
+
+/* Song editor: queue + inputs + preview */
+
+.qp-shell .map-page--editing .song-editor {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(390px, 1.1fr);
+  grid-template-areas:
+    "song-head song-head"
+    "song-basics song-source"
+    "song-quiz song-source"
+    "song-tools song-source";
+  gap: 10px 12px;
+  align-items: start;
+}
+
+.qp-shell .map-page--editing .song-editor__header {
+  grid-area: song-head;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid #c7e0e9;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #eef9fc, #fffaf0);
+}
+
+.qp-shell .map-page--editing .song-editor__header h3 {
+  margin: 0;
+  color: #345f77;
+  font-size: 1.08rem;
+}
+
+.qp-shell .map-page--editing .song-editor__section {
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #cde1e8;
+  border-radius: 13px;
+  background: #ffffff;
+}
+
+.qp-shell .map-page--editing .song-editor__section--basics {
+  grid-area: song-basics;
+}
+
+.qp-shell .map-page--editing .song-editor__section--quiz {
+  grid-area: song-quiz;
+}
+
+.qp-shell .map-page--editing .song-editor__section--source {
+  grid-area: song-source;
+  position: sticky;
+  top: 0;
+  min-width: 0;
+  border-color: #a9d0df;
+  background: linear-gradient(180deg, #f8fdff, #f1f9fc);
+}
+
+.qp-shell .map-page--editing .song-editor__section-header strong {
+  color: #3b6379;
+  font-size: 0.9rem;
+}
+
+.qp-shell .map-page--editing .song-editor__section-header p:last-child {
+  color: #8397a2;
+  font-size: 0.69rem;
+}
+
+.qp-shell .map-page--editing .song-preview {
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #abd0df;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.qp-shell .map-page--editing .song-preview__frame {
+  min-height: 210px;
+  max-height: 260px;
+  border-radius: 10px;
+  background: #dceef5;
+}
+
+.qp-shell .map-page--editing .song-preview__button {
+  min-width: 64px;
+  min-height: 33px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  font-size: 0.68rem;
+}
+
+.qp-shell .map-page--editing .clip-timeline__base {
+  background: #c9e1ea;
+}
+
+.qp-shell .map-page--editing .clip-timeline__selection {
+  background: linear-gradient(90deg, var(--map-lab-yellow), var(--map-lab-orange));
+  box-shadow: 0 0 0 1px rgba(219, 145, 48, 0.2);
+}
+
+.qp-shell .map-page--editing .clip-timeline__handle {
+  inline-size: 20px;
+  block-size: 20px;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(75, 159, 201, 0.22);
+}
+
+.map-studio__track-tools {
+  grid-area: song-tools;
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #cde1e8;
+  border-radius: 13px;
+  background: #f8fcfd;
+}
+
+.map-studio__track-tools-body,
+.map-studio__track-tools .song-editor__actions {
+  display: grid;
+  gap: 9px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-tools .button {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 0.66rem;
+}
+
+.qp-shell .map-page--editing .song-order-controls {
+  justify-content: flex-start;
+  gap: 7px;
+}
+
+/* Playlist rail */
+
+.qp-shell .map-studio__rail .panel__header {
+  flex: 0 0 auto;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d5e6ed;
+}
+
+.qp-shell .map-studio__rail .panel__header .eyebrow {
+  color: var(--map-lab-blue-deep);
+  font-family: "Arial Rounded MT Bold", Arial, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+}
+
+.qp-shell .map-studio__rail .panel__header h3 {
+  color: #365f77;
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.qp-shell .map-studio__rail .panel__header .footnote {
+  display: none;
+}
+
+.qp-shell .map-studio__rail .map-toolbar__search {
+  margin-top: 2px;
+}
+
+.qp-shell .map-studio__rail .map-toolbar__search > span {
+  display: none;
+}
+
+.qp-shell .map-studio__rail .map-toolbar__search input {
+  min-height: 36px;
+  padding-left: 12px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.qp-shell .map-studio__rail .map-toolbar--pager {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 5px;
+}
+
+.qp-shell .map-studio__rail .map-toolbar--pager .chip:nth-child(2),
+.qp-shell .map-studio__rail .map-toolbar__page-size {
+  display: none;
+}
+
+.qp-shell .map-studio__rail .map-toolbar--pager .button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 0.62rem;
+}
+
+.qp-shell .map-studio__rail .song-queue {
+  gap: 7px;
+  align-content: start;
+  grid-auto-rows: max-content;
+  padding: 1px 3px 10px 1px;
+}
+
+.qp-shell .map-studio__rail .song-queue__item {
+  position: relative;
+  gap: 5px;
+  padding: 10px 11px 10px 14px;
+  overflow: hidden;
+  border: 1px solid #c7dee7;
+  border-radius: 10px;
+  color: #4a6b7e;
+  background: #ffffff;
+  box-shadow: none;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.qp-shell .map-studio__rail .song-queue__item::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 4px;
+  background: #d1e3ea;
+}
+
+.qp-shell .map-studio__rail .song-queue__item:hover {
+  transform: translateX(2px);
+  border-color: #88bdd3;
+}
+
+.qp-shell .map-studio__rail .song-queue__item--selected {
+  color: #315f78;
+  border-color: #4b9fc9;
+  background: #eaf7fc;
+  box-shadow: 0 2px 0 rgba(74, 145, 179, 0.1);
+}
+
+.qp-shell .map-studio__rail .song-queue__item--selected::before {
+  background: var(--map-lab-blue);
+}
+
+.qp-shell .map-studio__rail .song-queue__item--ready::before {
+  background: var(--map-lab-mint);
+}
+
+.qp-shell .map-studio__rail .song-queue__item--incomplete::before {
+  background: var(--map-lab-yellow);
+}
+
+.qp-shell .map-studio__rail .song-queue__title-row strong {
+  color: inherit;
+  font-size: 0.76rem;
+}
+
+.qp-shell .map-studio__rail .song-queue__meta-row p {
+  color: #8397a2;
+  font-size: 0.63rem;
+}
+
+.map-studio__track-state {
+  min-height: 19px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: #7b8f9a;
+  background: #eef5f7;
+  font-family: Arial, sans-serif;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.song-queue__item--ready .map-studio__track-state {
+  color: #3f8f76;
+  background: #e8f7f2;
+}
+
+.song-queue__item--incomplete .map-studio__track-state {
+  color: #9b6c27;
+  background: #fff5d8;
+}
+
+/* Map preview card */
+
+.qp-shell .map-page--editing .map-create-summary {
+  gap: 10px;
+}
+
+.qp-shell .map-page--editing .map-create-summary__card {
+  border-color: #c8e0e9;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.map-studio__map-card {
+  position: relative;
+  min-height: 290px;
+  align-content: end;
+  overflow: hidden;
+  padding: 18px;
+  color: #ffffff;
+  border: 2px solid #3e88af !important;
+  background:
+    radial-gradient(circle at 84% 20%, rgba(255, 208, 103, 0.95) 0 38px, transparent 39px),
+    linear-gradient(145deg, #5db0d7 0%, #3f8fb8 72%) !important;
+  box-shadow: 0 4px 0 rgba(54, 119, 151, 0.16);
+}
+
+.map-studio__map-card::before,
+.map-studio__map-card::after {
+  content: "";
+  position: absolute;
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+}
+
+.map-studio__map-card::before {
+  width: 130px;
+  height: 130px;
+  top: -44px;
+  left: -36px;
+}
+
+.map-studio__map-card::after {
+  width: 84px;
+  height: 84px;
+  right: -28px;
+  bottom: 54px;
+}
+
+.map-studio__map-card-label {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(37, 102, 135, 0.28);
+  font-family: Arial, sans-serif;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.map-studio__map-card-art {
+  position: absolute;
+  top: 45px;
+  left: 50%;
+  width: 98px;
+  height: 98px;
+  display: grid;
+  place-items: center;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.13);
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 7px rgba(255, 255, 255, 0.12);
+}
+
+.map-studio__map-card-art span {
+  color: #ffffff;
+  font-size: 2.7rem;
+  font-weight: 900;
+}
+
+.map-studio__map-card-art i {
+  position: absolute;
+  right: -20px;
+  top: -8px;
+  color: #ffe59a;
+  font-size: 1.6rem;
+  font-style: normal;
+  transform: rotate(12deg);
+}
+
+.qp-shell .map-studio__map-card h4,
+.qp-shell .map-studio__map-card p {
+  position: relative;
+  z-index: 1;
+  color: #ffffff;
+}
+
+.qp-shell .map-studio__map-card h4 {
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
+.qp-shell .map-studio__map-card p {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.72rem;
+}
+
+.map-studio__map-card-meta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.map-studio__map-card-meta span {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(44, 103, 133, 0.24);
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.map-studio__check-card .map-create-summary__list {
+  padding: 0;
+  list-style: none;
+}
+
+.map-studio__check-card .map-create-summary__list li {
+  position: relative;
+  padding-left: 24px;
+  color: #7d919c;
+  font-size: 0.73rem;
+}
+
+.map-studio__check-card .map-create-summary__list li::before {
+  content: "○";
+  position: absolute;
+  left: 2px;
+  color: #adc2cc;
+  font-weight: 900;
+}
+
+.map-studio__check-card .map-create-summary__list li.is-done {
+  color: #457766;
+}
+
+.map-studio__check-card .map-create-summary__list li.is-done::before {
+  content: "✓";
+  color: var(--map-lab-mint);
+}
+
+/* Actions, errors, imports */
+
+.qp-shell .map-studio__footer {
+  position: sticky;
+  z-index: 12;
+  bottom: 0;
+  order: 100;
+  min-height: 58px;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+  margin: auto -18px 0;
+  padding: 10px 18px;
+  border-top: 1px solid #c9e0e9;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -8px 18px rgba(60, 115, 141, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.qp-shell .map-studio__footer .button {
+  min-height: 38px;
+  padding: 7px 15px;
+  border-radius: 9px;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.qp-shell .map-studio__footer .button:not(.button--ghost) {
+  border-color: #3c8db7;
+  background: linear-gradient(180deg, #63b3d9, #4c9dc5);
+  box-shadow: 0 2px 0 rgba(50, 120, 153, 0.16);
+}
+
+.map-studio__error {
+  order: 90;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #edb6b0;
+  border-radius: 9px;
+  color: #a95049 !important;
+  background: #fff3f1;
+  font-weight: 750;
+}
+
+.qp-shell .map-page--editing .map-workspace__main > .footnote:last-of-type {
+  order: 90;
+  color: #7b909b;
+}
+
+.qp-shell .map-page--editing .map-collapsible {
+  border-color: #c8e0e9;
+  border-radius: 12px;
+  background: #f6fbfd;
+}
+
+.qp-shell .map-page--editing .map-collapsible__summary {
+  color: #4d7185;
+}
+
+.qp-shell .map-page--editing .map-collapsible__summary p {
+  color: #8196a1;
+}
+
+.qp-shell .map-page--editing .map-import-summary,
+.qp-shell .map-page .map-feedback--success {
+  color: #366e5b;
+  border-color: #9fd3c2;
+  background: #edf9f5;
+}
+
+.qp-shell .map-page--editing .map-import-summary span,
+.qp-shell .map-page .map-feedback--success span {
+  color: #54816f;
+}
+
+/* Overview selection visibility */
+
+.qp-shell .map-mode-button--active {
+  color: #ffffff;
+  border-color: #3f8eb7;
+  background: #4f9fc8;
+}
+
+.qp-shell .room-card--selected {
+  border-color: #4c9fc9;
+  background: #e8f6fb;
+  box-shadow: inset 4px 0 0 #4c9fc9;
+}
+
+.qp-shell .chip--warning {
+  color: #976522;
+  border-color: #e8c77d;
+  background: #fff5d7;
+}
+
+/* Responsive */
+
+@media (max-width: 1280px) {
+  .qp-shell .map-page--editing .song-editor {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "song-head"
+      "song-source"
+      "song-basics"
+      "song-quiz"
+      "song-tools";
+  }
+
+  .qp-shell .map-page--editing .song-editor__section--source {
+    position: static;
+  }
+
+  .qp-shell .map-page--editing .song-preview__frame {
+    min-height: 230px;
+  }
+}
+
+@media (max-width: 980px) {
+  .qp-shell .map-studio__workspace,
+  .qp-shell .map-studio__workspace--step-2,
+  .qp-shell .map-studio__workspace--edit {
+    height: auto;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "rail"
+      "editor";
+  }
+
+  .qp-shell .map-studio__rail,
+  .qp-shell .map-studio__editor {
+    height: auto;
+    overflow: visible;
+  }
+
+  .qp-shell .map-studio__workspace--step-2 .map-studio__rail,
+  .qp-shell .map-studio__workspace--edit .map-studio__rail {
+    max-height: none;
+  }
+
+  .qp-shell .map-studio__rail .song-queue {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .qp-shell .map-studio__rail .song-queue__item {
+    flex: 0 0 220px;
+  }
+
+  .qp-shell .map-studio__footer {
+    position: sticky;
+  }
+}
+
+@media (max-width: 720px) {
+  .qp-shell .map-page--editing {
+    display: block;
+  }
+
+  .qp-shell .map-page__hero--editor {
+    margin-bottom: 7px;
+    padding: 11px;
+  }
+
+  .qp-shell .map-page--editing .map-page__hero-head {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .map-studio__status {
+    justify-content: flex-start;
+  }
+
+  .qp-shell .map-page--editing .map-mode-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .qp-shell .map-studio__editor,
+  .qp-shell .map-studio__rail {
+    padding: 11px;
+    border-radius: 12px;
+  }
+
+  .qp-shell .map-page--editing .map-create-steps {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .qp-shell .map-page--editing .map-create-step {
+    flex: 0 0 154px;
+  }
+
+  .qp-shell .map-page--editing .map-create-step__copy small {
+    display: none;
+  }
+
+  .qp-shell .map-studio__identity-card {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .qp-shell .map-studio__identity-card .grid,
+  .qp-shell .map-page--editing .rule-grid,
+  .qp-shell .map-page--editing .grid--two,
+  .qp-shell .map-page--editing .grid--three {
+    grid-template-columns: 1fr;
+  }
+
+  .qp-shell .map-page--editing .toggle-card {
+    grid-template-columns: 1fr;
+  }
+
+  .qp-shell .map-page--editing .toggle-card select,
+  .qp-shell .map-page--editing .toggle-card input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .qp-shell .map-studio__footer {
+    margin-inline: -11px;
+    padding-inline: 11px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .qp-shell .map-studio__footer .button {
+    flex: 0 0 auto;
+  }
+
+  .map-studio__map-card {
+    min-height: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qp-shell .map-studio__rail .song-queue__item {
+    transition: none;
+  }
+}

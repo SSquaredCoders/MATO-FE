@@ -22,7 +22,10 @@ export function AppShell({ children }: AppShellProps) {
   const beats = useProgressionStore((state) => state.beats);
   const progression = getProgression(totalXp);
   const isRoomRoute = location.pathname.startsWith("/room/");
-  const isWorkbenchRoute = location.pathname.startsWith("/maps");
+  const isWorkbenchRoute =
+    location.pathname.startsWith("/maps") ||
+    location.pathname.startsWith("/create-map") ||
+    location.pathname.startsWith("/edit-map");
   const isLobbyRoute = location.pathname === "/";
   const isGuideRoute = location.pathname.startsWith("/roadmap");
   const isAccountRoute =
