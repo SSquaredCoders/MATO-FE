@@ -158,6 +158,7 @@
   gap: 12px;
   padding: 15px 18px 0;
   overflow: auto;
+  scroll-padding-top: 176px;
   overscroll-behavior: contain;
   border: 2px solid #9bc9dc;
   border-radius: 14px;
@@ -463,9 +464,9 @@
   grid-template-columns: minmax(320px, 0.9fr) minmax(390px, 1.1fr);
   grid-template-areas:
     "song-head song-head"
+    "song-tools song-source"
     "song-basics song-source"
-    "song-quiz song-source"
-    "song-tools song-source";
+    "song-quiz song-source";
   gap: 10px 12px;
   align-items: start;
 }
@@ -559,31 +560,189 @@
   box-shadow: 0 0 0 3px rgba(75, 159, 201, 0.22);
 }
 
-.map-studio__track-tools {
+.qp-shell .map-page--editing .map-studio__track-tools {
   grid-area: song-tools;
   display: grid;
-  gap: 10px;
-  padding: 13px;
-  border: 1px solid #cde1e8;
-  border-radius: 13px;
-  background: #f8fcfd;
+  position: sticky;
+  top: 8px;
+  z-index: 10;
+  align-self: start;
+  gap: 9px;
+  padding: 11px;
+  overflow: hidden;
+  border: 2px solid #72b4d0;
+  border-radius: 15px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 249, 253, 0.96)),
+    #f8fcfd;
+  box-shadow:
+    0 10px 24px rgba(43, 101, 129, 0.18),
+    0 3px 0 rgba(70, 140, 173, 0.11);
+  backdrop-filter: blur(10px);
 }
 
-.map-studio__track-tools-body,
-.map-studio__track-tools .song-editor__actions {
+.qp-shell .map-page--editing .map-studio__track-tools::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--map-lab-blue),
+    var(--map-lab-yellow),
+    var(--map-lab-orange)
+  );
+}
+
+.qp-shell .map-page--editing .map-studio__track-tools-body {
   display: grid;
-  gap: 9px;
+  gap: 8px;
 }
 
 .qp-shell .map-page--editing .map-studio__track-tools .button {
-  min-height: 30px;
-  padding: 5px 9px;
+  min-height: 32px;
+  padding: 5px 8px;
+  border-radius: 8px;
   font-size: 0.66rem;
+  white-space: nowrap;
 }
 
-.qp-shell .map-page--editing .song-order-controls {
-  justify-content: flex-start;
+.qp-shell .map-page--editing .map-studio__track-add {
+  box-shadow: 0 4px 0 rgba(45, 115, 148, 0.13);
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-head,
+.qp-shell .map-page--editing .map-studio__track-remote-title,
+.qp-shell .map-page--editing .map-studio__track-remote-actions,
+.qp-shell .map-page--editing .map-studio__track-remote-jump {
+  display: flex;
+  align-items: center;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-head {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-title {
+  min-width: 0;
+  gap: 8px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-title .eyebrow {
+  margin: 0 0 2px;
+  color: #397fa1;
+  font-size: 0.57rem;
+  letter-spacing: 0.15em;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-title strong {
+  display: block;
+  color: #315e76;
+  font-size: 0.84rem;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-signal {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: end;
+  justify-content: center;
+  gap: 3px;
+  width: 34px;
+  height: 28px;
+  padding: 6px 6px 5px;
+  border: 1px solid #8bc2d8;
+  border-radius: 9px;
+  background: #e9f7fc;
+  box-shadow: inset 0 -2px 0 rgba(67, 135, 168, 0.08);
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-signal i {
+  display: block;
+  width: 4px;
+  border-radius: 4px;
+  background: #4b9fc9;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-signal i:nth-child(1) {
+  height: 6px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-signal i:nth-child(2) {
+  height: 11px;
+  background: #f4bd43;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-signal i:nth-child(3) {
+  height: 16px;
+  background: #ed8b48;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-counter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 56px;
+  padding: 5px 9px;
+  border: 1px solid #c7e0e9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #78909c;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-counter strong {
+  color: #2f789b;
+  font-size: 0.93rem;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 7px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-order-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-nav {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-jump {
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-jump .field {
+  min-width: 0;
+  grid-template-columns: auto minmax(44px, 64px);
+  gap: 6px;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-jump .field > span {
+  color: #6f8793;
+  font-size: 0.63rem;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remote-jump input {
+  min-width: 0;
+  height: 32px;
+  padding: 5px 7px;
+  text-align: center;
+}
+
+.qp-shell .map-page--editing .map-studio__track-remove {
+  justify-self: end;
 }
 
 /* Playlist rail */
@@ -996,10 +1155,10 @@
     grid-template-columns: 1fr;
     grid-template-areas:
       "song-head"
+      "song-tools"
       "song-source"
       "song-basics"
-      "song-quiz"
-      "song-tools";
+      "song-quiz";
   }
 
   .qp-shell .map-page--editing .song-editor__section--source {
@@ -1076,6 +1235,50 @@
   .qp-shell .map-studio__rail {
     padding: 11px;
     border-radius: 12px;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-tools {
+    top: 6px;
+    gap: 7px;
+    padding: 9px;
+    border-radius: 13px;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-tools .button {
+    min-height: 38px;
+    padding-inline: 10px;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-remote-actions,
+  .qp-shell .map-page--editing .map-studio__track-remote-nav {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-remote-actions .button {
+    flex: 1 0 auto;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-remote-nav .button {
+    flex: 0 0 auto;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-remote-order-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-remote-jump .field > span {
+    display: none;
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-remote-jump .field {
+    grid-template-columns: minmax(46px, 62px);
+  }
+
+  .qp-shell .map-page--editing .map-studio__track-remove {
+    padding-inline: 9px;
   }
 
   .qp-shell .map-page--editing .map-create-steps {

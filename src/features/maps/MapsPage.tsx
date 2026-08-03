@@ -4396,6 +4396,155 @@ export default function MapsPage() {
                   </div>
                 </div>
 
+                <section
+                  className="song-editor__tools map-studio__track-tools map-studio__track-remote"
+                  aria-label="트랙 리모컨"
+                >
+                  <div className="map-studio__track-remote-head">
+                    <div className="map-studio__track-remote-title">
+                      <span
+                        className="map-studio__track-remote-signal"
+                        aria-hidden="true"
+                      >
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                      <div>
+                        <p className="eyebrow">TRACK REMOTE</p>
+                        <strong>곡 리모컨</strong>
+                      </div>
+                    </div>
+                    <span
+                      className="map-studio__track-remote-counter"
+                      aria-live="polite"
+                    >
+                      <strong>{activeSongPosition}</strong>
+                      <span>/ {songRows.length}</span>
+                    </span>
+                  </div>
+
+                  <div className="map-studio__track-tools-body">
+                    <div
+                      className="map-studio__track-remote-actions"
+                      role="toolbar"
+                      aria-label="곡 추가 및 복제"
+                    >
+                      <button
+                        className="button map-studio__track-add"
+                        onClick={addSongRow}
+                        type="button"
+                      >
+                        + 곡 추가
+                      </button>
+                      <button
+                        className="button button--ghost"
+                        onClick={() => duplicateSongRow(activeSongRow.id)}
+                        type="button"
+                      >
+                        복제
+                      </button>
+                    </div>
+
+                    <div className="map-studio__track-remote-order-row">
+                      <div
+                        className="map-studio__track-remote-nav"
+                        role="toolbar"
+                        aria-label="곡 순서 변경"
+                      >
+                        <button
+                          className="button button--ghost"
+                          onClick={() => moveSongRowToIndex(activeSongRow.id, 0)}
+                          type="button"
+                          disabled={activeSongIndex <= 0}
+                          title="첫 번째 곡으로 이동"
+                        >
+                          맨 위
+                        </button>
+                        <button
+                          className="button button--ghost"
+                          onClick={() => moveSongRow(activeSongRow.id, -1)}
+                          type="button"
+                          disabled={activeSongIndex <= 0}
+                          title="한 칸 위로 이동"
+                        >
+                          ↑ 위
+                        </button>
+                        <button
+                          className="button button--ghost"
+                          onClick={() => moveSongRow(activeSongRow.id, 1)}
+                          type="button"
+                          disabled={
+                            activeSongIndex < 0 ||
+                            activeSongIndex >= songRows.length - 1
+                          }
+                          title="한 칸 아래로 이동"
+                        >
+                          ↓ 아래
+                        </button>
+                        <button
+                          className="button button--ghost"
+                          onClick={() =>
+                            moveSongRowToIndex(activeSongRow.id, songRows.length - 1)
+                          }
+                          type="button"
+                          disabled={
+                            activeSongIndex < 0 ||
+                            activeSongIndex >= songRows.length - 1
+                          }
+                          title="마지막 곡으로 이동"
+                        >
+                          맨 아래
+                        </button>
+                      </div>
+
+                      <div className="song-order-controls map-studio__track-remote-jump">
+                        <label className="field field--inline song-order-controls__field">
+                          <span>번호 이동</span>
+                          <input
+                            value={songMoveTarget}
+                            onChange={(event) => setSongMoveTarget(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                handleMoveActiveSongToPosition();
+                              }
+                            }}
+                            onBlur={() => {
+                              if (!songMoveTarget.trim()) {
+                                setSongMoveTarget(String(activeSongPosition));
+                              }
+                            }}
+                            inputMode="numeric"
+                            min="1"
+                            max={String(songRows.length)}
+                            placeholder={String(activeSongPosition || 1)}
+                            aria-label="이동할 곡 번호"
+                          />
+                        </label>
+                        <button
+                          className="button button--ghost"
+                          onClick={handleMoveActiveSongToPosition}
+                          type="button"
+                          disabled={songRows.length <= 1}
+                        >
+                          이동
+                        </button>
+                      </div>
+
+                      <button
+                        className="button button--ghost button--danger map-studio__track-remove"
+                        onClick={() => removeSongRow(activeSongRow.id)}
+                        type="button"
+                        disabled={songRows.length === 1}
+                        aria-label={`${formatSongSummary(activeSongRow)} 삭제`}
+                      >
+                        현재 곡 삭제
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
                 <section className="song-editor__section song-editor__section--preview song-editor__section--source">
                   <div className="song-editor__section-header">
                     <div>
@@ -4521,115 +4670,6 @@ export default function MapsPage() {
                     기본 문제시간보다 클립이 길면 그 길이만큼 라운드가 늘어나고,
                     짧으면 시작 지점부터 다시 재생합니다.
                   </p>
-                </section>
-
-                <section className="song-editor__tools map-studio__track-tools">
-                  <div className="map-studio__section-title map-studio__section-title--compact">
-                    <div>
-                      <p className="eyebrow">TRACK CONTROLS</p>
-                      <strong>곡 추가 · 복제 · 순서</strong>
-                    </div>
-                  </div>
-                  <div className="map-studio__track-tools-body">
-                    <div className="song-editor__actions stack stack--tight">
-                    <div className="button-row">
-                      <button
-                        className="button button--ghost"
-                        onClick={addSongRow}
-                        type="button"
-                      >
-                        곡 추가
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => duplicateSongRow(activeSongRow.id)}
-                        type="button"
-                      >
-                        복제
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => moveSongRowToIndex(activeSongRow.id, 0)}
-                        type="button"
-                        disabled={activeSongIndex <= 0}
-                      >
-                        맨 위
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => moveSongRow(activeSongRow.id, -1)}
-                        type="button"
-                        disabled={activeSongIndex <= 0}
-                      >
-                        위로
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => moveSongRow(activeSongRow.id, 1)}
-                        type="button"
-                        disabled={
-                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
-                        }
-                      >
-                        아래로
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() =>
-                          moveSongRowToIndex(activeSongRow.id, songRows.length - 1)
-                        }
-                        type="button"
-                        disabled={
-                          activeSongIndex < 0 || activeSongIndex >= songRows.length - 1
-                        }
-                      >
-                        맨 아래
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => removeSongRow(activeSongRow.id)}
-                        type="button"
-                        disabled={songRows.length === 1}
-                      >
-                        현재 곡 삭제
-                      </button>
-                    </div>
-
-                    <div className="song-order-controls">
-                      <span className="chip">현재 {activeSongPosition}/{songRows.length}번째 곡</span>
-                      <label className="field field--inline song-order-controls__field">
-                        <span>번호로 이동</span>
-                        <input
-                          value={songMoveTarget}
-                          onChange={(event) => setSongMoveTarget(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              handleMoveActiveSongToPosition();
-                            }
-                          }}
-                          onBlur={() => {
-                            if (!songMoveTarget.trim()) {
-                              setSongMoveTarget(String(activeSongPosition));
-                            }
-                          }}
-                          inputMode="numeric"
-                          min="1"
-                          max={String(songRows.length)}
-                          placeholder={String(activeSongPosition || 1)}
-                        />
-                      </label>
-                      <button
-                        className="button button--ghost"
-                        onClick={handleMoveActiveSongToPosition}
-                        type="button"
-                        disabled={songRows.length <= 1}
-                      >
-                        이동
-                      </button>
-                    </div>
-                    </div>
-                  </div>
                 </section>
 
                 <section className="song-editor__section song-editor__section--basics">
