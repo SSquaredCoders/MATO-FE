@@ -56,6 +56,10 @@ function formatHintText(clue: string) {
   return clue.replace(/^\s*(문제|힌트)\s*:\s*/u, "").trim();
 }
 
+function isPregamePhase(phase: GamePhase | undefined) {
+  return phase === "LOBBY" || phase === "COUNTDOWN";
+}
+
 function resolveMediaUrl(sourceValue: string) {
   if (/^https?:\/\//i.test(sourceValue)) {
     return sourceValue;
@@ -146,8 +150,10 @@ export default function RoomPage() {
   const [transientMessages, setTransientMessages] = useState<RoomChatMessage[]>(
     [],
   );
+  const [lobbyMessages, setLobbyMessages] = useState<RoomChatMessage[]>([]);
   const [rewardNotice, setRewardNotice] = useState<GameReward | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lobbyChatFeedRef = useRef<HTMLDivElement | null>(null);
   const joinedNicknameRef = useRef<string | null>(null);
   const hasSeenActiveGameRef = useRef(false);
   const transientTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -192,6 +198,30 @@ export default function RoomPage() {
     transientTimersRef.current.set(message.id, timer);
   };
 
+  const pushLobbyMessage = (message: RoomChatMessage) => {
+    const shouldShowToMe =
+      message.visibility === "public" || message.nickname === currentNickname;
+
+    if (!shouldShowToMe) {
+      return;
+    }
+
+    setLobbyMessages((current) =>
+      [...current.filter((item) => item.id !== message.id), message].slice(-50),
+    );
+  };
+
+  useEffect(() => {
+    setLobbyMessages([]);
+  }, [roomName]);
+
+  useEffect(() => {
+    const feed = lobbyChatFeedRef.current;
+    if (feed) {
+      feed.scrollTop = feed.scrollHeight;
+    }
+  }, [lobbyMessages]);
+
   useEffect(() => {
     return () => {
       transientTimersRef.current.forEach((timer) => clearTimeout(timer));
@@ -217,6 +247,10 @@ export default function RoomPage() {
 
       if (envelope.payload.chatMessage) {
         pushTransientMessage(envelope.payload.chatMessage);
+
+        if (isPregamePhase(envelope.payload.snapshot?.phase)) {
+          pushLobbyMessage(envelope.payload.chatMessage);
+        }
       }
 
       if (
@@ -451,8 +485,10 @@ export default function RoomPage() {
   const isHost = currentNickname === room.hostNickname;
   const canManageRoomSettings = isHost;
   const canEditRoomSettings = isHost && room.phase === "LOBBY";
+  const isPregame = isPregamePhase(room.phase);
+  const isAnswerPhase = room.phase === "PLAYING";
   const isReady = Boolean(currentPlayer?.ready);
-  const canSubmitAnswer = Boolean(currentPlayer?.connected);
+  const canSendMessage = Boolean(currentPlayer?.connected);
   const readyLabel = isReady ? "준비 해제" : "준비 완료";
   const hintRevealAtMs = room.hintRevealAt ? Date.parse(room.hintRevealAt) : null;
   const isHintVisible = Boolean(room.currentHint) && (
@@ -490,9 +526,13 @@ export default function RoomPage() {
     ? hasCurrentSkipVote
       ? `스킵 투표 ${skipVoteCountLabel}. 다시 누르면 투표를 취소합니다.`
       : `스킵 투표 ${skipVoteCountLabel}. 기준 인원이 모이면 다음 곡으로 넘어갑니다.`
-    : isHost
-      ? "방장이면 준비가 끝난 뒤 게임을 시작할 수 있습니다."
-      : "준비를 마치고 채팅 입력창으로 정답을 제출하면 됩니다.";
+    : isPregame
+      ? isHost
+        ? "대기실에서 이야기하다가 모두 준비되면 게임을 시작하세요."
+        : "준비를 마치고 게임 시작 전까지 자유롭게 채팅할 수 있습니다."
+      : isAnswerPhase
+        ? "채팅 입력창으로 정답을 제출하면 됩니다."
+        : "게임이 끝난 뒤에도 참가자들과 채팅할 수 있습니다.";
   const showVisibleMedia =
     room.phase === "PLAYING" &&
     room.showMediaControls &&
@@ -635,26 +675,76 @@ export default function RoomPage() {
         <div
           className={`room-stage__board${
             showVisibleMedia ? "" : " room-stage__board--clean"
-          }`}
+          }${isPregame ? " room-stage__board--lobby" : ""}`}
         >
-          <div className="room-stage__overlay">
-            {transientMessages.map((message) => {
-              const isOwnMessage = message.nickname === currentNickname;
+          <div
+            className={`room-stage__overlay${
+              isPregame ? " room-stage__overlay--lobby" : ""
+            }`}
+          >
+            {isPregame ? (
+              <section className="room-lobby-chat" aria-label="대기실 채팅">
+                <div className="room-lobby-chat__header">
+                  <div>
+                    <p className="eyebrow">LOBBY CHAT</p>
+                    <strong>게임 시작 전 이야기해요.</strong>
+                  </div>
+                  <span className="room-lobby-chat__live">LIVE</span>
+                </div>
 
-              return (
-                <article
-                  className={`flash-message flash-message--${message.tone} ${
-                    isOwnMessage
-                      ? "flash-message--mine"
-                      : "flash-message--theirs"
-                  }`}
-                  key={message.id}
+                <div
+                  className="room-lobby-chat__messages"
+                  ref={lobbyChatFeedRef}
+                  role="log"
+                  aria-live="polite"
+                  aria-relevant="additions text"
                 >
-                  <strong>{message.nickname}</strong>
-                  <p>{message.content}</p>
-                </article>
-              );
-            })}
+                  {lobbyMessages.length ? (
+                    lobbyMessages.map((message) => {
+                      const isOwnMessage = message.nickname === currentNickname;
+
+                      return (
+                        <article
+                          className={`room-lobby-chat__message room-lobby-chat__message--${message.tone}${
+                            isOwnMessage
+                              ? " room-lobby-chat__message--mine"
+                              : ""
+                          }`}
+                          key={message.id}
+                        >
+                          <strong>{message.nickname}</strong>
+                          <p>{message.content}</p>
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <div className="room-lobby-chat__empty">
+                      <span aria-hidden="true">♪</span>
+                      <strong>아직 대화가 없어요.</strong>
+                      <p>아래 채팅창에서 먼저 인사해 보세요.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            ) : (
+              transientMessages.map((message) => {
+                const isOwnMessage = message.nickname === currentNickname;
+
+                return (
+                  <article
+                    className={`flash-message flash-message--${message.tone} ${
+                      isOwnMessage
+                        ? "flash-message--mine"
+                        : "flash-message--theirs"
+                    }`}
+                    key={message.id}
+                  >
+                    <strong>{message.nickname}</strong>
+                    <p>{message.content}</p>
+                  </article>
+                );
+              })
+            )}
           </div>
 
           {showVisibleMedia ? (
@@ -747,22 +837,41 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <form className="answer-box answer-box--room" onSubmit={handleAnswerSubmit}>
+        <form
+          className={`answer-box answer-box--room${
+            isPregame ? " answer-box--lobby" : ""
+          }`}
+          onSubmit={handleAnswerSubmit}
+        >
           <label className="field">
-            <span>채팅 / 정답 입력</span>
+            <span>
+              {isPregame
+                ? "대기실 채팅"
+                : isAnswerPhase
+                  ? "채팅 / 정답 입력"
+                  : "채팅 메시지"}
+            </span>
             <input
               value={answer}
               onChange={(event) => setAnswer(event.target.value)}
-              placeholder="입력하면 잠깐 보이고, 게임 중이면 정답 판정도 같이 합니다."
-              disabled={!canSubmitAnswer}
+              placeholder={
+                !canSendMessage
+                  ? "방에 연결하는 중입니다..."
+                  : isPregame
+                    ? "게임 시작 전 자유롭게 대화해 보세요."
+                    : isAnswerPhase
+                      ? "정답 또는 채팅을 입력하세요."
+                      : "게임 참가자들과 대화해 보세요."
+              }
+              disabled={!canSendMessage}
             />
           </label>
           <button
             className="button answer-box__submit"
             type="submit"
-            disabled={!canSubmitAnswer}
+            disabled={!canSendMessage}
           >
-            전송
+            {isAnswerPhase ? "정답 전송" : "채팅 보내기"}
           </button>
         </form>
       </section>
