@@ -4319,7 +4319,11 @@ export default function MapsPage() {
             isEditMode ? " map-studio__workspace--edit" : ` map-studio__workspace--step-${createStep}`
           }`}
         >
-          <article className="panel stack map-workspace__main map-studio__editor">
+          <article
+            className="panel stack map-workspace__main map-studio__editor"
+            tabIndex={0}
+            aria-label="맵 편집 영역. 마우스 휠이나 방향키로 이동할 수 있습니다."
+          >
             <div className="map-builder__header">
               <div>
                 <p className="eyebrow">
