@@ -2361,6 +2361,479 @@ function SongPreviewPlayer({
   );
 }
 
+type TrackRemotePosition = {
+  x: number;
+  y: number;
+};
+
+type TrackRemoteDragState = {
+  pointerId: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+interface TrackRemoteProps {
+  activeSongRow: SongDraftRow;
+  activeSongIndex: number;
+  activeSongPosition: number;
+  songCount: number;
+  songMoveTarget: string;
+  onSongMoveTargetChange: (value: string) => void;
+  onSongMoveTargetBlur: () => void;
+  onAddSong: () => void;
+  onDuplicateSong: () => void;
+  onMoveSong: (direction: -1 | 1) => void;
+  onMoveSongToIndex: (index: number) => void;
+  onMoveToPosition: () => void;
+  onRemoveSong: () => void;
+}
+
+const TRACK_REMOTE_POSITION_KEY = "mato:maps:track-remote-position:v1";
+const TRACK_REMOTE_VIEWPORT_GAP = 12;
+
+function readTrackRemotePosition(): TrackRemotePosition | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(TRACK_REMOTE_POSITION_KEY);
+    if (!storedValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(storedValue) as Partial<TrackRemotePosition>;
+    if (
+      !Number.isFinite(parsedValue.x) ||
+      !Number.isFinite(parsedValue.y)
+    ) {
+      return null;
+    }
+
+    return {
+      x: parsedValue.x as number,
+      y: parsedValue.y as number,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistTrackRemotePosition(position: TrackRemotePosition | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    if (position) {
+      window.localStorage.setItem(
+        TRACK_REMOTE_POSITION_KEY,
+        JSON.stringify(position),
+      );
+      return;
+    }
+
+    window.localStorage.removeItem(TRACK_REMOTE_POSITION_KEY);
+  } catch {
+    // The remote still works when browser storage is unavailable.
+  }
+}
+
+function clampTrackRemotePosition(
+  position: TrackRemotePosition,
+  element: HTMLElement,
+): TrackRemotePosition {
+  const viewport = window.visualViewport;
+  const viewportLeft = viewport?.offsetLeft ?? 0;
+  const viewportTop = viewport?.offsetTop ?? 0;
+  const viewportWidth = viewport?.width ?? window.innerWidth;
+  const viewportHeight = viewport?.height ?? window.innerHeight;
+  const remoteRect = element.getBoundingClientRect();
+  const minX = viewportLeft + TRACK_REMOTE_VIEWPORT_GAP;
+  const minY = viewportTop + TRACK_REMOTE_VIEWPORT_GAP;
+  const maxX = Math.max(
+    minX,
+    viewportLeft + viewportWidth - remoteRect.width - TRACK_REMOTE_VIEWPORT_GAP,
+  );
+  const maxY = Math.max(
+    minY,
+    viewportTop + viewportHeight - remoteRect.height - TRACK_REMOTE_VIEWPORT_GAP,
+  );
+
+  return {
+    x: Math.min(Math.max(position.x, minX), maxX),
+    y: Math.min(Math.max(position.y, minY), maxY),
+  };
+}
+
+function TrackRemote({
+  activeSongRow,
+  activeSongIndex,
+  activeSongPosition,
+  songCount,
+  songMoveTarget,
+  onSongMoveTargetChange,
+  onSongMoveTargetBlur,
+  onAddSong,
+  onDuplicateSong,
+  onMoveSong,
+  onMoveSongToIndex,
+  onMoveToPosition,
+  onRemoveSong,
+}: TrackRemoteProps) {
+  const remoteRef = useRef<HTMLElement | null>(null);
+  const dragStateRef = useRef<TrackRemoteDragState | null>(null);
+  const [remotePosition, setRemotePosition] = useState<TrackRemotePosition | null>(
+    readTrackRemotePosition,
+  );
+  const remotePositionRef = useRef(remotePosition);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const updateRemotePosition = (nextPosition: TrackRemotePosition) => {
+    remotePositionRef.current = nextPosition;
+    setRemotePosition(nextPosition);
+  };
+
+  useEffect(() => {
+    const syncRemoteToViewport = () => {
+      const remoteElement = remoteRef.current;
+      const currentPosition = remotePositionRef.current;
+      if (!remoteElement || !currentPosition) {
+        return;
+      }
+
+      const nextPosition = clampTrackRemotePosition(
+        currentPosition,
+        remoteElement,
+      );
+      remotePositionRef.current = nextPosition;
+      setRemotePosition(nextPosition);
+      persistTrackRemotePosition(nextPosition);
+    };
+
+    const animationFrame = window.requestAnimationFrame(syncRemoteToViewport);
+    const viewport = window.visualViewport;
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(syncRemoteToViewport);
+
+    if (remoteRef.current) {
+      resizeObserver?.observe(remoteRef.current);
+    }
+
+    window.addEventListener("resize", syncRemoteToViewport);
+    viewport?.addEventListener("resize", syncRemoteToViewport);
+    viewport?.addEventListener("scroll", syncRemoteToViewport);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", syncRemoteToViewport);
+      viewport?.removeEventListener("resize", syncRemoteToViewport);
+      viewport?.removeEventListener("scroll", syncRemoteToViewport);
+    };
+  }, []);
+
+  const handleDragStart = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) {
+      return;
+    }
+
+    const remoteElement = remoteRef.current;
+    if (!remoteElement) {
+      return;
+    }
+
+    const remoteRect = remoteElement.getBoundingClientRect();
+    const currentPosition = {
+      x: remoteRect.left,
+      y: remoteRect.top,
+    };
+
+    updateRemotePosition(currentPosition);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - remoteRect.left,
+      offsetY: event.clientY - remoteRect.top,
+    };
+    event.currentTarget.focus();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
+    event.preventDefault();
+  };
+
+  const handleDragMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const dragState = dragStateRef.current;
+    const remoteElement = remoteRef.current;
+    if (
+      !dragState ||
+      !remoteElement ||
+      dragState.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    updateRemotePosition(
+      clampTrackRemotePosition(
+        {
+          x: event.clientX - dragState.offsetX,
+          y: event.clientY - dragState.offsetY,
+        },
+        remoteElement,
+      ),
+    );
+    event.preventDefault();
+  };
+
+  const finishDragging = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    dragStateRef.current = null;
+    setIsDragging(false);
+    persistTrackRemotePosition(remotePositionRef.current);
+  };
+
+  const handleDragKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "Home") {
+      event.preventDefault();
+      remotePositionRef.current = null;
+      setRemotePosition(null);
+      persistTrackRemotePosition(null);
+      return;
+    }
+
+    const direction = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    }[event.key];
+    if (!direction) {
+      return;
+    }
+
+    const remoteElement = remoteRef.current;
+    if (!remoteElement) {
+      return;
+    }
+
+    event.preventDefault();
+    const remoteRect = remoteElement.getBoundingClientRect();
+    const step = event.shiftKey ? 40 : 10;
+    const nextPosition = clampTrackRemotePosition(
+      {
+        x: remoteRect.left + direction[0] * step,
+        y: remoteRect.top + direction[1] * step,
+      },
+      remoteElement,
+    );
+    updateRemotePosition(nextPosition);
+    persistTrackRemotePosition(nextPosition);
+  };
+
+  const resetRemotePosition = () => {
+    remotePositionRef.current = null;
+    setRemotePosition(null);
+    persistTrackRemotePosition(null);
+  };
+
+  const remoteStyle: React.CSSProperties | undefined = remotePosition
+    ? {
+        left: remotePosition.x,
+        right: "auto",
+        top: remotePosition.y,
+        bottom: "auto",
+      }
+    : undefined;
+
+  return (
+    <aside
+      ref={remoteRef}
+      className={`song-editor__tools map-studio__track-tools map-studio__track-remote${
+        remotePosition ? " map-studio__track-remote--positioned" : ""
+      }${isDragging ? " map-studio__track-remote--dragging" : ""}${
+        isCollapsed ? " map-studio__track-remote--collapsed" : ""
+      }`}
+      style={remoteStyle}
+      aria-label="곡 리모컨"
+    >
+      <div className="map-studio__track-remote-head">
+        <button
+          className="map-studio__track-remote-drag-handle"
+          type="button"
+          onPointerDown={handleDragStart}
+          onPointerMove={handleDragMove}
+          onPointerUp={finishDragging}
+          onPointerCancel={finishDragging}
+          onLostPointerCapture={finishDragging}
+          onKeyDown={handleDragKeyDown}
+          aria-label="곡 리모컨 이동. 방향키로도 움직일 수 있습니다."
+          title="마우스나 손가락으로 잡고 이동"
+        >
+          <span className="map-studio__track-remote-grip" aria-hidden="true">
+            ⠿
+          </span>
+          <span className="map-studio__track-remote-drag-copy">
+            <strong>곡 리모컨</strong>
+            <small>여기를 잡고 이동</small>
+          </span>
+        </button>
+
+        <span className="map-studio__track-remote-counter" aria-live="polite">
+          <strong>{activeSongPosition}</strong>
+          <span>/ {songCount}</span>
+        </span>
+
+        <div className="map-studio__track-remote-window-actions">
+          <button
+            className="map-studio__track-remote-window-button"
+            type="button"
+            onClick={resetRemotePosition}
+            title="리모컨을 기본 위치로 이동"
+          >
+            원위치
+          </button>
+          <button
+            className="map-studio__track-remote-window-button"
+            type="button"
+            onClick={() => setIsCollapsed((currentValue) => !currentValue)}
+            aria-expanded={!isCollapsed}
+          >
+            {isCollapsed ? "펼치기" : "접기"}
+          </button>
+        </div>
+      </div>
+
+      {!isCollapsed ? (
+        <div className="map-studio__track-tools-body">
+          <div className="map-studio__track-remote-current">
+            <span>현재 곡</span>
+            <strong title={formatSongSummary(activeSongRow)}>
+              {formatSongSummary(activeSongRow)}
+            </strong>
+          </div>
+
+          <section className="map-studio__track-remote-group">
+            <span className="map-studio__track-remote-group-label">곡 관리</span>
+            <div
+              className="map-studio__track-remote-actions"
+              role="toolbar"
+              aria-label="곡 추가, 복제 및 삭제"
+            >
+              <button
+                className="button map-studio__track-add"
+                onClick={onAddSong}
+                type="button"
+              >
+                + 새 곡
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={onDuplicateSong}
+                type="button"
+              >
+                현재 곡 복제
+              </button>
+              <button
+                className="button button--ghost button--danger map-studio__track-remove"
+                onClick={onRemoveSong}
+                type="button"
+                disabled={songCount === 1}
+                aria-label={`${formatSongSummary(activeSongRow)} 삭제`}
+              >
+                현재 곡 삭제
+              </button>
+            </div>
+          </section>
+
+          <section className="map-studio__track-remote-group">
+            <span className="map-studio__track-remote-group-label">
+              순서 바꾸기
+            </span>
+            <div
+              className="map-studio__track-remote-nav"
+              role="toolbar"
+              aria-label="곡 순서 변경"
+            >
+              <button
+                className="button button--ghost"
+                onClick={() => onMoveSongToIndex(0)}
+                type="button"
+                disabled={activeSongIndex <= 0}
+              >
+                맨 위
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={() => onMoveSong(-1)}
+                type="button"
+                disabled={activeSongIndex <= 0}
+              >
+                ↑ 한 칸 위
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={() => onMoveSong(1)}
+                type="button"
+                disabled={activeSongIndex < 0 || activeSongIndex >= songCount - 1}
+              >
+                ↓ 한 칸 아래
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={() => onMoveSongToIndex(songCount - 1)}
+                type="button"
+                disabled={activeSongIndex < 0 || activeSongIndex >= songCount - 1}
+              >
+                맨 아래
+              </button>
+            </div>
+
+            <div className="song-order-controls map-studio__track-remote-jump">
+              <label className="field field--inline song-order-controls__field">
+                <span>번호로 바로 이동</span>
+                <input
+                  value={songMoveTarget}
+                  onChange={(event) => onSongMoveTargetChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      onMoveToPosition();
+                    }
+                  }}
+                  onBlur={onSongMoveTargetBlur}
+                  inputMode="numeric"
+                  min="1"
+                  max={String(songCount)}
+                  placeholder={String(activeSongPosition || 1)}
+                  aria-label="이동할 곡 번호"
+                />
+              </label>
+              <button
+                className="button button--ghost"
+                onClick={onMoveToPosition}
+                type="button"
+                disabled={songCount <= 1}
+              >
+                이동
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
 export default function MapsPage() {
   const queryClient = useQueryClient();
   const authReady = useAuthStore((state) => state.ready);
@@ -4396,154 +4869,29 @@ export default function MapsPage() {
                   </div>
                 </div>
 
-                <section
-                  className="song-editor__tools map-studio__track-tools map-studio__track-remote"
-                  aria-label="트랙 리모컨"
-                >
-                  <div className="map-studio__track-remote-head">
-                    <div className="map-studio__track-remote-title">
-                      <span
-                        className="map-studio__track-remote-signal"
-                        aria-hidden="true"
-                      >
-                        <i />
-                        <i />
-                        <i />
-                      </span>
-                      <div>
-                        <p className="eyebrow">TRACK REMOTE</p>
-                        <strong>곡 리모컨</strong>
-                      </div>
-                    </div>
-                    <span
-                      className="map-studio__track-remote-counter"
-                      aria-live="polite"
-                    >
-                      <strong>{activeSongPosition}</strong>
-                      <span>/ {songRows.length}</span>
-                    </span>
-                  </div>
-
-                  <div className="map-studio__track-tools-body">
-                    <div
-                      className="map-studio__track-remote-actions"
-                      role="toolbar"
-                      aria-label="곡 추가 및 복제"
-                    >
-                      <button
-                        className="button map-studio__track-add"
-                        onClick={addSongRow}
-                        type="button"
-                      >
-                        + 곡 추가
-                      </button>
-                      <button
-                        className="button button--ghost"
-                        onClick={() => duplicateSongRow(activeSongRow.id)}
-                        type="button"
-                      >
-                        복제
-                      </button>
-                    </div>
-
-                    <div className="map-studio__track-remote-order-row">
-                      <div
-                        className="map-studio__track-remote-nav"
-                        role="toolbar"
-                        aria-label="곡 순서 변경"
-                      >
-                        <button
-                          className="button button--ghost"
-                          onClick={() => moveSongRowToIndex(activeSongRow.id, 0)}
-                          type="button"
-                          disabled={activeSongIndex <= 0}
-                          title="첫 번째 곡으로 이동"
-                        >
-                          맨 위
-                        </button>
-                        <button
-                          className="button button--ghost"
-                          onClick={() => moveSongRow(activeSongRow.id, -1)}
-                          type="button"
-                          disabled={activeSongIndex <= 0}
-                          title="한 칸 위로 이동"
-                        >
-                          ↑ 위
-                        </button>
-                        <button
-                          className="button button--ghost"
-                          onClick={() => moveSongRow(activeSongRow.id, 1)}
-                          type="button"
-                          disabled={
-                            activeSongIndex < 0 ||
-                            activeSongIndex >= songRows.length - 1
-                          }
-                          title="한 칸 아래로 이동"
-                        >
-                          ↓ 아래
-                        </button>
-                        <button
-                          className="button button--ghost"
-                          onClick={() =>
-                            moveSongRowToIndex(activeSongRow.id, songRows.length - 1)
-                          }
-                          type="button"
-                          disabled={
-                            activeSongIndex < 0 ||
-                            activeSongIndex >= songRows.length - 1
-                          }
-                          title="마지막 곡으로 이동"
-                        >
-                          맨 아래
-                        </button>
-                      </div>
-
-                      <div className="song-order-controls map-studio__track-remote-jump">
-                        <label className="field field--inline song-order-controls__field">
-                          <span>번호 이동</span>
-                          <input
-                            value={songMoveTarget}
-                            onChange={(event) => setSongMoveTarget(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                handleMoveActiveSongToPosition();
-                              }
-                            }}
-                            onBlur={() => {
-                              if (!songMoveTarget.trim()) {
-                                setSongMoveTarget(String(activeSongPosition));
-                              }
-                            }}
-                            inputMode="numeric"
-                            min="1"
-                            max={String(songRows.length)}
-                            placeholder={String(activeSongPosition || 1)}
-                            aria-label="이동할 곡 번호"
-                          />
-                        </label>
-                        <button
-                          className="button button--ghost"
-                          onClick={handleMoveActiveSongToPosition}
-                          type="button"
-                          disabled={songRows.length <= 1}
-                        >
-                          이동
-                        </button>
-                      </div>
-
-                      <button
-                        className="button button--ghost button--danger map-studio__track-remove"
-                        onClick={() => removeSongRow(activeSongRow.id)}
-                        type="button"
-                        disabled={songRows.length === 1}
-                        aria-label={`${formatSongSummary(activeSongRow)} 삭제`}
-                      >
-                        현재 곡 삭제
-                      </button>
-                    </div>
-                  </div>
-                </section>
+                <TrackRemote
+                  activeSongRow={activeSongRow}
+                  activeSongIndex={activeSongIndex}
+                  activeSongPosition={activeSongPosition}
+                  songCount={songRows.length}
+                  songMoveTarget={songMoveTarget}
+                  onSongMoveTargetChange={setSongMoveTarget}
+                  onSongMoveTargetBlur={() => {
+                    if (!songMoveTarget.trim()) {
+                      setSongMoveTarget(String(activeSongPosition));
+                    }
+                  }}
+                  onAddSong={addSongRow}
+                  onDuplicateSong={() => duplicateSongRow(activeSongRow.id)}
+                  onMoveSong={(direction) =>
+                    moveSongRow(activeSongRow.id, direction)
+                  }
+                  onMoveSongToIndex={(targetIndex) =>
+                    moveSongRowToIndex(activeSongRow.id, targetIndex)
+                  }
+                  onMoveToPosition={handleMoveActiveSongToPosition}
+                  onRemoveSong={() => removeSongRow(activeSongRow.id)}
+                />
 
                 <section className="song-editor__section song-editor__section--preview song-editor__section--source">
                   <div className="song-editor__section-header">
