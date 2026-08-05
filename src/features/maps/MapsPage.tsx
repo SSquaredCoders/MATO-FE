@@ -2129,7 +2129,11 @@ function SongPreviewPlayer({
   );
 
   return (
-    <div className={`song-preview${controlsDisabled ? " song-preview--empty" : ""}`}>
+    <div
+      className={`song-preview song-preview--${isFileSource ? "file" : "youtube"}${
+        controlsDisabled ? " song-preview--empty" : ""
+      }`}
+    >
       <div className="song-preview__meta">
         <p className="eyebrow">{"\ubbf8\ub9ac\ub4e3\uae30"}</p>
         <strong>
@@ -4324,57 +4328,59 @@ export default function MapsPage() {
             tabIndex={0}
             aria-label="맵 편집 영역. 마우스 휠이나 방향키로 이동할 수 있습니다."
           >
-            <div className="map-builder__header">
-              <div>
-                <p className="eyebrow">
-                  {editorMode === "edit" ? "LIVE EDITOR" : `MISSION ${createStep}`}
-                </p>
-                <h2>
-                  {isEditMode
-                    ? "맵 전체를 한 번에 조정합니다."
-                    : createStep === 1
-                      ? "이 맵의 이름과 분위기를 정하세요."
-                      : createStep === 2
-                        ? "플레이리스트를 완성하세요."
-                        : "마지막 규칙을 확인하세요."}
-                </h2>
+            <div className="map-studio__editor-toolbar">
+              <div className="map-builder__header">
+                <div>
+                  <p className="eyebrow">
+                    {editorMode === "edit" ? "LIVE EDITOR" : `MISSION ${createStep}`}
+                  </p>
+                  <h2>
+                    {isEditMode
+                      ? "맵 전체를 한 번에 조정합니다."
+                      : createStep === 1
+                        ? "이 맵의 이름과 분위기를 정하세요."
+                        : createStep === 2
+                          ? "플레이리스트를 완성하세요."
+                          : "마지막 규칙을 확인하세요."}
+                  </h2>
+                </div>
+                <div className="chip-list">
+                  {editingMapId ? <span className="chip">수정 중</span> : null}
+                  {hasUnsavedChanges ? (
+                    <span className="chip chip--warning">미저장 변경 있음</span>
+                  ) : null}
+                  <span className="chip">
+                    곡 {isCreateMode ? configuredSongRows.length : songRows.length}개
+                  </span>
+                </div>
               </div>
-              <div className="chip-list">
-                {editingMapId ? <span className="chip">수정 중</span> : null}
-                {hasUnsavedChanges ? (
-                  <span className="chip chip--warning">미저장 변경 있음</span>
-                ) : null}
-                <span className="chip">
-                  곡 {isCreateMode ? configuredSongRows.length : songRows.length}개
-                </span>
-              </div>
-            </div>
 
-            <div className="button-row map-builder__actions">
-              <button
-                className="button button--ghost"
-                onClick={openOverviewMode}
-                type="button"
-              >
-                내 맵으로 돌아가기
-              </button>
-              <button
-                className="button button--ghost"
-                onClick={openCreateMode}
-                type="button"
-              >
-                새 맵 만들기
-              </button>
-              {editingMapId ? (
+              <div className="button-row map-builder__actions">
                 <button
                   className="button button--ghost"
-                  onClick={handleDeleteSelectedMap}
+                  onClick={openOverviewMode}
                   type="button"
-                  disabled={deleteMapMutation.isPending}
                 >
-                  {deleteMapMutation.isPending ? "삭제 중..." : "맵 삭제"}
+                  내 맵으로 돌아가기
                 </button>
-              ) : null}
+                <button
+                  className="button button--ghost"
+                  onClick={openCreateMode}
+                  type="button"
+                >
+                  새 맵 만들기
+                </button>
+                {editingMapId ? (
+                  <button
+                    className="button button--ghost"
+                    onClick={handleDeleteSelectedMap}
+                    type="button"
+                    disabled={deleteMapMutation.isPending}
+                  >
+                    {deleteMapMutation.isPending ? "삭제 중..." : "맵 삭제"}
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             {isCreateMode ? (
