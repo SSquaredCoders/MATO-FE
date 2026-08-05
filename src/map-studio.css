@@ -474,7 +474,7 @@
 
 .qp-shell .map-page--editing .song-editor {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(390px, 1.1fr);
+  grid-template-columns: minmax(270px, 0.9fr) minmax(350px, 1.1fr);
   grid-template-areas:
     "song-head song-head"
     "song-basics song-source"
@@ -900,6 +900,15 @@
   align-content: start;
   grid-auto-rows: max-content;
   padding: 1px 3px 10px 1px;
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  -ms-overflow-style: none;
+}
+
+.qp-shell .map-studio__rail .song-queue::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .qp-shell .map-studio__rail .song-queue__item {
@@ -1243,7 +1252,422 @@
 
 /* Responsive */
 
-@media (max-width: 1280px) {
+@media (min-width: 981px) and (max-height: 900px) {
+  .qp-shell .map-page--editing {
+    gap: 5px;
+  }
+
+  .qp-shell .map-page__hero--editor {
+    gap: 5px;
+    padding: 7px 10px;
+  }
+
+  .qp-shell .map-page--editing .map-page__hero-head {
+    gap: 9px;
+  }
+
+  .qp-shell .map-page--editing .map-page__hero-copy {
+    gap: 1px;
+  }
+
+  .qp-shell .map-page--editing .map-page__hero-copy .lede {
+    display: none;
+  }
+
+  .qp-shell .map-page--editing .map-page__hero-copy h2 {
+    font-size: 0.98rem;
+  }
+
+  .qp-shell .map-page--editing .map-page__hero-copy .eyebrow {
+    font-size: 0.58rem;
+  }
+
+  .qp-shell .map-page--editing .map-mode-bar {
+    gap: 4px;
+  }
+
+  .qp-shell .map-page--editing .map-mode-button,
+  .qp-shell .map-page--editing .map-studio__status-item {
+    min-height: 24px;
+    padding: 3px 8px;
+    font-size: 0.6rem;
+  }
+
+  .qp-shell .map-studio__workspace {
+    gap: 6px;
+  }
+
+  .qp-shell .map-studio__editor {
+    gap: 6px;
+    padding: 7px 10px 0;
+  }
+
+  .qp-shell .map-studio__workspace--step-2 .map-studio__editor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 176px;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    align-content: stretch;
+  }
+
+  .qp-shell .map-studio__editor-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 34px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #d8e8ee;
+  }
+
+  .qp-shell .map-page--editing .map-studio__editor-toolbar .map-builder__header {
+    min-width: 0;
+    min-height: 34px;
+    padding: 0;
+    border: 0;
+  }
+
+  .qp-shell .map-page--editing .map-builder__header h2 {
+    margin-top: 0;
+    overflow: hidden;
+    font-size: 0.88rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qp-shell .map-page--editing .map-builder__header .eyebrow {
+    font-size: 0.56rem;
+  }
+
+  .qp-shell .map-page--editing .map-builder__header .chip-list {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .qp-shell .map-page--editing .map-builder__header .chip {
+    min-height: 24px;
+    padding: 2px 7px;
+    font-size: 0.58rem;
+    white-space: nowrap;
+  }
+
+  .qp-shell .map-page--editing .map-studio__editor-toolbar .map-builder__actions {
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin: 0;
+  }
+
+  .qp-shell .map-page--editing .map-builder__actions .button {
+    min-height: 26px;
+    padding: 3px 7px;
+    font-size: 0.6rem;
+  }
+
+  .qp-shell .map-studio__workspace--step-2 .map-create-steps {
+    grid-column: 1 / 2;
+  }
+
+  .qp-shell .map-page--editing .map-create-steps {
+    gap: 4px;
+    padding: 2px;
+  }
+
+  .qp-shell .map-page--editing .map-create-step {
+    min-height: 36px;
+    grid-template-columns: 23px minmax(0, 1fr);
+    gap: 6px;
+    padding: 4px 7px;
+  }
+
+  .qp-shell .map-page--editing .map-create-step__index {
+    inline-size: 23px;
+    block-size: 23px;
+    font-size: 0.64rem;
+  }
+
+  .qp-shell .map-page--editing .map-create-step__copy strong {
+    font-size: 0.7rem;
+  }
+
+  .qp-shell .map-page--editing .map-create-step__copy small {
+    display: none;
+  }
+
+  .qp-shell .map-studio__workspace--step-2 .map-collapsible {
+    grid-column: 2 / 3;
+    min-width: 0;
+  }
+
+  .qp-shell .map-page--editing .map-collapsible {
+    align-self: stretch;
+    padding: 0;
+  }
+
+  .qp-shell .map-page--editing .map-collapsible__summary {
+    min-height: 36px;
+    gap: 5px;
+    padding: 5px 7px;
+  }
+
+  .qp-shell .map-page--editing .map-collapsible:not([open]) .map-collapsible__summary {
+    height: 100%;
+  }
+
+  .qp-shell .map-page--editing .map-collapsible__summary strong {
+    font-size: 0.68rem;
+  }
+
+  .qp-shell .map-page--editing .map-collapsible__summary p {
+    display: none;
+  }
+
+  .qp-shell .map-page--editing .map-collapsible__summary .chip {
+    min-height: 22px;
+    padding: 2px 6px;
+    font-size: 0.56rem;
+  }
+
+  .qp-shell .map-studio__workspace--step-2 .song-editor,
+  .qp-shell .map-studio__workspace--step-2 .map-import-summary,
+  .qp-shell .map-studio__workspace--step-2 .map-studio__footer {
+    grid-column: 1 / -1;
+  }
+
+  .qp-shell .map-page--editing .song-editor {
+    min-height: 0;
+    grid-template-columns: minmax(250px, 0.82fr) minmax(350px, 1.18fr);
+    gap: 6px 8px;
+  }
+
+  .qp-shell .map-page--editing .song-editor__header {
+    min-width: 0;
+    min-height: 34px;
+    padding: 5px 8px;
+  }
+
+  .qp-shell .map-page--editing .song-editor__identity {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .qp-shell .map-page--editing .song-editor__identity > .eyebrow {
+    flex: 0 0 auto;
+    font-size: 0.56rem;
+  }
+
+  .qp-shell .map-page--editing .song-editor__header h3 {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qp-shell .map-page--editing .song-editor__meta {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .qp-shell .map-page--editing .song-editor__meta .chip {
+    min-height: 22px;
+    padding: 2px 6px;
+    font-size: 0.54rem;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section {
+    gap: 6px;
+    padding: 7px 8px;
+    border-radius: 10px;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section-header {
+    min-width: 0;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section-header .eyebrow {
+    margin-bottom: 2px;
+    font-size: 0.55rem;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section-header strong {
+    overflow: hidden;
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section-header p:last-child {
+    display: none;
+  }
+
+  .qp-shell .map-page--editing .song-editor .grid--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .qp-shell .map-page--editing .song-editor .grid--three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .qp-shell .map-page--editing .field {
+    gap: 3px;
+  }
+
+  .qp-shell .map-page--editing .field > span {
+    font-size: 0.62rem;
+  }
+
+  .qp-shell .map-page--editing .field input,
+  .qp-shell .map-page--editing .field select {
+    height: 34px;
+    min-height: 34px;
+    padding: 5px 8px;
+    font-size: 0.7rem;
+  }
+
+  .qp-shell .map-page--editing .field__hint {
+    overflow: hidden;
+    font-size: 0.56rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section--source {
+    position: static;
+    display: grid;
+    grid-template-columns: minmax(0, 1.28fr) minmax(176px, 0.72fr);
+    grid-template-areas:
+      "source-head source-head"
+      "source-preview source-times"
+      "source-preview source-value"
+      "source-preview source-note";
+    align-content: start;
+    gap: 5px 7px;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section--source > .song-editor__section-header {
+    grid-area: source-head;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section--source > .song-preview {
+    grid-area: source-preview;
+    min-width: 0;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section--source > .grid--three {
+    grid-area: source-times;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .qp-shell
+    .map-page--editing
+    .song-editor__section--source
+    > .grid--three
+    > .field:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section--source > .field {
+    grid-area: source-value;
+    min-width: 0;
+  }
+
+  .qp-shell .map-page--editing .song-editor__section--source > .footnote {
+    display: none;
+  }
+
+  .qp-shell .map-page--editing .song-preview {
+    gap: 5px;
+    padding: 6px;
+    border-radius: 9px;
+  }
+
+  .qp-shell .map-page--editing .song-preview__meta {
+    min-width: 0;
+    gap: 1px;
+  }
+
+  .qp-shell .map-page--editing .song-preview__meta .eyebrow {
+    font-size: 0.52rem;
+  }
+
+  .qp-shell .map-page--editing .song-preview__meta strong {
+    overflow: hidden;
+    font-size: 0.7rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qp-shell .map-page--editing .song-preview__meta .footnote,
+  .qp-shell .map-page--editing .song-preview__guide {
+    display: none;
+  }
+
+  .qp-shell .map-page--editing .song-preview__transport {
+    gap: 4px;
+  }
+
+  .qp-shell .map-page--editing .song-preview__time-row {
+    gap: 6px;
+  }
+
+  .qp-shell .map-page--editing .song-preview__time-row strong,
+  .qp-shell .map-page--editing .song-preview__time-row span,
+  .qp-shell .map-page--editing .clip-timeline__labels {
+    font-size: 0.58rem;
+  }
+
+  .qp-shell .map-page--editing .clip-timeline {
+    gap: 3px;
+  }
+
+  .qp-shell .map-page--editing .clip-timeline__track {
+    height: 14px;
+  }
+
+  .qp-shell .map-page--editing .song-preview__button-row {
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+
+  .qp-shell .map-page--editing .song-preview__button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 27px;
+    padding: 3px 4px;
+    font-size: 0.55rem;
+    line-height: 1.05;
+    white-space: normal;
+  }
+
+  .qp-shell .map-page--editing .song-preview__frame {
+    min-height: clamp(72px, 12vh, 104px);
+    height: clamp(72px, 12vh, 104px);
+    max-height: clamp(72px, 12vh, 104px);
+    border-radius: 7px;
+  }
+
+  .qp-shell .map-page--editing .map-studio__footer {
+    min-height: 40px;
+    gap: 5px;
+    margin-inline: -10px;
+    padding: 5px 10px;
+  }
+
+  .qp-shell .map-page--editing .map-studio__footer .button {
+    min-height: 30px;
+    padding: 4px 9px;
+    font-size: 0.64rem;
+  }
+}
+
+@media (max-width: 980px) {
   .qp-shell .map-page--editing .song-editor {
     grid-template-columns: 1fr;
     grid-template-areas:
