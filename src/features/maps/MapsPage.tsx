@@ -3912,7 +3912,7 @@ export default function MapsPage() {
 
   if (!authReady) {
     return (
-      <section className="panel stack">
+      <section className="panel stack map-auth-gate">
         <p className="eyebrow">맵</p>
         <h2>로그인 상태를 확인하는 중입니다.</h2>
         <p className="footnote">세션이 복구되면 바로 내 맵 보관함을 불러올게요.</p>
@@ -3922,7 +3922,7 @@ export default function MapsPage() {
 
   if (!authUser) {
     return (
-      <section className="panel stack">
+      <section className="panel stack map-auth-gate">
         <p className="eyebrow">맵</p>
         <h2>맵 만들기와 수정은 로그인한 계정으로 진행합니다.</h2>
         <p className="lede">

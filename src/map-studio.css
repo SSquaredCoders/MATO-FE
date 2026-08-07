@@ -15,6 +15,50 @@
   --map-lab-shadow: 0 5px 0 rgba(67, 134, 165, 0.1);
 }
 
+.qp-shell .map-auth-gate {
+  width: min(760px, 100%);
+  min-height: 0;
+  justify-self: center;
+  align-self: start;
+  align-content: start;
+  grid-auto-rows: max-content;
+  gap: 12px;
+  padding: clamp(20px, 4vw, 34px);
+  border: 2px solid #9bc9dc;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(255, 200, 90, 0.2) 0 68px, transparent 69px),
+    linear-gradient(180deg, #ffffff, #f5fbfd);
+  box-shadow: var(--map-lab-shadow);
+}
+
+.qp-shell .map-auth-gate h2,
+.qp-shell .map-auth-gate p {
+  margin: 0;
+}
+
+.qp-shell .map-auth-gate h2 {
+  color: #365f77;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+}
+
+.qp-shell .map-auth-gate .lede,
+.qp-shell .map-auth-gate .footnote {
+  max-width: 62ch;
+  color: #718997;
+  line-height: 1.6;
+}
+
+.qp-shell .map-auth-gate .button-row {
+  align-items: flex-start;
+  margin-top: 4px;
+}
+
+.qp-shell .map-auth-gate .button {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
 .qp-shell .map-page--editing {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
