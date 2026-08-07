@@ -1,6 +1,16 @@
 import { API_BASE_URL } from "../config/env";
 import { useAuthStore } from "../auth/useAuthStore";
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 function buildHeaders(init?: RequestInit) {
   const headers = new Headers(init?.headers ?? {});
   const token = useAuthStore.getState().accessToken;
@@ -40,7 +50,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Request failed.");
+    throw new ApiError(response.status, message || "Request failed.");
   }
 
   return (await response.json()) as T;
@@ -51,6 +61,6 @@ export async function requestVoid(path: string, init?: RequestInit): Promise<voi
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Request failed.");
+    throw new ApiError(response.status, message || "Request failed.");
   }
 }

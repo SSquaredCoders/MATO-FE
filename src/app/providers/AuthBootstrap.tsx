@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { fetchCurrentUser } from "../../shared/api/auth";
+import { ApiError } from "../../shared/api/http";
 import { useAuthStore } from "../../shared/auth/useAuthStore";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 
@@ -25,11 +26,19 @@ export function AuthBootstrap() {
         if (!disposed) {
           setUser(currentUser);
         }
-      } catch {
+      } catch (error) {
         if (!disposed) {
-          clearSession();
-          return;
+          if (error instanceof ApiError && [401, 403].includes(error.status)) {
+            clearSession();
+            return;
+          }
+
+          // A temporary API, network, or tunnel failure must not erase a valid
+          // locally restored session. Feature queries can retry once the API recovers.
+          setReady(true);
         }
+
+        return;
       }
 
       if (!disposed) {
