@@ -197,10 +197,10 @@ export const GameRoomProvider: React.FC<{
         
         // localStorage에 저장된 닉네임과 비교 (디버깅용)
         const storedNickname = localStorage.getItem('nickname');
-        if (storedNickname !== nickname) {
-          console.warn(`닉네임 불일치: 전달된 값(${nickname}) != localStorage(${storedNickname})`);
-          // localStorage에 현재 사용 중인 닉네임 업데이트
-          localStorage.setItem('nickname', nickname);
+        if (storedNickname && storedNickname !== nickname) {
+          console.warn(`닉네임 불일치 감지: 전달된 값(${nickname}) != localStorage(${storedNickname})`);
+          console.warn('전달된 닉네임을 사용합니다. localStorage는 변경하지 않습니다.');
+          // 참고: localStorage는 건드리지 않고 전달된 닉네임을 사용
         }
         
         publish('/app/chat.join', JSON.stringify({
@@ -472,9 +472,15 @@ export const GameRoomProvider: React.FC<{
         if (chatSubscription) {
           isSubscribedRef.current = true;
           console.log(`방 ${roomId} 구독 설정 완료`);
+        } else {
+          // 구독 실패 시 플래그 리셋
+          console.error(`방 ${roomId} 구독 실패`);
+          isSubscribedRef.current = false;
         }
       } catch (error) {
         console.error('방 구독 중 오류 발생:', error);
+        // 오류 발생 시 구독 상태 리셋
+        isSubscribedRef.current = false;
       }
     }, [connectionStatus, roomId, handleGameStateUpdate, subscribe, chatActions, participantActions]);
     
@@ -543,6 +549,9 @@ export const GameRoomProvider: React.FC<{
         }
           
         if (isCorrect) {
+          // 로컬 채팅창에 먼저 표시 (사용자 경험 개선)
+          chatActions.addMessage(nickname, message);
+          
           // 정답 메시지 전송
           publish('/app/game.answer', JSON.stringify({
             roomName: roomId,

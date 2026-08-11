@@ -222,8 +222,15 @@ export const useGameLogic = (roomName: string) => {
           songArtist: currentSong.song.artist
         });
         
-        // 다음 곡으로
-        nextSong();
+        // 다음 곡으로 (방장만 가능)
+        // 참고: nextSong 내부에서 이미 방장 체크를 하므로 여기서는 호출만 함
+        // 하지만 명시적으로 방장만 다음 곡으로 넘기도록 체크
+        if (nickname === roomHost) {
+          nextSong();
+        } else {
+          // 방장이 아닌 경우 서버에 다음 곡 요청 메시지만 전송
+          console.log("정답을 맞췄지만 방장이 아니므로 곡 변경 권한이 없습니다.");
+        }
         
         return true;
       }
@@ -235,7 +242,8 @@ export const useGameLogic = (roomName: string) => {
     mapInfo, 
     currentSongIndex, 
     nickname, 
-    roomName, 
+    roomName,
+    roomHost,
     updateScore, 
     nextSong, 
     publish

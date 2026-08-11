@@ -122,7 +122,7 @@ const GameRoomMusic = React.memo(() => {
   }, [currentSong, gameStatus]);
 
   return null;
-}, (prevProps, nextProps) => true);
+});
 
 // 타입 정의
 interface GameRoomProps {
