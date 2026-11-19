@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL } from "../../shared/config/env";
+import RoomPlayback from "./RoomPlayback";
+import "./room-play.css";
 import { fetchRoomSnapshot } from "../../shared/api/rooms";
 import { useAuthStore } from "../../shared/auth/useAuthStore";
 import { useRoomRealtime } from "../../shared/realtime/useRoomRealtime";
@@ -37,11 +38,6 @@ const phaseLabels: Record<GamePhase, string> = {
   FINISHED: "종료",
 };
 
-const answerModeLabels = {
-  "single-lock": "기본",
-  "multi-score": "개인전",
-} as const;
-
 const roundFlowModeLabels = {
   "advance-on-correct": "정답 즉시 다음 곡",
   "timer-or-skip": "시간 종료 또는 스킵",
@@ -60,80 +56,23 @@ function isPregamePhase(phase: GamePhase | undefined) {
   return phase === "LOBBY" || phase === "COUNTDOWN";
 }
 
-function resolveMediaUrl(sourceValue: string) {
-  if (/^https?:\/\//i.test(sourceValue)) {
-    return sourceValue;
-  }
-
-  return `${API_BASE_URL}${sourceValue}`;
-}
-
-function getYouTubeEmbedUrl(
-  sourceValue: string | null,
-  clipStartSeconds: number | null,
-  clipEndSeconds: number | null,
-) {
-  if (!sourceValue) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(sourceValue);
-    let videoId = "";
-
-    if (parsed.hostname.includes("youtu.be")) {
-      videoId = parsed.pathname.replace(/^\/+/, "");
-    } else if (parsed.searchParams.get("v")) {
-      videoId = parsed.searchParams.get("v") ?? "";
-    } else {
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      const embedIndex = segments.indexOf("embed");
-      if (embedIndex >= 0 && segments[embedIndex + 1]) {
-        videoId = segments[embedIndex + 1];
-      }
-    }
-
-    if (!videoId) {
-      return null;
-    }
-
-    const params = new URLSearchParams({
-      autoplay: "1",
-      controls: "1",
-      loop: "1",
-      rel: "0",
-      modestbranding: "1",
-    });
-    params.set("playlist", videoId);
-
-    if (clipStartSeconds && clipStartSeconds > 0) {
-      params.set("start", String(clipStartSeconds));
-    }
-
-    if (clipEndSeconds && clipEndSeconds > 0) {
-      params.set("end", String(clipEndSeconds));
-    }
-
-    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
-  } catch {
-    return null;
-  }
-}
-
 export default function RoomPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { roomName = "demo-room" } = useParams();
   const authUser = useAuthStore((state) => state.user);
+  const authReady = useAuthStore((state) => state.ready);
   const grantGameReward = useProgressionStore((state) => state.grantGameReward);
-  const currentNickname = useSessionStore((state) => state.currentNickname);
+  const savedNickname = useSessionStore((state) => state.currentNickname);
+  const currentNickname = authUser?.nickname.trim() || savedNickname.trim();
   const setCurrentNickname = useSessionStore(
     (state) => state.setCurrentNickname,
   );
   const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState(
-    "방에 연결되면 채팅과 정답 입력을 바로 사용할 수 있습니다.",
-  );
+  const [feedback, setFeedback] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [volume, setVolume] = useState(70);
+  const [lastAnswer, setLastAnswer] = useState<{ round: number; title: string; nickname: string } | null>(null);
   const [clock, setClock] = useState(() => Date.now());
   const [connection, setConnection] = useState<ConnectionState>("idle");
   const [isRoomSettingsOpen, setIsRoomSettingsOpen] = useState(false);
@@ -147,58 +86,22 @@ export default function RoomPage() {
     useState("2");
   const [settingsHintRevealDelaySeconds, setSettingsHintRevealDelaySeconds] =
     useState("8");
-  const [transientMessages, setTransientMessages] = useState<RoomChatMessage[]>(
-    [],
-  );
-  const [lobbyMessages, setLobbyMessages] = useState<RoomChatMessage[]>([]);
+  const [lobbyMessages, setLobbyMessages] = useState<Array<RoomChatMessage & { rejected: boolean }>>([]);
   const [rewardNotice, setRewardNotice] = useState<GameReward | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyChatFeedRef = useRef<HTMLDivElement | null>(null);
   const joinedNicknameRef = useRef<string | null>(null);
   const hasSeenActiveGameRef = useRef(false);
-  const transientTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  );
 
   const roomQuery = useQuery({
     queryKey: ["room", roomName],
-    queryFn: () => fetchRoomSnapshot(roomName),
+    queryFn: async ({ signal }) => {
+      const snapshot = await fetchRoomSnapshot(roomName);
+      signal.throwIfAborted();
+      return snapshot;
+    },
   });
 
-  useEffect(() => {
-    if (authUser?.nickname && !currentNickname.trim()) {
-      setCurrentNickname(authUser.nickname);
-    }
-  }, [authUser?.nickname, currentNickname, setCurrentNickname]);
-
-  const pushTransientMessage = (message: RoomChatMessage) => {
-    const shouldShowToMe =
-      message.visibility === "public" || message.nickname === currentNickname;
-
-    if (!shouldShowToMe) {
-      return;
-    }
-
-    const existingTimer = transientTimersRef.current.get(message.id);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-
-    setTransientMessages((current) =>
-      [...current.filter((item) => item.id !== message.id), message].slice(-4),
-    );
-
-    const timer = setTimeout(() => {
-      setTransientMessages((current) =>
-        current.filter((item) => item.id !== message.id),
-      );
-      transientTimersRef.current.delete(message.id);
-    }, 6000);
-
-    transientTimersRef.current.set(message.id, timer);
-  };
-
-  const pushLobbyMessage = (message: RoomChatMessage) => {
+  const pushLobbyMessage = (message: RoomChatMessage, rejected: boolean) => {
     const shouldShowToMe =
       message.visibility === "public" || message.nickname === currentNickname;
 
@@ -207,12 +110,16 @@ export default function RoomPage() {
     }
 
     setLobbyMessages((current) =>
-      [...current.filter((item) => item.id !== message.id), message].slice(-50),
+      [...current.filter((item) => item.id !== message.id), { ...message, rejected }].slice(-50),
     );
   };
 
   useEffect(() => {
     setLobbyMessages([]);
+    setFeedback("");
+    setLastAnswer(null);
+    setRewardNotice(null);
+    hasSeenActiveGameRef.current = false;
   }, [roomName]);
 
   useEffect(() => {
@@ -222,41 +129,40 @@ export default function RoomPage() {
     }
   }, [lobbyMessages]);
 
-  useEffect(() => {
-    return () => {
-      transientTimersRef.current.forEach((timer) => clearTimeout(timer));
-      transientTimersRef.current.clear();
-    };
-  }, []);
-
   const { publishEvent } = useRoomRealtime({
     roomName,
     onConnectionChange: setConnection,
     onEnvelope: (envelope: ServerEnvelope<RoomEventPayload>) => {
       queryClient.invalidateQueries({ queryKey: ["lobby-rooms"] });
 
-      if (envelope.payload.snapshot) {
-        queryClient.setQueryData(["room", roomName], envelope.payload.snapshot);
-      } else {
+      const { snapshot, actorNickname, chatMessage, message, accepted } = envelope.payload;
+      if (snapshot) {
+        const answerPrefix = `${actorNickname}님의 정답: `;
+        if (envelope.type === "game.answer.accepted" && snapshot.phase === "PLAYING" &&
+            !snapshot.currentReveal && actorNickname && message.startsWith(answerPrefix)) {
+          setLastAnswer({ round: snapshot.round, title: message.slice(answerPrefix.length), nickname: actorNickname });
+        } else if (snapshot.phase === "LOBBY") {
+          setLastAnswer(null);
+        }
+        void queryClient.cancelQueries({ queryKey: ["room", roomName] });
+        queryClient.setQueryData(["room", roomName], snapshot);
+      } else if (envelope.type !== "error") {
         queryClient.removeQueries({ queryKey: ["room", roomName] });
       }
 
-      if (envelope.payload.message && envelope.type !== "room.chat.message") {
+      if (envelope.type === "game.round.started" || envelope.type === "game.phase.changed") setFeedback("");
+      if (envelope.type === "error" && envelope.payload.message &&
+          (!envelope.payload.actorNickname || envelope.payload.actorNickname === currentNickname)) {
         setFeedback(envelope.payload.message);
       }
 
-      if (envelope.payload.chatMessage) {
-        pushTransientMessage(envelope.payload.chatMessage);
-
-        if (isPregamePhase(envelope.payload.snapshot?.phase)) {
-          pushLobbyMessage(envelope.payload.chatMessage);
-        }
-      }
+      if (chatMessage) pushLobbyMessage(chatMessage, snapshot?.phase === "PLAYING" && accepted === false);
 
       if (
         (envelope.type === "room.chat.message" ||
           envelope.type === "game.answer.accepted" ||
-          envelope.type === "game.answer.rejected") &&
+          envelope.type === "game.answer.rejected" ||
+          (envelope.type === "game.finished" && chatMessage)) &&
         envelope.payload.actorNickname === currentNickname
       ) {
         setAnswer("");
@@ -338,6 +244,10 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (connection !== "connected") {
+      joinedNicknameRef.current = null;
+      return;
+    }
+    if (!authReady || !currentNickname) {
       return;
     }
 
@@ -346,103 +256,10 @@ export default function RoomPage() {
       return;
     }
 
+    // The join broadcasts a snapshot; a concurrent ping can publish the pre-join participants after it.
     publishEvent("room.join", { nickname: currentNickname });
-    publishEvent("presence.ping", { nickname: currentNickname });
     joinedNicknameRef.current = joinKey;
-  }, [connection, currentNickname, publishEvent, roomName]);
-
-  const currentAudioSourceUrl = room?.currentAudioSourceValue
-    ? resolveMediaUrl(room.currentAudioSourceValue)
-    : null;
-  const currentYouTubeEmbedUrl = room
-    ? getYouTubeEmbedUrl(
-        room.currentAudioSourceValue,
-        room.currentClipStartSeconds,
-        room.currentClipEndSeconds,
-      )
-    : null;
-  const mediaKey = room
-    ? `${room.round}-${room.currentAudioSourceType ?? "none"}-${
-        room.currentAudioSourceValue ?? "none"
-      }-${room.currentClipStartSeconds ?? 0}-${
-        room.currentClipEndSeconds ?? "full"
-      }`
-    : "idle";
-
-  useEffect(() => {
-    if (
-      !room ||
-      room.phase !== "PLAYING" ||
-      room.currentAudioSourceType !== "file" ||
-      !audioRef.current
-    ) {
-      return;
-    }
-
-    const audio = audioRef.current;
-    const clipStart = room.currentClipStartSeconds ?? 0;
-    const clipEnd = room.currentClipEndSeconds;
-    const roundEndsAtMs = room.roundEndsAt ? Date.parse(room.roundEndsAt) : null;
-    const shouldKeepLooping = () =>
-      room.phase === "PLAYING" &&
-      (roundEndsAtMs === null ||
-        !Number.isFinite(roundEndsAtMs) ||
-        roundEndsAtMs > Date.now());
-
-    const syncPlayback = () => {
-      if (clipStart > 0) {
-        try {
-          audio.currentTime = clipStart;
-        } catch {
-          // Ignore currentTime sync failures until metadata is ready.
-        }
-      }
-
-      void audio.play().catch(() => {});
-    };
-
-    if (audio.readyState >= 1) {
-      syncPlayback();
-    } else {
-      audio.addEventListener("loadedmetadata", syncPlayback, { once: true });
-    }
-
-    const handleTimeUpdate = () => {
-      if (clipEnd !== null && audio.currentTime >= clipEnd) {
-        if (shouldKeepLooping()) {
-          audio.currentTime = clipStart;
-          void audio.play().catch(() => {});
-          return;
-        }
-
-        audio.pause();
-      }
-    };
-
-    const handleEnded = () => {
-      if (!shouldKeepLooping()) {
-        return;
-      }
-
-      audio.currentTime = clipStart;
-      void audio.play().catch(() => {});
-    };
-
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("ended", handleEnded);
-
-    return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("ended", handleEnded);
-    };
-  }, [
-    mediaKey,
-    room?.currentAudioSourceType,
-    room?.currentClipEndSeconds,
-    room?.currentClipStartSeconds,
-    room?.phase,
-    room?.roundEndsAt,
-  ]);
+  }, [authReady, connection, currentNickname, publishEvent, roomName]);
 
   const sortedParticipants = useMemo(() => {
     if (!room) {
@@ -458,7 +275,7 @@ export default function RoomPage() {
     });
   }, [room]);
 
-  if (roomQuery.error) {
+  if (roomQuery.error && !room) {
     return (
       <section className="panel stack">
         <div>
@@ -483,12 +300,11 @@ export default function RoomPage() {
     (participant) => participant.nickname === currentNickname,
   );
   const isHost = currentNickname === room.hostNickname;
-  const canManageRoomSettings = isHost;
   const canEditRoomSettings = isHost && room.phase === "LOBBY";
   const isPregame = isPregamePhase(room.phase);
   const isAnswerPhase = room.phase === "PLAYING";
   const isReady = Boolean(currentPlayer?.ready);
-  const canSendMessage = Boolean(currentPlayer?.connected);
+  const canSendMessage = connection === "connected" && Boolean(currentPlayer?.connected);
   const readyLabel = isReady ? "준비 해제" : "준비 완료";
   const hintRevealAtMs = room.hintRevealAt ? Date.parse(room.hintRevealAt) : null;
   const isHintVisible = Boolean(room.currentHint) && (
@@ -522,30 +338,10 @@ export default function RoomPage() {
     room.phase === "PLAYING" && room.roundFlowMode === "timer-or-skip";
   const hasCurrentSkipVote = skipVoterNicknames.includes(currentNickname);
   const skipVoteCountLabel = `${currentSkipVotes}/${skipVotesRequired}`;
-  const helperText = canVoteSkip
-    ? hasCurrentSkipVote
-      ? `스킵 투표 ${skipVoteCountLabel}. 다시 누르면 투표를 취소합니다.`
-      : `스킵 투표 ${skipVoteCountLabel}. 기준 인원이 모이면 다음 곡으로 넘어갑니다.`
-    : isPregame
-      ? isHost
-        ? "대기실에서 이야기하다가 모두 준비되면 게임을 시작하세요."
-        : "준비를 마치고 게임 시작 전까지 자유롭게 채팅할 수 있습니다."
-      : isAnswerPhase
-        ? "채팅 입력창으로 정답을 제출하면 됩니다."
-        : "게임이 끝난 뒤에도 참가자들과 채팅할 수 있습니다.";
-  const showVisibleMedia =
-    room.phase === "PLAYING" &&
-    room.showMediaControls &&
-    Boolean(room.currentAudioSourceValue);
-  const renderHiddenMedia =
-    room.phase === "PLAYING" &&
-    !room.showMediaControls &&
-    Boolean(room.currentAudioSourceValue);
-
   const handleAnswerSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedAnswer = answer.trim();
-    if (!trimmedAnswer) {
+    if (!canSendMessage || !trimmedAnswer) {
       return;
     }
 
@@ -591,338 +387,7 @@ export default function RoomPage() {
     setSettingsHintRevealDelaySeconds(String(room.hintRevealDelaySeconds ?? 8));
   };
 
-  return (
-    <div className="room-view room-view--refined">
-      {rewardNotice ? (
-        <div className="reward-overlay" role="dialog" aria-modal="true" aria-label="게임 보상">
-          <section className="reward-panel">
-            <span className="reward-panel__eyebrow">STAGE CLEAR</span>
-            <div className="reward-panel__crest" aria-hidden="true">♪</div>
-            <h2>보상 획득</h2>
-            <p>이번 플레이 기록이 로컬 프로필에 저장되었습니다.</p>
-            <div className="reward-panel__items">
-              <div>
-                <span>BEAT</span>
-                <strong>+{rewardNotice.beats.toLocaleString("ko-KR")}</strong>
-              </div>
-              <div>
-                <span>PLAYER EXP</span>
-                <strong>+{rewardNotice.xp.toLocaleString("ko-KR")}</strong>
-              </div>
-            </div>
-            <button onClick={() => setRewardNotice(null)} type="button">
-              로비로 계속
-            </button>
-          </section>
-        </div>
-      ) : null}
-      {renderHiddenMedia && room.currentAudioSourceType === "file" && currentAudioSourceUrl ? (
-        <audio
-          key={mediaKey}
-          ref={audioRef}
-          className="room-stage__audio-player room-stage__audio-player--hidden"
-          autoPlay
-          preload="auto"
-          src={currentAudioSourceUrl}
-        />
-      ) : null}
-
-      {renderHiddenMedia &&
-      room.currentAudioSourceType === "youtube" &&
-      currentYouTubeEmbedUrl ? (
-        <iframe
-          key={mediaKey}
-          className="room-stage__video-frame room-stage__video-frame--hidden"
-          src={currentYouTubeEmbedUrl}
-          title={room.currentAudioSourceLabel ?? "숨김 유튜브 음원"}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-        />
-      ) : null}
-
-      <section className="panel room-stage">
-        <div className="room-stage__header">
-          <div>
-            <p className="eyebrow">게임 방</p>
-            <h2>{roomName}</h2>
-          </div>
-          <span className={`status-pill status-pill--${connection}`}>
-            {connectionLabels[connection]}
-          </span>
-        </div>
-
-        <div className="room-stage__meta">
-          <div className="room-stage__meta-card">
-            <span>방장</span>
-            <strong>{room.hostNickname}</strong>
-          </div>
-          <div className="room-stage__meta-card">
-            <span>상태</span>
-            <strong>{phaseLabels[room.phase]}</strong>
-          </div>
-          <div className="room-stage__meta-card">
-            <span>라운드</span>
-            <strong>
-              {room.round}/{room.totalRounds}
-            </strong>
-          </div>
-          <div className="room-stage__meta-card">
-            <span>맵</span>
-            <strong>{room.map?.name ?? "맵 미선택"}</strong>
-          </div>
-        </div>
-
-        <div
-          className={`room-stage__board${
-            showVisibleMedia ? "" : " room-stage__board--clean"
-          }${isPregame ? " room-stage__board--lobby" : ""}`}
-        >
-          <div
-            className={`room-stage__overlay${
-              isPregame ? " room-stage__overlay--lobby" : ""
-            }`}
-          >
-            {isPregame ? (
-              <section className="room-lobby-chat" aria-label="대기실 채팅">
-                <div className="room-lobby-chat__header">
-                  <div>
-                    <p className="eyebrow">LOBBY CHAT</p>
-                    <strong>게임 시작 전 이야기해요.</strong>
-                  </div>
-                  <span className="room-lobby-chat__live">LIVE</span>
-                </div>
-
-                <div
-                  className="room-lobby-chat__messages"
-                  ref={lobbyChatFeedRef}
-                  role="log"
-                  aria-live="polite"
-                  aria-relevant="additions text"
-                >
-                  {lobbyMessages.length ? (
-                    lobbyMessages.map((message) => {
-                      const isOwnMessage = message.nickname === currentNickname;
-
-                      return (
-                        <article
-                          className={`room-lobby-chat__message room-lobby-chat__message--${message.tone}${
-                            isOwnMessage
-                              ? " room-lobby-chat__message--mine"
-                              : ""
-                          }`}
-                          key={message.id}
-                        >
-                          <strong>{message.nickname}</strong>
-                          <p>{message.content}</p>
-                        </article>
-                      );
-                    })
-                  ) : (
-                    <div className="room-lobby-chat__empty">
-                      <span aria-hidden="true">♪</span>
-                      <strong>아직 대화가 없어요.</strong>
-                      <p>아래 채팅창에서 먼저 인사해 보세요.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            ) : (
-              transientMessages.map((message) => {
-                const isOwnMessage = message.nickname === currentNickname;
-
-                return (
-                  <article
-                    className={`flash-message flash-message--${message.tone} ${
-                      isOwnMessage
-                        ? "flash-message--mine"
-                        : "flash-message--theirs"
-                    }`}
-                    key={message.id}
-                  >
-                    <strong>{message.nickname}</strong>
-                    <p>{message.content}</p>
-                  </article>
-                );
-              })
-            )}
-          </div>
-
-          {showVisibleMedia ? (
-            <div className="room-stage__media">
-              <div className="room-stage__media-meta">
-                <span className="room-stage__media-eyebrow">현재 재생</span>
-                <strong>
-                  {room.currentAudioSourceLabel ??
-                    (room.currentAudioSourceType === "youtube"
-                      ? "유튜브 음원"
-                      : "업로드 음원")}
-                </strong>
-              </div>
-
-              {room.currentAudioSourceType === "file" && currentAudioSourceUrl ? (
-                <audio
-                  key={mediaKey}
-                  ref={audioRef}
-                  className="room-stage__audio-player"
-                  controls
-                  autoPlay
-                  preload="auto"
-                  src={currentAudioSourceUrl}
-                />
-              ) : null}
-
-              {room.currentAudioSourceType === "youtube" ? (
-                currentYouTubeEmbedUrl ? (
-                  <iframe
-                    key={mediaKey}
-                    className="room-stage__video-frame"
-                    src={currentYouTubeEmbedUrl}
-                    title={room.currentAudioSourceLabel ?? "유튜브 음원"}
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : room.currentAudioSourceValue ? (
-                  <a
-                    className="room-stage__media-link"
-                    href={room.currentAudioSourceValue}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    유효한 유튜브 링크가 아니라 새 탭으로 엽니다.
-                  </a>
-                ) : null
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="room-stage__board-copy">
-            <p className="eyebrow">현재 문제</p>
-            <h3>{room.currentPrompt}</h3>
-
-            <div className="chip-list room-stage__rule-strip">
-              <span className="chip">{songOrderModeLabels[room.songOrderMode]}</span>
-              <span className="chip">{answerModeLabels[room.answerMode]}</span>
-              <span className="chip">
-                {roundFlowModeLabels[room.roundFlowMode]}
-              </span>
-              {canVoteSkip ? (
-                <span className="chip">스킵 {skipVoteCountLabel}</span>
-              ) : null}
-              <span className="chip">
-                {room.showMediaControls ? "재생 UI 표시" : "재생 UI 숨김"}
-              </span>
-              {roundCountdown > 0 ? (
-                <span className="chip">{roundCountdown}초 남음</span>
-              ) : null}
-            </div>
-
-            {isHintVisible && room.currentHint ? (
-              <p className="room-stage__hint">
-                <span>힌트</span>
-                <strong>{formatHintText(room.currentHint)}</strong>
-              </p>
-            ) : null}
-
-            {!isHintVisible && hintCountdown > 0 ? (
-              <p className="room-stage__hint room-stage__hint--pending">
-                힌트 공개까지 {hintCountdown}초
-              </p>
-            ) : null}
-
-            <p className="footnote room-stage__feedback">{feedback}</p>
-
-            {room.currentReveal ? (
-              <p className="reveal">직전 공개: {room.currentReveal}</p>
-            ) : null}
-          </div>
-        </div>
-
-        <form
-          className={`answer-box answer-box--room${
-            isPregame ? " answer-box--lobby" : ""
-          }`}
-          onSubmit={handleAnswerSubmit}
-        >
-          <label className="field">
-            <span>
-              {isPregame
-                ? "대기실 채팅"
-                : isAnswerPhase
-                  ? "채팅 / 정답 입력"
-                  : "채팅 메시지"}
-            </span>
-            <input
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value)}
-              placeholder={
-                !canSendMessage
-                  ? "방에 연결하는 중입니다..."
-                  : isPregame
-                    ? "게임 시작 전 자유롭게 대화해 보세요."
-                    : isAnswerPhase
-                      ? "정답 또는 채팅을 입력하세요."
-                      : "게임 참가자들과 대화해 보세요."
-              }
-              disabled={!canSendMessage}
-            />
-          </label>
-          <button
-            className="button answer-box__submit"
-            type="submit"
-            disabled={!canSendMessage}
-          >
-            {isAnswerPhase ? "정답 전송" : "채팅 보내기"}
-          </button>
-        </form>
-      </section>
-
-      <section className="panel room-sidebar room-sidebar--refined">
-        <div className="room-sidebar__section">
-          <div className="panel__header">
-            <div>
-              <p className="eyebrow">현재 플레이어</p>
-              <h3>{currentNickname}</h3>
-            </div>
-            <div className="room-sidebar__player-tools">
-              <span className="chip">
-                {currentPlayer?.connected ? "접속됨" : "대기 중"}
-              </span>
-              {canManageRoomSettings ? (
-                <button
-                  aria-expanded={isRoomSettingsOpen}
-                  aria-label="방 설정"
-                  className={`room-settings__toggle${
-                    isRoomSettingsOpen ? " room-settings__toggle--active" : ""
-                  }`}
-                  onClick={() =>
-                    setIsRoomSettingsOpen((current) => !current)
-                  }
-                  title="방 설정"
-                  type="button"
-                >
-                  ⚙
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          <p className="footnote room-sidebar__current-player">
-            {helperText}
-          </p>
-
-          {canManageRoomSettings && isRoomSettingsOpen ? (
-            <div className="room-settings__panel">
-              <div className="panel__header room-settings__panel-header">
-                <div>
-                  <p className="eyebrow">방 설정</p>
-                  <h4>방 규칙</h4>
-                </div>
-                <div className="chip-list room-settings__summary">
-                  <span className="chip">{songOrderModeLabels[room.songOrderMode]}</span>
-                  <span className="chip">{roundFlowModeLabels[room.roundFlowMode]}</span>
-                </div>
-              </div>
-
+  const settingsFields = (
               <div className="room-settings__grid">
                 <label className="field">
                   <span>노래 순서</span>
@@ -1009,120 +474,158 @@ export default function RoomPage() {
                   />
                 </label>
               </div>
+  );
 
-              <p className="footnote room-settings__note">
-                {canEditRoomSettings
-                  ? `맵 기본값 위에 방 설정을 덮어씁니다. 정답 방식과 재생 UI 표시는 맵 설정을 따르며, 현재 적용 스킵은 ${skipVoteCountLabel}, 기본 스킵 목표는 ${configuredSkipVotesRequired}표입니다.`
-                  : "게임이 시작된 뒤에는 방 규칙을 바꿀 수 없습니다."}
-              </p>
+  const leave = () => {
+    if (currentNickname) publishEvent("room.leave", { nickname: currentNickname });
+    navigate("/");
+  };
+  if (!authReady || !currentNickname) {
+    return (
+      <section className="room-play room-play--entry">
+        <h1>{roomName}</h1>
+        {!authReady ? <p role="status">로그인 상태 확인 중</p> : (
+          <form onSubmit={(event) => {
+            event.preventDefault();
+            if (guestName.trim()) setCurrentNickname(guestName.trim());
+          }}>
+            <label htmlFor="room-nickname">입장할 닉네임</label>
+            <input id="room-nickname" value={guestName} required maxLength={24}
+              onChange={(event) => setGuestName(event.target.value)} />
+            <button type="submit" className="room-button" disabled={!guestName.trim()}>입장</button>
+            <button type="button" className="room-button room-button--quiet" onClick={leave}>로비로</button>
+          </form>
+        )}
+      </section>
+    );
+  }
 
-              <div className="button-row room-settings__actions">
-                <button
-                  className="button"
-                  disabled={!canEditRoomSettings}
-                  onClick={handleApplyRoomSettings}
-                  type="button"
-                >
-                  적용
-                </button>
-                <button
-                  className="button button--ghost"
-                  onClick={() => {
-                    resetRoomSettingsDraft();
-                    setIsRoomSettingsOpen(false);
-                  }}
-                  type="button"
-                >
-                  닫기
-                </button>
+  const isFinished = room.phase === "FINISHED";
+  const isScoring = room.phase === "SCORING";
+  const reveal = room.currentReveal;
+  const connectedPlayers = room.participants.filter((participant) => participant.connected);
+  const canStart = canSendMessage && isHost && connectedPlayers.length >= 2 &&
+    connectedPlayers.every((participant) => participant.nickname === currentNickname || participant.ready);
+  const maxRoundTime = Math.max(room.roundTimeLimitSeconds ?? 30,
+    (room.currentClipEndSeconds ?? 0) - (room.currentClipStartSeconds ?? 0), 1);
+  const timerMs = roundEndsAtMs !== null && Number.isFinite(roundEndsAtMs) ? roundEndsAtMs : null;
+  const inputLabel = isAnswerPhase ? "정답 입력" : "채팅 메시지";
+  return (
+    <div className={`room-play${isFinished ? " room-play--finished" : ""}`}>
+      <header className="room-play__header">
+        <h1 title={roomName}>{roomName}</h1>
+        {isPregame ? <span>{phaseLabels[room.phase]}</span> : <span>라운드 {room.round}/{room.totalRounds}</span>}
+        {isAnswerPhase && timerMs !== null && (
+          <div className="room-play__timer">
+            <progress aria-label="라운드 남은 시간" value={Math.min(maxRoundTime, Math.max(0, (timerMs - clock) / 1000))} max={maxRoundTime} />
+            <strong>{roundCountdown}초</strong>
+          </div>
+        )}
+        {isAnswerPhase && (
+          <label className="room-play__volume">
+            <span>볼륨</span>
+            <input type="range" min={0} max={100} value={volume} aria-valuetext={`${volume}%`}
+              onChange={(event) => setVolume(Number(event.target.value))} />
+          </label>
+        )}
+        <button type="button" className="room-button room-button--quiet" onClick={leave}>나가기</button>
+      </header>
+      {!canSendMessage && <p role="status">{connection === "connected" ? "입장 확인 중" : connectionLabels[connection]}</p>}
+      {feedback && <p role="alert" className="room-play__notice">{feedback}</p>}
+
+      <div className="room-play__layout">
+        <section className="room-play__stage" aria-label="게임 무대">
+          {isFinished ? <>
+            <h2>최종 결과</h2>
+            {reveal && <p className="room-play__reveal"><strong>마지막 정답</strong> {reveal}</p>}
+            {rewardNotice && <p>이번 보상: +{rewardNotice.beats} BEAT · +{rewardNotice.xp} EXP</p>}
+            <div className="room-play__actions">
+              <button type="button" className="room-button" onClick={leave}>로비로</button>
+            </div>
+          </> : isPregame ? <>
+            <h2>{room.phase === "COUNTDOWN" ? "곧 시작합니다" : "대기실"}</h2>
+            <p>{room.map?.name ?? "맵 미선택"} · 방장 {room.hostNickname}</p>
+            {room.phase === "LOBBY" && <div className="room-play__actions">
+              {!isHost && <button className="room-button" type="button" disabled={!canSendMessage} aria-pressed={isReady}
+                onClick={() => publishEvent("room.ready.set", { nickname: currentNickname, ready: !isReady })}>{readyLabel}</button>}
+              {isHost && <>
+                <button className="room-button" type="button" disabled={!canStart}
+                  onClick={() => publishEvent("game.start", { nickname: currentNickname })}>게임 시작</button>
+                <button className="room-button room-button--quiet" type="button" aria-expanded={isRoomSettingsOpen}
+                  onClick={() => setIsRoomSettingsOpen(!isRoomSettingsOpen)}>방 설정</button>
+                {!canStart && <span>두 명 이상 접속하고 참가자가 모두 준비하면 시작할 수 있습니다.</span>}
+              </>}
+            </div>}
+            {canEditRoomSettings && isRoomSettingsOpen && <div className="room-play__settings">
+              {settingsFields}
+              <div className="room-play__actions">
+                <button className="room-button" type="button" disabled={!canSendMessage} onClick={handleApplyRoomSettings}>적용</button>
+                <button className="room-button room-button--quiet" type="button" onClick={() => {
+                  resetRoomSettingsDraft();
+                  setIsRoomSettingsOpen(false);
+                }}>닫기</button>
               </div>
-            </div>
-          ) : null}
+            </div>}
+          </> : <>
+            {isAnswerPhase && room.currentAudioSourceType && room.currentAudioSourceValue ? (
+              <RoomPlayback key={JSON.stringify([room.round, room.currentAudioSourceType, room.currentAudioSourceValue,
+                room.currentClipStartSeconds, room.currentClipEndSeconds])}
+                type={room.currentAudioSourceType} source={room.currentAudioSourceValue}
+                start={room.currentClipStartSeconds ?? 0} end={room.currentClipEndSeconds}
+                visible={room.showMediaControls} volume={volume} endsAt={timerMs} />
+            ) : isAnswerPhase && <p role="status">이 라운드에는 재생할 음원이 없습니다.</p>}
+            <h2>{isScoring ? "정답 공개" : "힌트"}</h2>
+            {isScoring ? <p className="room-play__reveal">{reveal || "다음 라운드를 준비하고 있습니다."}</p> :
+              <p>{isHintVisible && room.currentHint ? formatHintText(room.currentHint) :
+                hintCountdown ? `힌트 공개까지 ${hintCountdown}초` : "공개된 힌트가 없습니다."}</p>}
+            {isAnswerPhase && reveal && <p className="room-play__reveal"><strong>이번 정답</strong> {reveal}</p>}
+            {isAnswerPhase && lastAnswer?.round === room.round && (
+              <p className="room-play__reveal" role="status"><strong>직전 정답</strong> {lastAnswer.title} · {lastAnswer.nickname} +1점</p>
+            )}
+          </>}
+        </section>
 
-          <div className="action-stack action-stack--compact">
-            <button
-              className={`button action-stack__button${
-                isReady ? " button--active" : ""
-              }`}
-              onClick={() =>
-                publishEvent("room.ready.set", {
-                  nickname: currentNickname,
-                  ready: !currentPlayer?.ready,
-                })
-              }
-              disabled={!currentPlayer || room.phase !== "LOBBY"}
-              type="button"
-            >
-              {readyLabel}
-            </button>
+        <section className="room-play__ranking" aria-labelledby="room-ranking-title">
+          <h2 id="room-ranking-title">{isPregame ? `참가자 (${room.participants.length}/${room.maxParticipants})` : isFinished ? "최종 순위" : "현재 순위"}</h2>
+          <ol>
+            {sortedParticipants.map((participant, index) => (
+              <li key={participant.id}>
+                {!isPregame && <span>{index + 1}</span>}
+                <strong title={participant.nickname}>{participant.nickname}</strong>
+                {isPregame ? <span>{participant.nickname === room.hostNickname ? "방장" :
+                  !participant.connected ? "연결 끊김" : participant.ready ? "준비 완료" : "준비 중"}</span> : <span>{participant.score}점</span>}
+              </li>
+            ))}
+          </ol>
+        </section>
 
-            {isHost && room.phase === "LOBBY" ? (
-              <button
-                className="button action-stack__button"
-                onClick={() =>
-                  publishEvent("game.start", { nickname: currentNickname })
-                }
-                type="button"
-              >
-                게임 시작
-              </button>
-            ) : null}
-
-            {canVoteSkip ? (
-              <button
-                className={`button action-stack__button${
-                  hasCurrentSkipVote ? " button--active" : ""
-                }`}
-                onClick={() =>
-                  publishEvent("game.next.request", { nickname: currentNickname })
-                }
-                disabled={!currentPlayer?.connected}
-                type="button"
-              >
-                {hasCurrentSkipVote
-                  ? `스킵 투표 취소 (${skipVoteCountLabel})`
-                  : `스킵 투표 (${skipVoteCountLabel})`}
-              </button>
-            ) : null}
-
-            <button
-              className="button button--ghost button--danger action-stack__button"
-              onClick={() => {
-                publishEvent("room.leave", { nickname: currentNickname });
-                navigate("/");
-              }}
-              type="button"
-            >
-              방 나가기
-            </button>
-          </div>
-        </div>
-
-        <div className="room-sidebar__section room-sidebar__section--fill">
-          <div className="panel__header">
-            <div>
-              <p className="eyebrow">온라인 인원</p>
-              <h3>{sortedParticipants.length}명 접속 중</h3>
-            </div>
-          </div>
-
-          <div className="participant-list participant-list--room participant-list--compact">
-            {sortedParticipants.map((participant: RoomParticipant) => (
-              <article className="participant-card participant-card--compact" key={participant.id}>
-                <div>
-                  <p className="participant-card__name">{participant.nickname}</p>
-                  <p className="participant-card__meta">
-                    준비 {participant.ready ? "완료" : "대기"} | 접속:{" "}
-                    {participant.connected ? "연결됨" : "끊김"}
-                  </p>
-                </div>
-                <strong>{participant.score}점</strong>
-              </article>
+        <section className="room-play__activity" aria-labelledby="room-activity-title">
+          <h2 id="room-activity-title">{isPregame ? "대기실 채팅" : "활동"}</h2>
+          <div className="room-play__feed" ref={lobbyChatFeedRef} role="log" aria-label="활동 내역">
+            {!lobbyMessages.length && <p>아직 메시지가 없습니다.</p>}
+            {lobbyMessages.map((message) => (
+              <div className="room-play__message" key={message.id}>
+                <span>{message.tone === "correct" ? "정답" : message.rejected ? "오답" : message.tone === "system" ? "안내" : "채팅"}</span>
+                <strong title={message.nickname}>{message.nickname}</strong>
+                <span title={message.content}>{message.content}</span>
+              </div>
             ))}
           </div>
-        </div>
+        </section>
+      </div>
 
-      </section>
+      <form className="room-play__composer" onSubmit={handleAnswerSubmit}>
+        <label htmlFor="room-answer">{inputLabel}</label>
+        <div>
+          <input id="room-answer" value={answer} autoComplete="off" disabled={!canSendMessage}
+            onChange={(event) => setAnswer(event.target.value)} placeholder={isAnswerPhase ? "정답을 입력하세요" : "메시지를 입력하세요"} />
+          <button type="submit" className="room-button" disabled={!canSendMessage || !answer.trim()}>전송</button>
+          {canVoteSkip && <button type="button" className="room-button room-button--quiet" aria-pressed={hasCurrentSkipVote}
+            disabled={!canSendMessage} onClick={() => publishEvent("game.next.request", { nickname: currentNickname })}>
+            {hasCurrentSkipVote ? "스킵 취소" : "스킵"} {skipVoteCountLabel}
+          </button>}
+        </div>
+      </form>
     </div>
   );
 }

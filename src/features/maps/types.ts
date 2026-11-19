@@ -33,13 +33,15 @@ declare global {
       Player: new (
         element: HTMLElement | string,
         options: {
-          videoId: string;
+          videoId?: string;
           width?: string | number;
           height?: string | number;
           playerVars?: Record<string, string | number | undefined>;
           events?: {
             onReady?: (event: { target: YouTubePlayer }) => void;
             onStateChange?: (event: { data: number; target: YouTubePlayer }) => void;
+            onError?: (event: { data: number; target: YouTubePlayer }) => void;
+            onAutoplayBlocked?: () => void;
           };
         },
       ) => YouTubePlayer;
@@ -54,6 +56,9 @@ declare global {
 }
 
 export interface YouTubePlayer {
+  stopVideo?: () => void;
+  setVolume?: (volume: number) => void;
+  unMute?: () => void;
   playVideo: () => void;
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;

@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { fetchMaps } from "../../shared/api/maps";
 import { createRoom, fetchLobbyRooms } from "../../shared/api/rooms";
 import { useAuthStore } from "../../shared/auth/useAuthStore";
-import { getProgression, useProgressionStore } from "../../shared/store/useProgressionStore";
 import { useSessionStore } from "../../shared/store/useSessionStore";
 
 const difficultyLabels = {
@@ -29,10 +28,6 @@ export default function LobbyPage() {
   const authUser = useAuthStore((state) => state.user);
   const currentNickname = useSessionStore((state) => state.currentNickname);
   const setCurrentNickname = useSessionStore((state) => state.setCurrentNickname);
-  const totalXp = useProgressionStore((state) => state.totalXp);
-  const beats = useProgressionStore((state) => state.beats);
-  const completedGames = useProgressionStore((state) => state.completedGames);
-  const progression = getProgression(totalXp);
   const [roomName, setRoomName] = useState("");
   const [guestNickname, setGuestNickname] = useState("");
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
@@ -86,6 +81,18 @@ export default function LobbyPage() {
   const selectedMap = maps.find((map) => map.id === selectedMapId) ?? null;
   const waitingRooms = rooms.filter((room) => room.phase === "LOBBY");
   const visibleRooms = roomFilter === "waiting" ? waitingRooms : rooms;
+  const hasRoomsData = roomsQuery.data !== undefined;
+  const roomListFeedback = roomsQuery.isFetching
+    ? hasRoomsData
+      ? "방 목록을 새로고침하고 있어요. 이전 목록을 표시합니다."
+      : "방 목록을 불러오고 있어요."
+    : roomsQuery.isError
+      ? hasRoomsData
+        ? "새로고침하지 못했어요. 이전 목록은 현재 방 상태와 다를 수 있어요."
+        : "방 목록을 불러오지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요."
+      : roomsQuery.isPending
+        ? "네트워크 연결을 기다리고 있어요."
+        : "방 목록은 15초마다 자동으로 새로고침됩니다.";
 
   const handleCreateRoom = () => {
     if (!resolvedNickname || !trimmedRoomName || !selectedMapId) return;
@@ -113,19 +120,6 @@ export default function LobbyPage() {
 
   return (
     <div className="qp-lobby">
-      <section className="qp-welcome">
-        <div>
-          <span className="qp-welcome__hello">
-            {resolvedNickname ? `${resolvedNickname}님, 반가워요!` : "MATO에 오신 걸 환영해요!"}
-          </span>
-          <h2>친구들과 가볍게 즐기는 음악 퀴즈</h2>
-          <p>방을 골라 입장하거나, 좋아하는 노래로 새 게임을 만들어 보세요.</p>
-        </div>
-        <div className="qp-welcome__note" aria-hidden="true">
-          <span>♪</span><span>♫</span><span>♪</span>
-        </div>
-      </section>
-
       <div className="qp-lobby-grid">
         <aside className="qp-panel qp-map-panel">
           <div className="qp-panel__title">
@@ -136,11 +130,12 @@ export default function LobbyPage() {
             {maps.slice(0, 7).map((map) => (
               <button
                 className={selectedMapId === map.id ? "qp-map-item qp-map-item--active" : "qp-map-item"}
+                aria-pressed={selectedMapId === map.id}
                 key={map.id}
                 onClick={() => setSelectedMapId(map.id)}
+                title={map.name}
                 type="button"
               >
-                <span aria-hidden="true">♪</span>
                 <div>
                   <strong>{map.name}</strong>
                   <small>{map.songCount}곡 · {difficultyLabels[map.difficulty]}</small>
@@ -150,7 +145,6 @@ export default function LobbyPage() {
 
             {maps.length === 0 ? (
               <div className="qp-map-empty">
-                <span aria-hidden="true">♬</span>
                 <p>{authUser ? "아직 만든 맵이 없어요." : "로그인하면 내 맵을 볼 수 있어요."}</p>
                 <Link to={authUser ? "/maps" : "/account"}>
                   {authUser ? "첫 맵 만들기" : "로그인하기"}
@@ -158,32 +152,42 @@ export default function LobbyPage() {
               </div>
             ) : null}
           </div>
-
-          <div className="qp-character-slot">
-            <span className="qp-character-slot__avatar" aria-hidden="true">?</span>
-            <div>
-              <strong>내 캐릭터</strong>
-              <small>캐릭터 기능 준비 중</small>
-            </div>
-          </div>
         </aside>
 
         <section className="qp-panel qp-room-panel">
+          <div className="qp-room-heading">
+            <div>
+              <h1>게임 방</h1>
+              <p>참가할 방을 선택하거나 새 게임을 시작하세요.</p>
+            </div>
+            <div className="qp-room-actions">
+              <button className="qp-button qp-button--soft" onClick={() => setIsCreateOpen(true)} type="button">방 만들기</button>
+              <button className="qp-button qp-button--primary" onClick={handleQuickStart} type="button">빠른 입장</button>
+            </div>
+          </div>
+          {!authUser ? (
+            <label className="qp-lobby-nickname">
+              <span>닉네임</span>
+              <input value={guestNickname} onChange={(event) => setGuestNickname(event.target.value)} placeholder="참가할 이름을 입력하세요" />
+            </label>
+          ) : null}
           <div className="qp-room-toolbar">
             <div className="qp-room-tabs">
               <button
                 className={roomFilter === "all" ? "qp-room-tab qp-room-tab--active" : "qp-room-tab"}
+                aria-pressed={roomFilter === "all"}
                 onClick={() => setRoomFilter("all")}
                 type="button"
               >
-                전체 방 <span>{rooms.length}</span>
+                전체 방 <span>{hasRoomsData ? rooms.length : "—"}</span>
               </button>
               <button
                 className={roomFilter === "waiting" ? "qp-room-tab qp-room-tab--active" : "qp-room-tab"}
+                aria-pressed={roomFilter === "waiting"}
                 onClick={() => setRoomFilter("waiting")}
                 type="button"
               >
-                대기 중 <span>{waitingRooms.length}</span>
+                대기 중 <span>{hasRoomsData ? waitingRooms.length : "—"}</span>
               </button>
             </div>
             <button
@@ -192,15 +196,19 @@ export default function LobbyPage() {
               onClick={() => void roomsQuery.refetch()}
               type="button"
             >
-              {roomsQuery.isFetching ? "불러오는 중" : "새로고침"}
+              {roomsQuery.isFetching ? "불러오는 중" : roomsQuery.isError ? "다시 시도" : "새로고침"}
             </button>
+          </div>
+
+          <div className={roomsQuery.isError ? "qp-room-feedback qp-room-feedback--error" : "qp-room-feedback"}>
+            <p role="status" aria-atomic="true">{roomListFeedback}</p>
           </div>
 
           <div className="qp-room-table">
             <div className="qp-room-table__head" aria-hidden="true">
               <span>번호</span><span>방 제목</span><span>게임 맵</span><span>인원</span><span>상태</span>
             </div>
-            <div className="qp-room-table__body">
+            <div className="qp-room-table__body" aria-busy={roomsQuery.isFetching}>
               {visibleRooms.map((room, index) => (
                 <button
                   className="qp-room-row"
@@ -210,8 +218,8 @@ export default function LobbyPage() {
                   type="button"
                 >
                   <span>{String(index + 1).padStart(2, "0")}</span>
-                  <strong>{room.name}</strong>
-                  <span>{room.map?.name ?? "맵 미선택"}</span>
+                  <strong title={room.name}>{room.name}</strong>
+                  <span title={room.map?.name}>{room.map?.name ?? "맵 미선택"}</span>
                   <span>{room.participantCount}/{room.maxParticipants}</span>
                   <span className={`qp-room-state qp-room-state--${room.phase.toLowerCase()}`}>
                     {phaseLabels[room.phase]}
@@ -219,85 +227,30 @@ export default function LobbyPage() {
                 </button>
               ))}
 
-              {visibleRooms.length === 0 && !roomsQuery.isLoading ? (
+              {!hasRoomsData && (roomsQuery.isPending || roomsQuery.isFetching) ? (
                 <div className="qp-room-empty">
-                  <span aria-hidden="true">♩</span>
-                  <strong>아직 열린 방이 없어요</strong>
-                  <p>새 게임을 만들면 이곳에 방이 표시됩니다.</p>
+                  <strong>방 목록을 불러오는 중이에요</strong>
+                  <p>잠시만 기다려 주세요.</p>
+                </div>
+              ) : null}
+
+              {roomsQuery.isError && !roomsQuery.isFetching && visibleRooms.length === 0 ? (
+                <div className="qp-room-empty">
+                  <strong>방 목록을 확인할 수 없어요</strong>
+                  <p>위의 다시 시도 버튼으로 목록을 다시 불러와 주세요.</p>
+                </div>
+              ) : null}
+
+              {visibleRooms.length === 0 && roomsQuery.isSuccess ? (
+                <div className="qp-room-empty">
+                  <strong>{roomFilter === "waiting" ? "대기 중인 방이 없어요" : "아직 열린 방이 없어요"}</strong>
+                  <p>{roomFilter === "waiting" ? "전체 방을 확인하거나 새 게임을 만들어 보세요." : "새 게임을 만들면 이곳에 방이 표시됩니다."}</p>
                 </div>
               ) : null}
             </div>
           </div>
 
-          <div className="qp-room-actions">
-            <p>{resolvedNickname ? "입장할 방을 선택해 주세요." : "닉네임을 입력하면 방에 참가할 수 있어요."}</p>
-            <button className="qp-button qp-button--soft" onClick={() => setIsCreateOpen(true)} type="button">
-              방 만들기
-            </button>
-            <button className="qp-button qp-button--primary" onClick={handleQuickStart} type="button">
-              빠른 입장
-            </button>
-          </div>
         </section>
-
-        <aside className="qp-side-column">
-          <section className="qp-panel qp-profile-card">
-            <div className="qp-profile-card__top">
-              <span className="qp-profile-card__avatar" aria-hidden="true">♪</span>
-              <div>
-                <small>현재 플레이어</small>
-                <strong>{authUser?.nickname ?? (guestNickname.trim() || "게스트")}</strong>
-                <span>Lv.{progression.level} 새싹 플레이어</span>
-              </div>
-            </div>
-
-            {!authUser ? (
-              <label className="qp-field qp-field--nickname">
-                <span>닉네임</span>
-                <input
-                  value={guestNickname}
-                  onChange={(event) => setGuestNickname(event.target.value)}
-                  placeholder="사용할 이름"
-                />
-              </label>
-            ) : null}
-
-            <div className="qp-wallet">
-              <span><i aria-hidden="true">B</i> 보유 BEAT</span>
-              <strong>{beats.toLocaleString("ko-KR")}</strong>
-            </div>
-            <div className="qp-stat-row">
-              <span>완료한 게임 <strong>{completedGames}</strong></span>
-              <span>다음 레벨 <strong>{progression.xpForNextLevel - progression.xpInLevel} XP</strong></span>
-            </div>
-          </section>
-
-          <section className="qp-panel qp-today-card">
-            <div className="qp-panel__title">
-              <strong>오늘 할 일</strong>
-              <span>{Math.min(completedGames, 3)}/3</span>
-            </div>
-            <div className="qp-today-item">
-              <span className={completedGames >= 1 ? "qp-check qp-check--done" : "qp-check"}>✓</span>
-              <div><strong>게임 한 판 완료</strong><small>BEAT를 모아보세요</small></div>
-            </div>
-            <div className="qp-today-item">
-              <span className={completedGames >= 3 ? "qp-check qp-check--done" : "qp-check"}>✓</span>
-              <div><strong>게임 세 판 플레이</strong><small>{Math.min(completedGames, 3)} / 3 완료</small></div>
-            </div>
-          </section>
-
-          <section className="qp-notice">
-            <strong>알림</strong>
-            <p>캐릭터와 꾸미기 상점은 다음 업데이트에서 만나요!</p>
-          </section>
-        </aside>
-      </div>
-
-      <div className="qp-chat-strip">
-        <span>공지</span>
-        <p>서로 배려하며 즐거운 음악 퀴즈를 즐겨주세요.</p>
-        <small>접속 중 {rooms.reduce((sum, room) => sum + room.participantCount, 0)}명</small>
       </div>
 
       {isCreateOpen ? (

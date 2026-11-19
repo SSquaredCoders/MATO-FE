@@ -6,6 +6,10 @@ import { useSessionStore } from "../../shared/store/useSessionStore";
 
 type AccountMode = "login" | "register";
 
+function withErrorDetail(message: string, error: unknown) {
+  return error instanceof Error && error.message ? `${message} ${error.message}` : message;
+}
+
 export default function AccountPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -56,24 +60,38 @@ export default function AccountPage() {
     event.preventDefault();
     resetFeedback();
     setPending(true);
+    const credentials = { userId: userId.trim(), password };
 
     try {
-      await registerUser({
-        userId: userId.trim(),
-        password,
-        confirmPassword,
-        nickname: nickname.trim(),
-      });
+      try {
+        await registerUser({
+          ...credentials,
+          confirmPassword,
+          nickname: nickname.trim(),
+        });
+      } catch (registerError) {
+        setError(withErrorDetail("회원가입 요청에 실패했습니다.", registerError));
+        return;
+      }
 
-      const session = await loginUser({
-        userId: userId.trim(),
-        password,
-      });
+      let session;
+      try {
+        session = await loginUser(credentials);
+      } catch (loginError) {
+        setUserId(credentials.userId);
+        setPassword("");
+        setConfirmPassword("");
+        setMode("login");
+        setError(withErrorDetail(
+          "계정은 생성됐지만 자동 로그인에 실패했습니다. 다시 가입하지 말고 로그인해 주세요.",
+          loginError,
+        ));
+        return;
+      }
+
       setSession(session.user, session.accessToken);
       setMessage(`${session.user.nickname} 계정을 만들고 바로 로그인했습니다.`);
       navigate("/maps");
-    } catch (registerError) {
-      setError((registerError as Error).message || "회원가입에 실패했습니다.");
     } finally {
       setPending(false);
     }
@@ -176,6 +194,7 @@ export default function AccountPage() {
       <div className="button-row">
         <button
           className={`button button--ghost${mode === "login" ? " map-mode-button--active" : ""}`}
+          disabled={pending}
           onClick={() => {
             setMode("login");
             resetFeedback();
@@ -186,6 +205,7 @@ export default function AccountPage() {
         </button>
         <button
           className={`button button--ghost${mode === "register" ? " map-mode-button--active" : ""}`}
+          disabled={pending}
           onClick={() => {
             setMode("register");
             resetFeedback();

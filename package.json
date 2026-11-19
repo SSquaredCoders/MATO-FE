@@ -10,7 +10,8 @@
     "verify:hostinger": "node scripts/verify-hostinger-build.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "verify:room-clip-range": "node scripts/verify-room-clip-range.mjs"
+    "verify:room-clip-range": "node scripts/verify-room-clip-range.mjs",
+    "verify:signup-recovery": "node scripts/verify-signup-recovery.mjs"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
