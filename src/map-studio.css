@@ -1918,3 +1918,885 @@
     transition: none;
   }
 }
+
+body:has(.qp-shell--workbench) {
+  color: #e8ebf0;
+  background: #101216;
+}
+
+.qp-shell--workbench {
+  --map-bg: #101216;
+  --map-panel: #181a20;
+  --map-raised: #20232a;
+  --map-line: #383c45;
+  --map-text: #e8ebf0;
+  --map-muted: #b7bfca;
+  --map-accent: #79b8ff;
+  --map-error: #ff9a91;
+  color: var(--map-text);
+  color-scheme: dark;
+}
+
+.qp-shell--workbench .qp-topbar {
+  border: 1px solid var(--map-line);
+  border-radius: 6px;
+  color: var(--map-text);
+  background: var(--map-panel);
+  box-shadow: none;
+}
+.qp-shell--workbench .qp-logo__bubble {
+  border: 0;
+  border-radius: 4px;
+  background: var(--map-accent);
+  box-shadow: none;
+}
+.qp-shell--workbench .qp-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--map-muted);
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+}
+.qp-shell--workbench .qp-tab--active {
+  border-bottom-color: var(--map-accent);
+  color: var(--map-text);
+  background: transparent;
+}
+.qp-shell--workbench .qp-player-mini {
+  border: 1px solid var(--map-line);
+  border-radius: 4px;
+  color: var(--map-text);
+  background: var(--map-raised);
+  box-shadow: none;
+}
+.qp-shell--workbench .qp-player-mini__face {
+  border-radius: 4px;
+  color: #101216;
+  background: var(--map-accent);
+  box-shadow: none;
+}
+.qp-shell--workbench .qp-content { color: var(--map-text); }
+.qp-shell--workbench .map-page {
+  min-width: 0;
+  color: var(--map-text);
+  font-size: 14px;
+}
+.qp-shell--workbench .map-page * { border-radius: 0 !important; }
+.qp-shell--workbench .map-page--editing { gap: 12px; }
+.qp-shell--workbench .map-page__hero,
+.qp-shell--workbench .map-browser--workbench > .panel,
+.qp-shell--workbench .map-workspace--workbench > .panel {
+  border: 1px solid var(--map-line);
+  border-radius: 4px;
+  color: var(--map-text);
+  background: var(--map-panel);
+  box-shadow: none;
+}
+.qp-shell--workbench .map-page__hero--editor {
+  gap: 8px;
+  padding: 12px 14px;
+}
+.qp-shell--workbench .map-page__hero h2,
+.qp-shell--workbench .map-page h3,
+.qp-shell--workbench .map-page h4,
+.qp-shell--workbench .song-editor h3,
+.qp-shell--workbench .map-page strong {
+  color: var(--map-text);
+}
+.qp-shell--workbench .map-page p,
+.qp-shell--workbench .map-page small,
+.qp-shell--workbench .map-page .footnote,
+.qp-shell--workbench .map-page .lede,
+.qp-shell--workbench .map-page .field__hint {
+  color: var(--map-muted);
+  font-size: 14px;
+}
+.qp-shell--workbench .map-page .eyebrow {
+  color: var(--map-accent);
+  font-size: 12px;
+}
+.qp-shell--workbench .map-page button,
+.qp-shell--workbench .map-page input,
+.qp-shell--workbench .map-page select,
+.qp-shell--workbench .map-page textarea,
+.qp-shell--workbench .map-page .panel,
+.qp-shell--workbench .map-page .chip,
+.qp-shell--workbench .map-page .map-empty,
+.qp-shell--workbench .map-page .room-card {
+  border-radius: 4px;
+  box-shadow: none;
+}
+.qp-shell--workbench .map-page .button {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--map-accent);
+  color: #101216;
+  background: var(--map-accent);
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 4px;
+}
+.qp-shell--workbench .map-page .button--ghost {
+  border-color: var(--map-line);
+  color: var(--map-text);
+  background: transparent;
+}
+.qp-shell--workbench .map-page .button--danger {
+  border-color: var(--map-line);
+  color: var(--map-error);
+  background: transparent;
+}
+.qp-shell--workbench .map-page .field > span,
+.qp-shell--workbench .map-page .field > label {
+  color: var(--map-muted);
+  font-size: 14px;
+}
+.qp-shell--workbench .map-page .field input,
+.qp-shell--workbench .map-page .field select,
+.qp-shell--workbench .map-page .field textarea,
+.qp-shell--workbench .map-page input,
+.qp-shell--workbench .map-page select,
+.qp-shell--workbench .map-page textarea {
+  min-width: 0;
+  border: 1px solid var(--map-line);
+  color: var(--map-text);
+  background: #111318;
+  font-size: 14px;
+}
+.qp-shell--workbench .map-page input::placeholder,
+.qp-shell--workbench .map-page textarea::placeholder {
+  color: #a7b0bc;
+  opacity: 1;
+}
+.qp-shell--workbench .map-page .chip {
+  border: 1px solid var(--map-line);
+  color: var(--map-muted);
+  background: transparent;
+  font-size: 13px;
+  border-radius: 4px;
+}
+.qp-shell--workbench .map-page .map-mode-bar {
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--map-line);
+  background: var(--map-panel);
+}
+.qp-shell--workbench .map-page .map-mode-button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--map-muted);
+  background: transparent;
+}
+.qp-shell--workbench .map-page .map-mode-button--active {
+  border-bottom-color: var(--map-accent);
+  color: var(--map-text);
+}
+.qp-shell--workbench .map-page .map-studio__quick-save { margin-left: auto; }
+.qp-shell--workbench .map-page .map-studio__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--map-muted);
+  font-size: 14px;
+}
+.qp-shell--workbench .map-studio__status-item {
+  color: var(--map-muted);
+  font-size: 14px;
+}
+.qp-shell--workbench .map-studio__status-item--primary { color: var(--map-accent); }
+.qp-shell--workbench .map-studio__status-item--warning { color: var(--map-error); }
+.qp-shell--workbench .map-workspace--workbench.map-studio__workspace {
+  display: grid;
+  grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
+  grid-template-areas: "rail editor";
+  align-items: start;
+  gap: 12px;
+}
+.qp-shell--workbench .map-studio__editor { grid-area: editor; min-width: 0; gap: 12px; }
+.qp-shell--workbench .map-studio__rail {
+  grid-area: rail;
+  position: sticky;
+  top: 8px;
+  min-width: 0;
+  max-height: calc(100dvh - 16px);
+  gap: 0;
+  overflow: hidden;
+}
+.qp-shell--workbench .map-studio__editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--map-line);
+  background: var(--map-panel);
+}
+.qp-shell--workbench .map-studio__editor-toolbar .map-builder__header,
+.qp-shell--workbench .map-studio__editor-toolbar .map-builder__actions {
+  margin: 0;
+  background: transparent;
+}
+.qp-shell--workbench .map-studio__editor-toolbar h2 { font-size: 18px; }
+.qp-shell--workbench .map-studio__rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--map-line);
+  background: transparent;
+}
+.qp-shell--workbench .map-studio__rail-header h3 {
+  margin: 2px 0 0;
+  font-size: 16px;
+}
+.qp-shell--workbench .map-studio__rail .room-list {
+  max-height: 150px;
+  overflow: auto;
+  border-bottom: 1px solid var(--map-line);
+}
+.qp-shell--workbench .map-studio__rail .room-card {
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--map-line);
+  color: var(--map-text);
+  background: transparent;
+  text-align: left;
+}
+.qp-shell--workbench .map-studio__rail .room-card--selected {
+  box-shadow: inset 2px 0 var(--map-accent);
+  background: var(--map-raised);
+}
+.qp-shell--workbench .map-studio__rail .room-card__header strong { color: var(--map-text); }
+.qp-shell--workbench .map-studio__rail .room-card p,
+.qp-shell--workbench .map-studio__rail .room-card span {
+  color: var(--map-muted);
+  font-size: 13px;
+}
+.qp-shell--workbench .map-studio__rail .map-toolbar__search {
+  margin: 0;
+  padding: 8px;
+}
+.qp-shell--workbench .mlab-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--map-line);
+  border-bottom: 1px solid var(--map-line);
+}
+.qp-shell--workbench .mlab-pager__status,
+.qp-shell--workbench .mlab-pager__size span {
+  color: var(--map-muted);
+  font-size: 13px;
+}
+.qp-shell--workbench .mlab-pager__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+.qp-shell--workbench .mlab-select--compact {
+  height: 32px;
+  padding: 2px 6px;
+}
+.qp-shell--workbench .mlab-btn {
+  min-height: 32px;
+  padding: 4px 7px;
+  border: 1px solid var(--map-line);
+  color: var(--map-text);
+  background: transparent;
+  font-size: 13px;
+}
+.qp-shell--workbench .map-studio__rail .song-queue {
+  min-height: 0;
+  max-height: min(58dvh, 680px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.qp-shell--workbench .map-studio__rail .song-queue__item {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--map-line);
+  border-radius: 0;
+  color: var(--map-muted);
+  background: transparent;
+  text-align: left;
+}
+.qp-shell--workbench .map-studio__rail .song-queue__item--selected {
+  box-shadow: inset 2px 0 var(--map-accent);
+  background: var(--map-raised);
+}
+.qp-shell--workbench .song-queue__title-row { min-width: 0; gap: 6px; }
+.qp-shell--workbench .song-queue__title-row strong {
+  overflow: hidden;
+  color: var(--map-text);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qp-shell--workbench .song-queue__meta-row { gap: 8px; }
+.qp-shell--workbench .song-queue__meta-row p {
+  overflow: hidden;
+  color: var(--map-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qp-shell--workbench .map-studio__track-state {
+  flex: none;
+  color: var(--map-accent);
+  font-size: 12px;
+}
+.qp-shell--workbench .map-studio__identity-card,
+.qp-shell--workbench .map-studio__rules,
+.qp-shell--workbench .song-editor,
+.qp-shell--workbench .song-editor__section,
+.qp-shell--workbench .map-collapsible {
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--map-line);
+  border-radius: 0;
+  color: var(--map-text);
+  background: transparent;
+  box-shadow: none;
+}
+.qp-shell--workbench .map-studio__identity-card .song-editor__section-header,
+.qp-shell--workbench .map-studio__rules .map-studio__section-title,
+.qp-shell--workbench .song-editor__section-header {
+  padding: 0 0 8px;
+  border: 0;
+  background: transparent;
+}
+.qp-shell--workbench .map-studio__identity-card > .grid,
+.qp-shell--workbench .map-studio__primary-settings { gap: 10px; }
+.qp-shell--workbench .map-studio__identity-card .field { min-width: 0; }
+.qp-shell--workbench .map-studio__identity-card .field textarea {
+  height: 44px;
+  min-height: 44px;
+  resize: vertical;
+}
+.qp-shell--workbench .map-studio__rules > summary,
+.qp-shell--workbench .map-studio__advanced > summary,
+.qp-shell--workbench .map-studio__map-picker > summary,
+.qp-shell--workbench .map-collapsible > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 7px 0;
+  color: var(--map-text);
+  cursor: pointer;
+  list-style: none;
+}
+.qp-shell--workbench .map-studio__rules > summary::-webkit-details-marker,
+.qp-shell--workbench .map-studio__advanced > summary::-webkit-details-marker,
+.qp-shell--workbench .map-studio__map-picker > summary::-webkit-details-marker,
+.qp-shell--workbench .map-collapsible > summary::-webkit-details-marker { display: none; }
+.qp-shell--workbench .map-studio__rules > summary::after,
+.qp-shell--workbench .map-studio__advanced > summary::after,
+.qp-shell--workbench .map-studio__map-picker > summary::after,
+.qp-shell--workbench .map-collapsible > summary::after {
+  content: "+";
+  color: var(--map-accent);
+  font-size: 18px;
+}
+.qp-shell--workbench .map-studio__rules[open] > summary::after,
+.qp-shell--workbench .map-studio__advanced[open] > summary::after,
+.qp-shell--workbench .map-studio__map-picker[open] > summary::after,
+.qp-shell--workbench .map-collapsible[open] > summary::after { content: "−"; }
+.qp-shell--workbench .map-studio__section-title { margin: 0; }
+.qp-shell--workbench .map-studio__section-title .map-studio__timer-badge {
+  min-width: auto;
+  border: 0;
+  border-radius: 0;
+  color: var(--map-accent);
+  background: transparent;
+  font-size: 14px;
+}
+.qp-shell--workbench .map-studio__rules-body,
+.qp-shell--workbench .map-studio__advanced-body,
+.qp-shell--workbench .map-collapsible__body {
+  padding: 8px 0;
+  border-top: 1px solid var(--map-line);
+}
+.qp-shell--workbench .map-studio__rules-body .toggle-card,
+.qp-shell--workbench .map-studio__rules-body .rule-grid > .toggle-card {
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--map-line);
+  border-radius: 0;
+  color: var(--map-text);
+  background: transparent;
+}
+.qp-shell--workbench .map-studio__advanced .song-preview,
+.qp-shell--workbench .map-studio__advanced .song-preview__player,
+.qp-shell--workbench .map-collapsible .song-builder-card,
+.qp-shell--workbench .map-collapsible .bulk-import-guide__item {
+  border: 0;
+  border-bottom: 1px solid var(--map-line);
+  color: var(--map-text);
+  background: transparent;
+  box-shadow: none;
+}
+.qp-shell--workbench .map-studio__rules-body .toggle-card p { margin: 3px 0; }
+.qp-shell--workbench .song-editor__header {
+  padding: 2px 0 8px;
+  border: 0;
+  background: transparent;
+}
+.qp-shell--workbench .song-editor__identity h3 {
+  overflow-wrap: anywhere;
+  font-size: 18px;
+}
+.qp-shell--workbench .map-studio__song-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 0;
+  border-top: 1px solid var(--map-line);
+  border-bottom: 1px solid var(--map-line);
+}
+.qp-shell--workbench .map-studio__song-actions .button {
+  min-height: 32px;
+  padding: 4px 7px;
+  font-size: 13px;
+}
+.qp-shell--workbench .map-studio__jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--map-muted);
+  font-size: 13px;
+}
+.qp-shell--workbench .map-studio__jump input {
+  width: 52px;
+  height: 32px;
+}
+.qp-shell--workbench .map-studio__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--map-line);
+  background: var(--map-panel);
+}
+.qp-shell--workbench .map-studio__error,
+.qp-shell--workbench .mlab-field__error { color: var(--map-error) !important; }
+.qp-shell--workbench .mlab-field__error { margin: 4px 0 0; font-size: 13px !important; }
+.qp-shell--workbench .map-page [aria-invalid="true"] { border-color: var(--map-error); }
+.qp-shell--workbench .map-page button:focus-visible,
+.qp-shell--workbench .map-page input:focus-visible,
+.qp-shell--workbench .map-page select:focus-visible,
+.qp-shell--workbench .map-page textarea:focus-visible,
+.qp-shell--workbench .qp-topbar a:focus-visible,
+.qp-shell--workbench .qp-topbar button:focus-visible {
+  outline: 2px solid var(--map-accent);
+  outline-offset: 2px;
+}
+.qp-shell--workbench .map-page [style*="border-radius"] { border-radius: 4px !important; }
+.qp-shell--workbench .map-feedback {
+  border: 1px solid var(--map-line);
+  border-radius: 4px;
+  color: var(--map-text);
+  background: var(--map-panel);
+}
+.qp-shell--workbench .map-feedback--success { border-left: 2px solid var(--map-accent); }
+.qp-shell--workbench .map-empty,
+.qp-shell--workbench .stat-list > div,
+.qp-shell--workbench .map-song-card {
+  border: 0;
+  border-bottom: 1px solid var(--map-line);
+  border-radius: 0;
+  color: var(--map-text);
+  background: transparent;
+}
+
+@media (max-width: 760px) {
+  .qp-shell--workbench {
+    width: 100%;
+    padding: 7px 10px 18px;
+  }
+  .qp-shell--workbench .qp-topbar {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 9px;
+  }
+  .qp-shell--workbench .qp-tabs { grid-column: 1 / -1; grid-row: 2; }
+  .qp-shell--workbench .qp-tab { flex: 0 0 auto; min-width: 0; }
+  .qp-shell--workbench .map-page__hero--editor { padding: 10px; }
+  .qp-shell--workbench .map-page--editing { gap: 8px; }
+  .qp-shell--workbench .map-page__hero--editor {
+    gap: 4px;
+    padding: 4px 0;
+    border: 0;
+    background: transparent !important;
+  }
+  .qp-shell--workbench .map-page__hero--editor .map-page__hero-head {
+    align-items: center;
+  }
+  .qp-shell--workbench .map-page__hero--editor .eyebrow,
+  .qp-shell--workbench .map-page__hero--editor .lede,
+  .qp-shell--workbench .map-page__hero--editor .map-studio__status {
+    display: none;
+  }
+  .qp-shell--workbench .map-page__hero--editor h2 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.25;
+  }
+  .qp-shell--workbench .map-page .map-mode-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding: 4px 0;
+  }
+  .qp-shell--workbench .map-page .map-mode-button {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 4px 6px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .qp-shell--workbench .map-page .map-studio__quick-save {
+    flex: 0 0 auto;
+    margin-left: auto;
+    min-height: 32px;
+    padding: 4px 6px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .qp-shell--workbench .map-workspace--workbench.map-studio__workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "rail" "editor";
+    gap: 8px;
+  }
+  .qp-shell--workbench .map-studio__rail {
+    position: static;
+    max-height: none;
+  }
+  .qp-shell--workbench .map-studio__rail-header {
+    padding-bottom: 4px;
+  }
+  .qp-shell--workbench .map-studio__rail-header .eyebrow {
+    display: none;
+  }
+  .qp-shell--workbench .map-studio__rail-header h3 {
+    margin: 0;
+    font-size: 14px;
+  }
+  .qp-shell--workbench .map-studio__rail .room-list { max-height: 72px; }
+  .qp-shell--workbench .map-studio__rail .song-queue { max-height: 232px; }
+  .qp-shell--workbench .map-studio__rail .map-toolbar__search {
+    padding: 4px 0;
+  }
+  .qp-shell--workbench .map-studio__rail .mlab-pager {
+    gap: 4px;
+    padding: 2px 0;
+  }
+  .qp-shell--workbench .map-studio__editor-toolbar { position: static; }
+  .qp-shell--workbench .map-studio__editor-toolbar .map-builder__actions {
+    flex-wrap: wrap;
+  }
+  .qp-shell--workbench .map-studio__editor-toolbar .button { flex: 1 1 auto; }
+  .qp-shell--workbench .map-studio__identity-card > .grid--two:not(.map-studio__primary-settings),
+  .qp-shell--workbench .map-studio__editor .grid--two,
+  .qp-shell--workbench .map-studio__editor .grid--three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .qp-shell--workbench .map-studio__primary-settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .qp-shell--workbench .map-studio__identity-card {
+    padding: 6px 0;
+  }
+  .qp-shell--workbench .map-studio__identity-card .song-editor__section-header {
+    padding-bottom: 4px;
+  }
+  .qp-shell--workbench .map-studio__identity-card .song-editor__section-header strong,
+  .qp-shell--workbench .map-studio__identity-card .chip-list {
+    display: none;
+  }
+  .qp-shell--workbench .map-studio__identity-card > .grid,
+  .qp-shell--workbench .map-studio__primary-settings {
+    gap: 6px;
+  }
+  .qp-shell--workbench .map-studio__map-picker > summary {
+    min-height: 32px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--map-line);
+    color: var(--map-muted);
+    font-size: 13px;
+  }
+  .qp-shell--workbench .map-studio__footer { position: sticky; bottom: 0; }
+}
+
+:root:has(.qp-shell--workbench),
+html:has(.qp-shell--workbench),
+body:has(.qp-shell--workbench),
+#root:has(.qp-shell--workbench) {
+  color: #e8ebf0 !important;
+  background: #101216 !important;
+}
+.qp-shell--workbench .map-page--editing,
+.qp-shell--workbench .map-page--editing * {
+  color: var(--map-text) !important;
+}
+.qp-shell--workbench .map-page .map-page__hero::after { display: none !important; }
+.qp-shell--workbench .map-page .map-page__hero,
+.qp-shell--workbench .map-page .map-hero-stat,
+.qp-shell--workbench .map-page :is(.map-browser__list, .map-browser__detail, .map-detail-card, .map-song-card),
+.qp-shell--workbench .map-page .room-card {
+  border: 0;
+  border-bottom: 1px solid var(--map-line);
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.qp-shell--workbench .map-wizard {
+  width: min(100%, 840px);
+  margin-inline: auto;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.qp-shell--workbench .map-wizard__steps,
+.qp-shell--workbench .map-wizard__tools,
+.qp-shell--workbench .map-wizard__footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.qp-shell--workbench .map-wizard__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--map-line);
+}
+
+.qp-shell--workbench .map-page--editing .map-wizard__steps li [type="button"],
+.qp-shell--workbench .map-page--editing .map-wizard__steps li span {
+  display: inline-block;
+  padding: 7px 5px;
+  color: var(--map-muted) !important;
+}
+
+.qp-shell--workbench .map-page--editing .map-wizard__steps [aria-current="step"] > * {
+  box-shadow: inset 0 -2px var(--map-accent);
+  color: var(--map-text) !important;
+  font-weight: 700;
+}
+
+.qp-shell--workbench .map-wizard h2 { margin: 16px 0 8px; }
+.qp-shell--workbench .map-wizard__body,
+.qp-shell--workbench .map-wizard__track,
+.qp-shell--workbench .map-wizard__import,
+.qp-shell--workbench .map-wizard__source,
+.qp-shell--workbench .map-wizard__rules { display: grid; min-width: 0; gap: 10px; }
+.qp-shell--workbench .map-wizard :is(p, dd, strong) { overflow-wrap: anywhere; }
+.qp-shell--workbench .map-wizard button:not(.button) { background: transparent; border: 0; }
+.qp-shell--workbench .map-wizard [aria-pressed="true"] { box-shadow: inset 0 -2px var(--map-accent); }
+.qp-shell--workbench .map-wizard__footer { justify-content: flex-end; padding: 12px 0; margin-top: 12px; border-top: 1px solid var(--map-line); }
+.qp-shell--workbench .map-wizard__songs { margin: 0; padding: 0; list-style: none; }
+.qp-shell--workbench .map-wizard__song-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  border-bottom: 1px solid var(--map-line);
+}
+.qp-shell--workbench .map-wizard__song-title { min-width: 0; flex: 1; text-align: left; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+.qp-shell--workbench .map-wizard__row-menu { position: relative; }
+.qp-shell--workbench .map-wizard__row-menu summary { list-style: none; cursor: pointer; padding: 6px 12px; }
+.qp-shell--workbench .map-wizard__row-actions { position: absolute; z-index: 4; right: 0; top: 100%; display: grid; min-width: 100px; padding: 4px; background: var(--map-panel); border: 1px solid var(--map-line); }
+.qp-shell--workbench .map-wizard__row-actions button { padding: 6px; white-space: nowrap; text-align: left; }
+.qp-shell--workbench .map-wizard__summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 12px; margin: 0; }
+.qp-shell--workbench .map-wizard__summary > * { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--map-line); }
+.qp-shell--workbench .map-wizard__issues button { text-align: left; text-decoration: underline; }
+.qp-shell--workbench .map-page--editing .map-wizard .song-editor__section {
+  grid-area: auto;
+  min-height: 0;
+  padding: 8px 0;
+}
+.qp-shell--workbench .map-wizard__track > .button { justify-self: start; }
+.qp-shell--workbench .map-wizard__track,
+.qp-shell--workbench .map-wizard__track > * { min-width: 0; }
+.qp-shell--workbench .map-wizard .song-editor__section-header { min-height: 0; }
+.qp-shell--workbench .map-page--editing .map-wizard :is(.field, .toggle-card) {
+  min-height: 0;
+}
+@media (max-width: 760px) {
+  .qp-shell--workbench .map-wizard__steps { gap: 1px; }
+  .qp-shell--workbench .map-wizard__steps li { font-size: 12px; }
+  .qp-shell--workbench .map-wizard .grid--two { grid-template-columns: minmax(0, 1fr); }
+}
+.qp-shell--workbench .map-page--editing .map-page__hero-copy h2,
+.qp-shell--workbench .map-page--editing .map-builder__header h2,
+.qp-shell--workbench .map-page--editing .map-studio__identity-card strong,
+.qp-shell--workbench .map-page--editing .song-editor__section strong,
+.qp-shell--workbench .map-page--editing .song-editor h3 {
+  color: var(--map-text) !important;
+}
+.qp-shell--workbench .map-page--editing .map-page__hero-copy .lede,
+.qp-shell--workbench .map-page--editing .footnote,
+.qp-shell--workbench .map-page--editing .lede,
+.qp-shell--workbench .map-page--editing .field > span,
+.qp-shell--workbench .map-page--editing .field__hint,
+.qp-shell--workbench .map-page--editing .song-queue__meta-row p {
+  color: var(--map-muted) !important;
+}
+.qp-shell--workbench .map-page--editing .eyebrow,
+.qp-shell--workbench .map-page--editing .map-studio__track-state {
+  color: var(--map-accent) !important;
+}
+.qp-shell--workbench .map-page--editing .map-page__hero--editor,
+.qp-shell--workbench .map-page--editing .map-studio__editor,
+.qp-shell--workbench .map-page--editing .map-studio__rail,
+.qp-shell--workbench .map-page--editing .map-studio__editor-toolbar {
+  border-color: var(--map-line) !important;
+  color: var(--map-text) !important;
+  background: var(--map-panel) !important;
+  box-shadow: none !important;
+}
+.qp-shell--workbench .map-page--editing .map-studio__status-item {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  color: var(--map-muted) !important;
+  background: transparent !important;
+  font-size: 14px !important;
+}
+.qp-shell--workbench .map-page--editing .map-studio__status-item--primary,
+.qp-shell--workbench .map-page--editing .map-studio__status-item--primary *,
+.qp-shell--workbench .map-page--editing .map-studio__status-item--warning {
+  color: var(--map-accent) !important;
+}
+.qp-shell--workbench .map-page--editing .map-mode-button,
+.qp-shell--workbench .map-page--editing .map-mode-button--active {
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  color: var(--map-muted) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.qp-shell--workbench .map-page--editing .map-mode-button--active {
+  border-bottom-color: var(--map-accent) !important;
+  color: var(--map-text) !important;
+}
+.qp-shell--workbench .map-page--editing .map-studio__identity-card,
+.qp-shell--workbench .map-page--editing .map-studio__rules,
+.qp-shell--workbench .map-page--editing .song-editor,
+.qp-shell--workbench .map-page--editing .song-editor__header,
+.qp-shell--workbench .map-page--editing .song-editor__section,
+.qp-shell--workbench .map-page--editing .map-collapsible {
+  border: 0 !important;
+  border-bottom: 1px solid var(--map-line) !important;
+  color: var(--map-text) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.qp-shell--workbench .map-page--editing .map-studio__rules > summary,
+.qp-shell--workbench .map-page--editing .map-studio__advanced > summary,
+.qp-shell--workbench .map-page--editing .map-collapsible > summary {
+  border: 0 !important;
+  border-bottom: 1px solid var(--map-line) !important;
+  color: var(--map-text) !important;
+  background: transparent !important;
+}
+.qp-shell--workbench .map-page--editing .map-collapsible__body,
+.qp-shell--workbench .map-page--editing .map-studio__rules-body,
+.qp-shell--workbench .map-page--editing .map-studio__advanced-body {
+  border-color: var(--map-line) !important;
+  color: var(--map-text) !important;
+  background: transparent !important;
+}
+.qp-shell--workbench .map-page--editing .song-preview,
+.qp-shell--workbench .map-page--editing .song-preview__player,
+.qp-shell--workbench .map-page--editing .song-preview__controls,
+.qp-shell--workbench .map-page--editing .map-studio__rules-body .toggle-card,
+.qp-shell--workbench .map-page--editing .map-collapsible .song-builder-card,
+.qp-shell--workbench .map-page--editing .bulk-import-guide__item {
+  border: 0 !important;
+  border-bottom: 1px solid var(--map-line) !important;
+  color: var(--map-text) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.qp-shell--workbench .map-page--editing .map-studio__editor .field input,
+.qp-shell--workbench .map-page--editing .map-studio__editor .field select,
+.qp-shell--workbench .map-page--editing .map-studio__editor .field textarea,
+.qp-shell--workbench .map-page--editing .map-studio__editor > input,
+.qp-shell--workbench .map-page--editing .map-studio__editor > select,
+.qp-shell--workbench .map-page--editing .map-studio__editor > textarea {
+  border-color: var(--map-line) !important;
+  color: var(--map-text) !important;
+  background: #111318 !important;
+}
+.qp-shell--workbench .map-page--editing .button,
+.qp-shell--workbench .map-page--editing .map-studio__quick-save {
+  border-color: var(--map-accent) !important;
+  color: #101216 !important;
+  background: var(--map-accent) !important;
+}
+.qp-shell--workbench .map-page--editing .button--ghost {
+  border-color: var(--map-line) !important;
+  color: var(--map-text) !important;
+  background: transparent !important;
+}
+.qp-shell--workbench .map-page--editing .button--danger,
+.qp-shell--workbench .map-page--editing .map-studio__error,
+.qp-shell--workbench .map-page--editing .mlab-field__error {
+  color: var(--map-error) !important;
+}
+.qp-shell--workbench .map-page--editing button,
+.qp-shell--workbench .map-page--editing input,
+.qp-shell--workbench .map-page--editing select,
+.qp-shell--workbench .map-page--editing textarea {
+  font-size: 14px !important;
+}
+.qp-shell--workbench .qp-player-mini__face { display: none; }
+.qp-shell--workbench .map-page--editing .song-queue__item,
+.qp-shell--workbench .map-page--editing .song-queue__item--ready,
+.qp-shell--workbench .map-page--editing .song-queue__item--incomplete {
+  border-left: 0 !important;
+  color: var(--map-muted) !important;
+  background: transparent !important;
+}
+.qp-shell--workbench .map-page--editing .song-queue__item--selected,
+.qp-shell--workbench .map-page--editing .song-queue__item--selected:hover {
+  box-shadow: inset 2px 0 var(--map-accent) !important;
+  background: var(--map-raised) !important;
+}
+.qp-shell--workbench .map-page--editing .map-studio__track-state {
+  padding: 0 !important;
+  border: 0 !important;
+  color: var(--map-accent) !important;
+  background: transparent !important;
+  font-size: 13px !important;
+}
+.qp-shell--workbench .map-page--editing .map-studio__rail .room-card--selected {
+  border-left: 0 !important;
+  box-shadow: inset 2px 0 var(--map-accent) !important;
+  color: var(--map-text) !important;
+  background: var(--map-raised) !important;
+}

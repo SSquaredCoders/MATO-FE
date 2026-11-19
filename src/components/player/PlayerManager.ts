@@ -2,7 +2,6 @@
 declare global {
   interface Window {
     MATOPlayer?: any;
-    YT?: any;
     onYouTubeIframeAPIReady?: () => void;
     MATO_LOCKED?: boolean; // 새로운 전역 상태 - 플레이어 잠금 여부
   }

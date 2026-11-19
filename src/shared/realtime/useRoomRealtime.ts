@@ -68,13 +68,13 @@ export function useRoomRealtime({
       reconnectDelay: 3000,
       debug: () => {},
       onConnect: () => {
-        onConnectionChangeRef.current("connected");
         client.subscribe(`/topic/v2/rooms/${roomName}`, (frame) => {
           const envelope = JSON.parse(
             frame.body,
           ) as ServerEnvelope<RoomEventPayload>;
           onEnvelopeRef.current(envelope);
         });
+        onConnectionChangeRef.current("connected");
       },
       onStompError: () => {
         onConnectionChangeRef.current("error");
